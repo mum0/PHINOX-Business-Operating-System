@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>PHINOX Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--primary:#111;--secondary:#fff;--success:#34A853;--warning:#FBBC05;--danger:#EA4335;--info:#4285F4;--header:#202124;--border:#DADCE0;}
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+    body{background:#f5f5f5;color:var(--primary);}
+    .sidebar{width:260px;height:100vh;background:var(--header);position:fixed;right:0;top:0;color:#fff;padding:20px 0;}
+    .sidebar h2{text-align:center;margin-bottom:30px;font-size:20px;border-bottom:1px solid #444;padding-bottom:15px;}
+    .nav-item{display:block;padding:12px 25px;color:#fff;text-decoration:none;transition:.2s;cursor:pointer;border-right:4px solid transparent;}
+    .nav-item:hover,.nav-item.active{background:#2d2d2d;border-right-color:var(--info);}
+    .nav-item i{margin-left:10px;}
+    .main{margin-right:260px;padding:30px;}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:30px;}
+    .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid var(--info);}
+    .card.success{border-top-color:var(--success);} .card.warning{border-top-color:var(--warning);} .card.danger{border-top-color:var(--danger);}
+    .card h3{font-size:14px;color:#666;margin-bottom:8px;}
+    .card .value{font-size:28px;font-weight:700;}
+    .section{background:#fff;border-radius:12px;padding:25px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:25px;}
+    .section h2{font-size:18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}
+    th{background:var(--header);color:#fff;padding:12px;text-align:right;}
+    td{padding:12px;border-bottom:1px solid var(--border);}
+    tr:hover{background:#f8f9fa;}
+    .btn{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s;}
+    .btn-primary{background:var(--info);color:#fff;} .btn-success{background:var(--success);color:#fff;}
+    .btn-danger{background:var(--danger);color:#fff;} .btn-warning{background:var(--warning);color:#000;}
+    .btn:hover{opacity:.85;transform:translateY(-1px);}
+    .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+    .badge-green{background:#e6f4ea;color:var(--success);} .badge-red{background:#fce8e6;color:var(--danger);}
+    .badge-yellow{background:#fef3e8;color:#b06000;} .badge-blue{background:#e8f0fe;color:var(--info);}
+    .loading{text-align:center;padding:40px;color:#666;}
+    .hidden{display:none;}
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>⚡ PHINOX BOS</h2>
+  <a class="nav-item active" onclick="showTab('dashboard')">📊 لوحة التحكم</a>
+  <a class="nav-item" onclick="showTab('tasks')">✅ المهام</a>
+  <a class="nav-item" onclick="showTab('members')">👥 الفريق</a>
+  <a class="nav-item" onclick="showTab('inventory')">📦 المخزون</a>
+  <a class="nav-item" onclick="showTab('orders')">🛒 الطلبات</a>
+  <a class="nav-item" onclick="showTab('finance')">💰 المالية</a>
+  <a class="nav-item" onclick="refreshSystem()">🔄 تحديث النظام</a>
+</div>
+
+<div class="main">
+  <div class="header">
+    <h1 id="pageTitle">لوحة التحكم الرئيسية</h1>
+    <button class="btn btn-primary" onclick="refreshSystem()">تحديث البيانات</button>
+  </div>
+
+  <!-- Dashboard Tab -->
+  <div id="dashboard" class="tab-content">
+    <div class="cards" id="dashboardCards">
+      <div class="loading">جاري التحميل...</div>
+    </div>
+    <div class="section">
+      <h2>🏆 أفضل الأعضاء</h2>
+      <div id="topMembers"><div class="loading">جاري التحميل...</div></div>
+    </div>
+    <div class="section">
+      <h2>📋 ملخص المهام</h2>
+      <div id="tasksSummary"><div class="loading">جاري التحميل...</div></div>
+    </div>
+  </div>
+
+  <!-- Tasks Tab -->
+  <div id="tasks" class="tab-content hidden">
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2>قائمة المهام</h2>
+        <button class="btn btn-success" onclick="openTaskForm()">+ مهمة جديدة</button>
+      </div>
+      <div id="tasksTable"><div class="loading">جاري التحميل...</div></div>
+    </div>
+  </div>
+
+  <!-- Members Tab -->
+  <div id="members" class="tab-content hidden">
+    <div class="section">
+      <h2>أعضاء الفريق</h2>
+      <div id="membersTable"><div class="loading">جاري التحميل...</div></div>
+    </div>
+  </div>
+
+  <!-- Inventory Tab -->
+  <div id="inventory" class="tab-content hidden">
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2>المنتجات</h2>
+        <button class="btn btn-success" onclick="openProductForm()">+ منتج جديد</button>
+      </div>
+      <div id="inventoryTable"><div class="loading">جاري التحميل...</div></div>
+    </div>
+  </div>
+
+  <!-- Orders Tab -->
+  <div id="orders" class="tab-content hidden">
+    <div class="section">
+      <h2>طلبات العملاء</h2>
+      <div id="ordersTable"><div class="loading">جاري التحميل...</div></div>
+    </div>
+  </div>
+
+  <!-- Finance Tab -->
+  <div id="finance" class="tab-content hidden">
+    <div class="section">
+      <h2>المعاملات المالية</h2>
+      <div id="financeTable"><div class="loading">جاري التحميل...</div></div>
+    </div>
+    <div class="cards" id="financeCards">
+      <div class="loading">جاري التحميل...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(tab){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.add('hidden'));
+  document.getElementById(tab).classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  event.target.classList.add('active');
+  const titles={dashboard:'لوحة التحكم',tasks:'المهام',members:'الفريق',inventory:'المخزون',orders:'الطلبات',finance:'المالية'};
+  document.getElementById('pageTitle').textContent=titles[tab];
+  if(tab==='tasks') loadTasks();
+  if(tab==='members') loadMembers();
+  if(tab==='inventory') loadInventory();
+  if(tab==='orders') loadOrders();
+  if(tab==='finance') loadFinance();
+}
+
+function refreshSystem(){
+  google.script.run.withSuccessHandler(()=>{
+    alert('تم التحديث بنجاح');
+    location.reload();
+  }).refreshDashboard();
+}
+
+// Dashboard
+function loadDashboard(){
+  google.script.run.withSuccessHandler(data=>{
+    const cards=document.getElementById('dashboardCards');
+    cards.innerHTML=data.map(c=>`<div class="card ${c.class||''}"><h3>${c.label}</h3><div class="value">${c.value}</div></div>`).join('');
+  }).getDashboardCards();
+
+  google.script.run.withSuccessHandler(list=>{
+    const div=document.getElementById('topMembers');
+    div.innerHTML='<table><tr><th>العضو</th><th>KPI</th><th>الإنتاجية</th><th>التقدير</th></tr>'+
+      list.map(m=>`<tr><td>${m.member}</td><td>${m.kpi}</td><td>${m.productivity}%</td><td><span class="badge badge-green">${m.grade}</span></td></tr>`).join('')+'</table>';
+  }).topPerformers(5);
+
+  google.script.run.withSuccessHandler(data=>{
+    document.getElementById('tasksSummary').innerHTML=
+      '<table><tr><th>المقياس</th><th>القيمة</th></tr>'+
+      data.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')+'</table>';
+  }).getTasksSummary();
+}
+
+// Tasks
+function loadTasks(){
+  google.script.run.withSuccessHandler(tasks=>{
+    const div=document.getElementById('tasksTable');
+    div.innerHTML='<table><tr><th>المعرف</th><th>العنوان</th><th>الفئة</th><th>المسند إليه</th><th>الأولوية</th><th>الحالة</th><th>الإنجاز</th></tr>'+
+      tasks.map(t=>{
+        let badge='badge-blue';
+        if(t[6]==='Approved') badge='badge-green';
+        if(t[6]==='Rejected'||t[6]==='Cancelled') badge='badge-red';
+        if(t[6]==='Waiting Review') badge='badge-yellow';
+        return `<tr><td>${t[0]}</td><td>${t[1]}</td><td>${t[2]}</td><td>${t[3]}</td><td>${t[4]}</td><td><span class="badge ${badge}">${t[6]}</span></td><td>${t[9]}%</td></tr>`;
+      }).join('')+'</table>';
+  }).getTasks();
+}
+
+// Members
+function loadMembers(){
+  google.script.run.withSuccessHandler(members=>{
+    const div=document.getElementById('membersTable');
+    div.innerHTML='<table><tr><th>المعرف</th><th>الاسم</th><th>الدور</th><th>البريد</th><th>الحالة</th><th>KPI</th><th>المهام المنجزة</th></tr>'+
+      members.map(m=>`<tr><td>${m[0]}</td><td>${m[1]}</td><td>${m[2]}</td><td>${m[3]}</td><td>${m[5]}</td><td>${m[7]}</td><td>${m[8]}</td></tr>`).join('')+'</table>';
+  }).getMembers();
+}
+
+// Inventory
+function loadInventory(){
+  google.script.run.withSuccessHandler(products=>{
+    const div=document.getElementById('inventoryTable');
+    div.innerHTML='<table><tr><th>المعرف</th><th>الاسم</th><th>الفئة</th><th>المستودع</th><th>الكمية</th><th>الحد الأدنى</th><th>التكلفة</th></tr>'+
+      products.map(p=>`<tr><td>${p[0]}</td><td>${p[1]}</td><td>${p[2]}</td><td>${p[10]}</td><td>${p[7]}</td><td>${p[9]}</td><td>${p[12]} ج.م</td></tr>`).join('')+'</table>';
+  }).getProducts();
+}
+
+// Orders
+function loadOrders(){
+  google.script.run.withSuccessHandler(orders=>{
+    const div=document.getElementById('ordersTable');
+    div.innerHTML='<table><tr><th>رقم الطلب</th><th>العميل</th><th>التاريخ</th><th>الحالة</th><th>المبلغ</th><th>الدفع</th></tr>'+
+      orders.map(o=>{
+        let badge='badge-blue';
+        if(o[5]==='Delivered') badge='badge-green';
+        if(o[5]==='Cancelled') badge='badge-red';
+        return `<tr><td>${o[0]}</td><td>${o[1]}</td><td>${new Date(o[4]).toLocaleDateString('ar-EG')}</td><td><span class="badge ${badge}">${o[5]}</span></td><td>${o[7]} ج.م</td><td>${o[8]}</td></tr>`;
+      }).join('')+'</table>';
+  }).getOrders();
+}
+
+// Finance
+function loadFinance(){
+  google.script.run.withSuccessHandler(txns=>{
+    const div=document.getElementById('financeTable');
+    div.innerHTML='<table><tr><th>المعرف</th><th>التاريخ</th><th>النوع</th><th>الفئة</th><th>الوصف</th><th>المبلغ</th><th>الرصيد</th></tr>'+
+      txns.map(t=>{
+        const color=t[2]==='Income'?'var(--success)':'var(--danger)';
+        return `<tr><td>${t[0]}</td><td>${new Date(t[1]).toLocaleDateString('ar-EG')}</td><td style="color:${color};font-weight:700;">${t[2]==='Income'?'إيراد':'مصروف'}</td><td>${t[3]}</td><td>${t[4]}</td><td>${t[5]} ج.م</td><td>${t[6]} ج.م</td></tr>`;
+      }).join('')+'</table>';
+  }).getTransactions();
+
+  google.script.run.withSuccessHandler(kpis=>{
+    const cards=document.getElementById('financeCards');
+    cards.innerHTML=`
+      <div class="card success"><h3>الرصيد الحالي</h3><div class="value">${kpis.currentBalance} ج.م</div></div>
+      <div class="card"><h3>إيرادات الشهر</h3><div class="value">${kpis.monthlyIncome} ج.م</div></div>
+      <div class="card warning"><h3>مصروفات الشهر</h3><div class="value">${kpis.monthlyExpense} ج.م</div></div>
+      <div class="card success"><h3>ربح الشهر</h3><div class="value">${kpis.monthlyProfit} ج.م</div></div>
+    `;
+  }).getFinancialKPIs();
+}
+
+function openTaskForm(){alert('افتح نموذج إضافة مهمة (يمكن ربطه لاحقاً)');}
+function openProductForm(){alert('افتح نموذج إضافة منتج (يمكن ربطه لاحقاً)');}
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>
