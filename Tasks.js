@@ -1,44 +1,3 @@
-/**
- * عرض الواجهة الرسومية
- */
-function showDashboardUI(){
-  const html = HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('PHINOX Dashboard')
-    .setWidth(1400)
-    .setHeight(900);
-  SpreadsheetApp.getUi().showModalDialog(html, 'PHINOX Business Operating System');
-}
-
-/**
- * تضمين ملفات HTML
- */
-function include(filename){
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
-}
-
-/**
- * دوال مساعدة للواجهة
- */
-function getDashboardCards(){
-  return [
-    {label:'الأعضاء', value:totalMembers(), class:''},
-    {label:'المهام', value:totalTasks(), class:''},
-    {label:'المنجزة', value:completedTasks(), class:'success'},
-    {label:'المتأخرة', value:getLateTasks().length, class:'danger'},
-    {label:'متوسط KPI', value:teamAverageKPI(), class:''},
-    {label:'الإنتاجية', value:averageProductivity()+'%', class:'success'}
-  ];
-}
-
-function getTasksSummary(){
-  return [
-    ['قيد الانتظار', pendingReviewCount()],
-    ['قيد التنفيذ', activeTasks()],
-    ['المنجزة', completedTasks()],
-    ['المتأخرة', getLateTasks().length],
-    ['متوسط الدرجة', averageTaskScore()]
-  ];
-}
 
 /**
  * ============================================================
@@ -52,8 +11,13 @@ function getTasksSummary(){
  */
 function createTask(task) {
 
-  validateTaskInput(task);
-
+  function validateTaskInput(task){
+    if(isEmpty(task.title)) throw new Error(t("val_task_title_required"));
+    if(isEmpty(task.assignedTo)) throw new Error(t("val_member_required"));
+    if(!Object.values(APP.PRIORITY).includes(task.priority)) throw new Error(t("val_invalid_priority"));
+    if(!Object.values(APP.DIFFICULTY).includes(task.difficulty)) throw new Error(t("val_invalid_difficulty"));
+}
+  
   const sheet = getSheet(APP.SHEETS.TASKS);
 
   const row = [

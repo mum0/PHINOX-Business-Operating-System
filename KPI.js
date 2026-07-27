@@ -471,21 +471,12 @@ function monthlyKPI(member){
  * اتجاه الأداء
  */
 function performanceTrend(member){
-
     const week = weeklyKPI(member);
-
     const month = monthlyKPI(member);
-
-    if(week > month)
-        return "UP";
-
-    if(week < month)
-        return "DOWN";
-
-    return "STABLE";
-
+    if(week > month) return t("perf_trend_up");
+    if(week < month) return t("perf_trend_down");
+    return t("perf_trend_stable");
 }
-
 /**
  * إنتاجية العضو
  */
