@@ -1,44 +1,73 @@
-
 /**
- * عرض الواجهة الرسومية
+ * ============================================================
+ * PHINOX HTML Interface
+ * Code.gs - API Layer for Web App
+ * ============================================================
  */
-function showDashboardUI(){
+
+/** فتح الواجهة */
+function showInterface(){
   const html = HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('PHINOX Dashboard')
-    .setWidth(1400)
-    .setHeight(900);
+    .setWidth(1200)
+    .setHeight(800);
   SpreadsheetApp.getUi().showModalDialog(html, 'PHINOX Business Operating System');
 }
 
-/**
- * تضمين ملفات HTML
- */
-function include(filename){
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+/** إضافة للقائمة */
+function onOpen(){
+  SpreadsheetApp.getUi()
+    .createMenu('PHINOX')
+    .addItem('🚀 Initialize System', 'initializeSystem')
+    .addItem('🖥️ Open Dashboard', 'showInterface')
+    .addItem('🔄 Refresh System', 'refreshSystem')
+    .addSeparator()
+    .addItem('⚡ Daily Trigger', 'createDailyTrigger')
+    .addToUi();
 }
 
-/**
- * دوال مساعدة للواجهة
- */
-function getDashboardCards(){
-  return [
-    {label:'الأعضاء', value:totalMembers(), class:''},
-    {label:'المهام', value:totalTasks(), class:''},
-    {label:'المنجزة', value:completedTasks(), class:'success'},
-    {label:'المتأخرة', value:getLateTasks().length, class:'danger'},
-    {label:'متوسط KPI', value:teamAverageKPI(), class:''},
-    {label:'الإنتاجية', value:averageProductivity()+'%', class:'success'}
-  ];
+/** بيانات لوحة التحكم */
+function getDashboardData(){
+  const orders = getOrders();
+  const delivered = orders.filter(o => o[5] === 'Delivered');
+  const revenue = delivered.reduce((sum,o)=>sum+(Number(o[7])||0),0);
+  const expenses = getTransactions().filter(t=>t[2]==='Expense').reduce((sum,t)=>sum+(Number(t[5])||0),0);
+  const pending = getTasks().filter(t=>t[6]==='Not Started').length;
+  const active = getTasks().filter(t=>t[6]==='In Progress').length;
+  const waiting = getTasks().filter(t=>t[6]==='Waiting Review').length;
+  const cancelled = getTasks().filter(t=>t[6]==='Cancelled').length;
+  const top = topPerformers(5);
+  return {
+    members: totalMembers(),
+    completed: completedTasks(),
+    late: getLateTasks().length,
+    kpi: teamAverageKPI(),
+    revenue: round(revenue,2),
+    expense: round(expenses,2),
+    pending: pending,
+    active: active,
+    waiting: waiting,
+    cancelled: cancelled,
+    topMembers: top
+  };
 }
 
-function getTasksSummary(){
-  return [
-    ['قيد الانتظار', pendingReviewCount()],
-    ['قيد التنفيذ', activeTasks()],
-    ['المنجزة', completedTasks()],
-    ['المتأخرة', getLateTasks().length],
-    ['متوسط الدرجة', averageTaskScore()]
-  ];
+/** بيانات المالية */
+function getFinanceData(){
+  const txns = getTransactions();
+  const balance = txns.length > 0 ? Number(txns[txns.length-1][6])||0 : 0;
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  const income = totalIncome(monthStart, monthEnd);
+  const expense = totalExpenses(monthStart, monthEnd);
+  return {
+    balance: balance,
+    income: income,
+    expense: expense,
+    profit: round(income-expense,2),
+    transactions: txns.slice(-50)
+  };
 }
 
 /**
