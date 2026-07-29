@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+    body{background:#f5f5f5;padding:20px;direction:rtl;}
+    h2{color:#1a237e;margin-bottom:20px;font-size:18px;border-bottom:2px solid #e0e0e0;padding-bottom:10px;}
+    .form-group{margin-bottom:15px;}
+    label{display:block;font-size:13px;font-weight:700;color:#555;margin-bottom:5px;}
+    input,select,textarea{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;background:#fff;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:#1a237e;}
+    .error{color:#C62828;font-size:12px;margin-top:4px;display:none;}
+    .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:25px;}
+    .btn{padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;}
+    .btn-primary{background:#1a237e;color:#fff;}
+    .btn-secondary{background:#e0e0e0;color:#333;}
+    .btn-add{background:#2E7D32;color:#fff;padding:6px 12px;font-size:12px;}
+    .item-row{display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;}
+    .item-row .form-group{flex:1;margin-bottom:0;}
+    .item-row .form-group.qty{flex:0 0 80px;}
+    .item-row .form-group.price{flex:0 0 100px;}
+    .item-row button{background:#C62828;color:#fff;border:none;border-radius:4px;padding:8px 12px;cursor:pointer;font-size:12px;}
+    .toast{position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:#37474f;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;display:none;z-index:9999;}
+    .section-box{background:#fff;padding:15px;border-radius:8px;margin-bottom:15px;border:1px solid #e0e0e0;}
+    .section-title{font-size:14px;font-weight:700;color:#555;margin-bottom:10px;}
+  </style>
+</head>
+<body>
+  <h2>🛒 طلب جديد</h2>
+
+  <div class="section-box">
+    <div class="section-title">👤 بيانات العميل</div>
+    <div class="form-group">
+      <label>اسم العميل *</label>
+      <input type="text" id="customer" placeholder="اسم العميل">
+      <div class="error" id="err-customer">اسم العميل مطلوب</div>
+    </div>
+    <div class="form-row" style="display:flex;gap:15px;">
+      <div class="form-group" style="flex:1;">
+        <label>الهاتف</label>
+        <input type="text" id="phone" placeholder="01234567890">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="email" placeholder="client@email.com">
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-title">📦 بنود الطلب</div>
+    <div id="itemsContainer"></div>
+    <button class="btn btn-add" onclick="addItemRow()">+ إضافة منتج</button>
+  </div>
+
+  <div class="form-group">
+    <label>عنوان الشحن</label>
+    <textarea id="shippingAddress" rows="2" placeholder="العنوان الكامل..."></textarea>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="google.script.host.close()">إلغاء</button>
+    <button class="btn btn-primary" onclick="submitOrder()">💾 إنشاء الطلب</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let itemCount = 0;
+
+    function addItemRow(){
+      itemCount++;
+      const container = document.getElementById('itemsContainer');
+      const div = document.createElement('div');
+      div.className = 'item-row';
+      div.id = 'item-' + itemCount;
+      div.innerHTML = `
+        <div class="form-group">
+          <label>المنتج</label>
+          <input type="text" class="item-name" placeholder="اسم المنتج">
+        </div>
+        <div class="form-group qty">
+          <label>الكمية</label>
+          <input type="number" class="item-qty" value="1" min="1">
+        </div>
+        <div class="form-group price">
+          <label>السعر</label>
+          <input type="number" class="item-price" value="0" min="0" step="0.01">
+        </div>
+        <button type="button" onclick="removeItemRow('item-${itemCount}')">🗑️</button>
+      `;
+      container.appendChild(div);
+    }
+
+    function removeItemRow(id){
+      const el = document.getElementById(id);
+      if(el) el.remove();
+    }
+
+    // Add first row by default
+    addItemRow();
+
+    function validate(){
+      let ok = true;
+      const customer = document.getElementById('customer').value.trim();
+      if(!customer){
+        document.getElementById('err-customer').style.display = 'block';
+        ok = false;
+      } else {
+        document.getElementById('err-customer').style.display = 'none';
+      }
+
+      const rows = document.querySelectorAll('.item-row');
+      if(rows.length === 0){
+        showToast('أضف منتجاً واحداً على الأقل', true);
+        ok = false;
+      }
+
+      return ok;
+    }
+
+    function submitOrder(){
+      if(!validate()) return;
+
+      const btn = document.querySelector('.btn-primary');
+      btn.textContent = '⏳ جاري الإنشاء...';
+      btn.disabled = true;
+
+      const items = [];
+      document.querySelectorAll('.item-row').forEach(row => {
+        const name = row.querySelector('.item-name').value.trim();
+        const qty = Number(row.querySelector('.item-qty').value) || 1;
+        const price = Number(row.querySelector('.item-price').value) || 0;
+        if(name) items.push({productName: name, quantity: qty, unitPrice: price});
+      });
+
+      const data = {
+        customer: document.getElementById('customer').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        items: items,
+        shippingAddress: document.getElementById('shippingAddress').value.trim()
+      };
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if(res.success){
+            showToast('✅ ' + res.message);
+            setTimeout(() => google.script.host.close(), 1200);
+          } else {
+            showToast('❌ ' + res.error, true);
+            btn.textContent = '💾 إنشاء الطلب';
+            btn.disabled = false;
+          }
+        })
+        .withFailureHandler(err => {
+          showToast('❌ ' + err.message, true);
+          btn.textContent = '💾 إنشاء الطلب';
+          btn.disabled = false;
+        })
+        .addOrderFromDialog(data);
+    }
+
+    function showToast(msg, isError){
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isError ? '#C62828' : '#37474f';
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 3000);
+    }
+  </script>
+</body>
+</html>

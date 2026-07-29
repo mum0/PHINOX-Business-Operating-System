@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+    body{background:#f5f5f5;padding:20px;direction:rtl;}
+    h2{color:#1a237e;margin-bottom:20px;font-size:18px;border-bottom:2px solid #e0e0e0;padding-bottom:10px;}
+    .form-group{margin-bottom:15px;}
+    label{display:block;font-size:13px;font-weight:700;color:#555;margin-bottom:5px;}
+    input,select{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;background:#fff;}
+    input:focus,select:focus{outline:none;border-color:#1a237e;}
+    .error{color:#C62828;font-size:12px;margin-top:4px;display:none;}
+    .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:25px;}
+    .btn{padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;}
+    .btn-primary{background:#1a237e;color:#fff;}
+    .btn-secondary{background:#e0e0e0;color:#333;}
+    .btn:hover{opacity:.9;}
+    .toast{position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:#37474f;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;display:none;z-index:9999;}
+  </style>
+</head>
+<body>
+  <h2>✅ إضافة مهمة جديدة</h2>
+
+  <div class="form-group">
+    <label>عنوان المهمة *</label>
+    <input type="text" id="title" placeholder="مثال: تصميم لوجو جديد">
+    <div class="error" id="err-title">العنوان مطلوب</div>
+  </div>
+
+  <div class="form-group">
+    <label>الفئة *</label>
+    <select id="category">
+      <option value="Design">Design</option>
+      <option value="Marketing">Marketing</option>
+      <option value="Operations">Operations</option>
+      <option value="Supply">Supply</option>
+      <option value="Finance">Finance</option>
+      <option value="Sales">Sales</option>
+      <option value="CEO">CEO</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>مسندة إلى *</label>
+    <select id="assignedTo"><option value="">جاري التحميل...</option></select>
+    <div class="error" id="err-member">اختر عضواً</div>
+  </div>
+
+  <div class="form-group">
+    <label>الأولوية *</label>
+    <select id="priority">
+      <option value="Low">Low</option>
+      <option value="Medium" selected>Medium</option>
+      <option value="High">High</option>
+      <option value="Urgent">Urgent</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>الصعوبة *</label>
+    <select id="difficulty">
+      <option value="Easy">Easy</option>
+      <option value="Medium" selected>Medium</option>
+      <option value="Hard">Hard</option>
+      <option value="Critical">Critical</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>تاريخ البدء</label>
+    <input type="date" id="startDate">
+  </div>
+
+  <div class="form-group">
+    <label>تاريخ الاستحقاق</label>
+    <input type="date" id="dueDate">
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="google.script.host.close()">إلغاء</button>
+    <button class="btn btn-primary" onclick="submitTask()">💾 حفظ المهمة</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── Load Members on Open ──
+    function loadMembers(){
+      google.script.run
+        .withSuccessHandler(list => {
+          const sel = document.getElementById('assignedTo');
+          sel.innerHTML = '<option value="">اختر عضو...</option>';
+          list.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.name;
+            opt.textContent = m.name + ' (' + m.role + ')';
+            sel.appendChild(opt);
+          });
+        })
+        .withFailureHandler(err => showToast('خطأ في تحميل الأعضاء: ' + err.message, true))
+        .getMembersList();
+    }
+
+    // ── Validation ──
+    function validate(){
+      let ok = true;
+      const title = document.getElementById('title').value.trim();
+      const member = document.getElementById('assignedTo').value;
+
+      if(!title){
+        document.getElementById('err-title').style.display = 'block';
+        ok = false;
+      } else {
+        document.getElementById('err-title').style.display = 'none';
+      }
+
+      if(!member){
+        document.getElementById('err-member').style.display = 'block';
+        ok = false;
+      } else {
+        document.getElementById('err-member').style.display = 'none';
+      }
+
+      return ok;
+    }
+
+    // ── Submit ──
+    function submitTask(){
+      if(!validate()) return;
+
+      const btn = document.querySelector('.btn-primary');
+      btn.textContent = '⏳ جاري الحفظ...';
+      btn.disabled = true;
+
+      const data = {
+        title: document.getElementById('title').value.trim(),
+        category: document.getElementById('category').value,
+        assignedTo: document.getElementById('assignedTo').value,
+        priority: document.getElementById('priority').value,
+        difficulty: document.getElementById('difficulty').value,
+        startDate: document.getElementById('startDate').value,
+        dueDate: document.getElementById('dueDate').value
+      };
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if(res.success){
+            showToast('✅ ' + res.message);
+            setTimeout(() => google.script.host.close(), 1200);
+          } else {
+            showToast('❌ ' + res.error, true);
+            btn.textContent = '💾 حفظ المهمة';
+            btn.disabled = false;
+          }
+        })
+        .withFailureHandler(err => {
+          showToast('❌ ' + err.message, true);
+          btn.textContent = '💾 حفظ المهمة';
+          btn.disabled = false;
+        })
+        .createTaskFromDialog(data);
+    }
+
+    // ── Toast ──
+    function showToast(msg, isError){
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isError ? '#C62828' : '#37474f';
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    // Init
+    loadMembers();
+    document.getElementById('startDate').valueAsDate = new Date();
+  </script>
+</body>
+</html>
