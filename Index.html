@@ -222,45 +222,17 @@ function refreshAll(){
 
 // ── Open Dialogs (Functional) ──
 function openTaskDialog(){
-  google.script.run
-    .withSuccessHandler(html => {
-      const dialog = HtmlService.createHtmlOutput(html)
-        .setWidth(500).setHeight(650);
-      google.script.host.showModalDialog(dialog, 'إضافة مهمة جديدة');
-    })
-    .getTaskDialogHtml();
+  google.script.run.openTaskDialogServer();
 }
-
 function openMemberDialog(){
-  google.script.run
-    .withSuccessHandler(html => {
-      const dialog = HtmlService.createHtmlOutput(html)
-        .setWidth(450).setHeight(550);
-      google.script.host.showModalDialog(dialog, 'إضافة عضو جديد');
-    })
-    .getMemberDialogHtml();
+  google.script.run.openMemberDialogServer();
 }
-
 function openProductDialog(){
-  google.script.run
-    .withSuccessHandler(html => {
-      const dialog = HtmlService.createHtmlOutput(html)
-        .setWidth(500).setHeight(650);
-      google.script.host.showModalDialog(dialog, 'إضافة منتج جديد');
-    })
-    .getProductDialogHtml();
+  google.script.run.openProductDialogServer();
 }
-
 function openOrderDialog(){
-  google.script.run
-    .withSuccessHandler(html => {
-      const dialog = HtmlService.createHtmlOutput(html)
-        .setWidth(600).setHeight(700);
-      google.script.host.showModalDialog(dialog, 'طلب جديد');
-    })
-    .getOrderDialogHtml();
+  google.script.run.openOrderDialogServer();
 }
-
 // ── Init ──
 loadDashboard();
 </script>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+    body{background:#f5f5f5;padding:20px;direction:rtl;}
+    h2{color:#1a237e;margin-bottom:20px;font-size:18px;border-bottom:2px solid #e0e0e0;padding-bottom:10px;}
+    .form-group{margin-bottom:15px;}
+    label{display:block;font-size:13px;font-weight:700;color:#555;margin-bottom:5px;}
+    input,select,textarea{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;background:#fff;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:#1a237e;}
+    .form-row{display:flex;gap:15px;}
+    .form-row .form-group{flex:1;}
+    .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:25px;}
+    .btn{padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;}
+    .btn-primary{background:#2E7D32;color:#fff;}
+    .btn-secondary{background:#e0e0e0;color:#333;}
+    .toast{position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:#37474f;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;display:none;z-index:9999;}
+  </style>
+</head>
+<body>
+  <h2>💰 فاتورة مبيعات جديدة</h2>
+
+  <div class="form-group">
+    <label>رقم الفاتورة (اختياري)</label>
+    <input type="text" id="invoice" placeholder="تلقائي">
+  </div>
+
+  <div class="form-group">
+    <label>العميل *</label>
+    <input type="text" id="customer" placeholder="اسم العميل">
+  </div>
+
+  <div class="form-group">
+    <label>الوصف</label>
+    <input type="text" id="description" placeholder="وصف البيع">
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label>المبلغ *</label>
+      <input type="number" id="amount" value="0" min="0" step="0.01">
+    </div>
+    <div class="form-group">
+      <label>طريقة الدفع</label>
+      <select id="payment">
+        <option>نقداً</option>
+        <option>بنك</option>
+        <option>تحويل</option>
+        <option>بطاقة</option>
+        <option>أخرى</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>التاريخ</label>
+    <input type="date" id="date">
+  </div>
+
+  <div class="form-group">
+    <label>ملاحظات</label>
+    <textarea id="notes" rows="2"></textarea>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="google.script.host.close()">إلغاء</button>
+    <button class="btn btn-primary" onclick="submitSale()">💾 حفظ الفاتورة</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    document.getElementById('date').valueAsDate = new Date();
+
+    function showToast(msg, isError){
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isError ? '#C62828' : '#37474f';
+      t.style.display = 'block';
+      setTimeout(function(){t.style.display='none';}, 3000);
+    }
+
+    function submitSale(){
+      var customer = document.getElementById('customer').value.trim();
+      var amount = Number(document.getElementById('amount').value);
+      if(!customer || amount <= 0){ showToast('العميل والمبلغ مطلوبان', true); return; }
+
+      var btn = document.querySelector('.btn-primary');
+      btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 حفظ الفاتورة'; btn.disabled = false;
+          if(res && res.success){
+            showToast('✅ ' + res.message);
+            setTimeout(function(){google.script.host.close();}, 1200);
+          } else {
+            showToast('❌ ' + (res && res.error ? res.error : 'خطأ'), true);
+          }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 حفظ الفاتورة'; btn.disabled = false;
+          showToast('❌ ' + err.message, true);
+        })
+        .addSaleFromDialog({
+          invoice: document.getElementById('invoice').value.trim(),
+          customer: customer,
+          description: document.getElementById('description').value.trim(),
+          amount: amount,
+          payment: document.getElementById('payment').value,
+          date: document.getElementById('date').value,
+          notes: document.getElementById('notes').value.trim()
+        });
+    }
+  </script>
+</body>
+</html>

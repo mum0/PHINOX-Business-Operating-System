@@ -187,6 +187,16 @@ const SCHEMA = {
     "Status",
     "Created At",
     "Sent At"
+  ],
+
+  Sales: [
+    "Invoice", "Date", "Customer", "Description", "Amount", "Payment", "Notes"
+  ],
+  Expenses: [
+    "Date", "Type", "Supplier", "Description", "Amount", "Notes"
+  ],
+  Shareholders: [
+    "Name", "Email", "Shares", "Ownership", "Inv Value", "Current Value", "Profit", "Loss"
   ]
 
 };

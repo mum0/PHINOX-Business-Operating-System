@@ -102,7 +102,7 @@
         .withSuccessHandler(res => {
           if(res.success){
             showToast('✅ ' + res.message);
-            setTimeout(() => google.script.host.close(), 1200);
+            setTimeout(() => google.script.run.showDashboardUI(), 1200);
           } else {
             showToast('❌ ' + res.error, true);
             btn.textContent = '💾 حفظ العضو';
