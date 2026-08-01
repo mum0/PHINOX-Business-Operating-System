@@ -28,10 +28,19 @@ function onOpen() {
           .addSeparator()
           .addItem("تحديث Mini ERP", "refreshMiniERPDashboard"))
       .addSeparator()
+      .addSubMenu(ui.createMenu("🛡️ الأمان")
+          .addItem("طلب اعتماد مصروف", "requestExpenseApproval")
+          .addItem("طلب اعتماد مشتريات", "requestPurchaseApproval")
+          .addSeparator()
+          .addItem("عرض طلبات الاعتماد", "showPendingApprovals")
+          .addItem("عرض سلة المحذوفات", "showArchiveSheet")
+          .addSeparator()
+          .addItem("نسخة احتياطية الآن", "createSystemBackup")
+          .addItem("جدولة نسخ تلقائي", "scheduleDailyBackup"))
+      .addSeparator()
       .addItem(t("menu_about"), "showAbout")
       .addToUi();
 }
-
 function openSaleDialog(){
   const html = HtmlService.createHtmlOutputFromFile('SaleDialog')
     .setWidth(500).setHeight(600);
@@ -131,4 +140,75 @@ function showAbout(){
     t("system_timezone") + " : " + APP.INFO.TIMEZONE + "\n" +
     t("system_currency") + " : " + currency
   );
+}
+function requestExpenseApproval(){
+  const ui = SpreadsheetApp.getUi();
+  var result = ui.prompt('طلب اعتماد مصروف', 'أدخل المبلغ:', ui.ButtonSet.OK_CANCEL);
+  if(result.getSelectedButton() !== ui.Button.OK) return;
+  
+  var amount = parseFloat(result.getResponseText());
+  if(!amount || amount <= 0){ ui.alert('المبلغ غير صالح'); return; }
+  
+  try{
+    submitApprovalRequest({
+      type: 'EXPENSE_APPROVAL',
+      details: {amount: amount, expenseType: 'مصروف', description: 'مصروف معتمد من القائمة'},
+      notes: 'طلب من القائمة'
+    });
+  }catch(e){
+    ui.alert('خطأ: ' + e.message);
+  }
+}
+
+function requestPurchaseApproval(){
+  const ui = SpreadsheetApp.getUi();
+  var result = ui.prompt('طلب اعتماد مشتريات', 'أدخل المبلغ:', ui.ButtonSet.OK_CANCEL);
+  if(result.getSelectedButton() !== ui.Button.OK) return;
+  
+  var amount = parseFloat(result.getResponseText());
+  if(!amount || amount <= 0){ ui.alert('المبلغ غير صالح'); return; }
+  
+  try{
+    submitApprovalRequest({
+      type: 'PURCHASE_APPROVAL',
+      details: {amount: amount, description: 'مشتريات معتمدة'},
+      notes: 'طلب من القائمة'
+    });
+  }catch(e){
+    ui.alert('خطأ: ' + e.message);
+  }
+}
+
+function showPendingApprovals(){
+  var sheet = getSheet('Approval Requests');
+  if(sheet) SpreadsheetApp.setActiveSheet(sheet);
+}
+
+function showArchiveSheet(){
+  var sheet = getSheet('Archive');
+  if(sheet) SpreadsheetApp.setActiveSheet(sheet);
+}
+function createKPIInputSheet(){
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("KPI_Input");
+  if(sheet) return;
+  
+  sheet = ss.insertSheet("KPI_Input");
+  sheet.getRange(1, 1, 1, 3).setValues([["KPI ID", "القيمة الفعلية", "الشهر"]])
+    .setBackground("#1a237e").setFontColor("#FFFFFF").setFontWeight("bold");
+  sheet.setColumnWidth(1, 200);
+  sheet.setColumnWidth(2, 150);
+  sheet.setColumnWidth(3, 100);
+  
+  // أمثلة
+  var examples = [
+    ["nps", "45", "2026-08"],
+    ["csat", "82", "2026-08"],
+    ["satisfaction", "78", "2026-08"],
+    ["absenteeism", "2", "2026-08"],
+    ["shrinkage", "1.5", "2026-08"]
+  ];
+  if(examples.length > 0) sheet.getRange(2, 1, examples.length, 3).setValues(examples);
+  
+  SpreadsheetApp.getUi().alert("✅ تم إنشاء ورقة KPI_Input\n\nأضف فيها القيم اليدوية للمؤشرات التي لا يمكن حسابها آلياً.");
 }

@@ -68,6 +68,86 @@
     .btn-view{background:#757575;color:#fff;}
     .actions-col{white-space:nowrap;width:120px;}
     .actions-col button{margin-left:4px;padding:3px 8px;font-size:11px;border:none;border-radius:3px;cursor:pointer;}
+  
+      /* Tabs */
+      .tabs-bar{background:#fff;padding:10px 25px;border-bottom:1px solid #e0e0e0;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:60px;z-index:90;}
+    .tab-btn{padding:8px 18px;border:none;background:transparent;color:#666;font-size:13px;font-weight:700;cursor:pointer;border-radius:6px;transition:.2s;font-family:'Cairo',sans-serif;}
+    .tab-btn:hover{background:#e8eaf6;color:#1a237e;}
+    .tab-btn.active{background:#1a237e;color:#fff;}
+    .tab-section{display:none;animation:fadeIn .3s ease;}
+    .tab-section.active{display:block;}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+    
+    /* CEO Cards */
+    .ceo-card{border-right:4px solid #4a148c;}
+    .ceo-card.revenue{border-right-color:#2E7D32;}
+    .ceo-card.expense{border-right-color:#C62828;}
+    .ceo-card.profit{border-right-color:#1565C0;}
+    .ceo-card.alert{border-right-color:#E65100;}
+    .growth-badge{font-size:11px;padding:2px 8px;border-radius:12px;margin-right:8px;}
+    .growth-up{background:#e6f4ea;color:#2E7D32;}
+    .growth-down{background:#fce8e6;color:#C62828;}
+    .growth-neutral{background:#f5f5f5;color:#757575;}
+
+    /* KPI Styles */
+    .kpi-dept-card{background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,.08);cursor:pointer;transition:.2s;border-right:4px solid #ccc;}
+    .kpi-dept-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.12);}
+    .kpi-dept-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .kpi-dept-name{font-size:15px;font-weight:700;color:#1a237e;}
+    .kpi-dept-score{font-size:22px;font-weight:700;}
+    .kpi-grade-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;}
+    .kpi-progress-bg{background:#e0e0e0;border-radius:10px;height:10px;overflow:hidden;margin-top:8px;}
+    .kpi-progress-fill{height:10px;border-radius:10px;transition:width .5s ease;}
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-bottom:20px;}
+    .kpi-detail-card{background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-top:3px solid #1a237e;}
+    .kpi-metric-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;}
+    .kpi-metric-row:last-child{border-bottom:none;}
+    .kpi-trend{font-size:11px;margin-right:5px;}
+    .trend-up{color:#2E7D32;} .trend-down{color:#C62828;} .trend-stable{color:#757575;}
+    .back-btn{background:#1a237e;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:15px;font-family:'Cairo',sans-serif;}
+    .back-btn:hover{opacity:.9;}
+    .kpi-freq-badge{font-size:10px;padding:2px 8px;border-radius:12px;background:#e8eaf6;color:#1a237e;}
+
+    /* Security Tab */
+    .security-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:15px;margin-bottom:20px;}
+    .security-card{background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-top:3px solid #1a237e;}
+    .security-card.warning{border-top-color:#E65100;}
+    .security-card.danger{border-top-color:#C62828;}
+    .security-card.success{border-top-color:#2E7D32;}
+    .approval-item{background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:10px;border-right:3px solid #E65100;}
+    .approval-item.approved{border-right-color:#2E7D32;}
+    .approval-item.rejected{border-right-color:#C62828;}
+    .approval-actions{display:flex;gap:8px;margin-top:10px;}
+    .approval-actions button{padding:6px 14px;font-size:12px;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-family:'Cairo',sans-serif;}
+    .btn-approve{background:#2E7D32;color:#fff;}
+    .btn-reject{background:#C62828;color:#fff;}
+    .archive-item{background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+    .archive-meta{font-size:12px;color:#666;}
+    .backup-status{padding:15px;background:#e8eaf6;border-radius:8px;text-align:center;}
+    .backup-btn{background:#1a237e;color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;font-family:'Cairo',sans-serif;}
+    .security-note{font-size:12px;color:#666;background:#fffde7;padding:10px;border-radius:6px;margin-top:10px;border-right:3px solid #F9A825;}
+    .no-data{text-align:center;padding:30px;color:#999;}
+
+    .kpi-input-btn{background:#ff6f00;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;}
+    .kpi-input-btn:hover{background:#e65100;}
+    .kpi-source-badge{font-size:10px;padding:2px 8px;border-radius:12px;margin-right:6px;}
+    .source-auto{background:#e8f5e9;color:#2e7d32;}
+    .source-manual{background:#fff3e0;color:#ef6c00;}
+    .source-nodata{background:#f5f5f5;color:#9e9e9e;}
+    .kpi-input-modal .form-group{margin-bottom:12px;}
+    .kpi-need-input{background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+
+    .batch-modal .modal-box{max-width:700px;}
+    .batch-item{display:grid;grid-template-columns:2fr 1fr 80px 40px;gap:10px;align-items:center;padding:10px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;}
+    .batch-item label{font-size:12px;color:#555;font-weight:700;}
+    .batch-item input{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:13px;}
+    .batch-item .batch-unit{font-size:12px;color:#666;text-align:center;}
+    .batch-item .batch-check{text-align:center;}
+    .batch-header{display:grid;grid-template-columns:2fr 1fr 80px 40px;gap:10px;padding:0 10px 8px;font-size:12px;font-weight:700;color:#1a237e;border-bottom:2px solid #e0e0e0;margin-bottom:10px;}
+    .batch-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:15px;}
+    .batch-summary{background:#e8f5e9;padding:12px;border-radius:8px;margin-top:15px;font-size:13px;color:#2e7d32;display:none;}
+    .batch-summary.error{background:#fce8e6;color:#c62828;}
+
   </style>
 </head>
 <body>
@@ -88,66 +168,358 @@
     </div>
   </div>
 
-  <div class="container">
-    <!-- Mini ERP: Sales -->
-    <div class="section">
-      <div class="section-header">
-        <h2><i class="fas fa-file-invoice-dollar"></i> 💰 المبيعات (Mini ERP)</h2>
-        <button class="btn btn-success" style="padding:6px 14px;font-size:12px;" onclick="showModal('saleModal')">+ فاتورة</button>
-      </div>
-      <div id="salesArea"><div class="loading">جاري التحميل...</div></div>
-    </div>
-
-    <!-- Mini ERP: Expenses -->
-    <div class="section">
-      <div class="section-header">
-        <h2><i class="fas fa-money-bill-wave"></i> 💸 المصروفات (Mini ERP)</h2>
-        <button class="btn btn-warning" style="padding:6px 14px;font-size:12px;" onclick="showModal('expenseModal')">+ مصروف</button>
-      </div>
-      <div id="expensesArea"><div class="loading">جاري التحميل...</div></div>
-    </div>
-
-    <!-- Mini ERP: Shareholders -->
-    <div class="section">
-      <div class="section-header">
-        <h2><i class="fas fa-users-cog"></i> 🏛️ المساهمون (Mini ERP)</h2>
-        <button class="btn btn-info" style="padding:6px 14px;font-size:12px;" onclick="showModal('shareholderModal')">+ مساهم</button>
-      </div>
-      <div id="shareholdersArea"><div class="loading">جاري التحميل...</div></div>
-    </div>
-
-    <div id="errorArea"></div>
+    <!-- Tabs -->
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab('overview')" id="tab-overview">📊 نظرة عامة</button>
+    <button class="tab-btn" onclick="switchTab('ceo')" id="tab-ceo">👔 CEO</button>
+    <button class="tab-btn" onclick="switchTab('finance')" id="tab-finance">💰 المالية</button>
+    <button class="tab-btn" onclick="switchTab('inventory')" id="tab-inventory">📦 المخزون</button>
+    <button class="tab-btn" onclick="switchTab('orders')" id="tab-orders">🛒 الطلبات</button>
+    <button class="tab-btn" onclick="switchTab('kpi')" id="tab-kpi">📈 KPIs</button>
+    <button class="tab-btn" onclick="switchTab('security')" id="tab-security">🛡️ الأمان</button>
     
-    <div class="cards" id="cardsArea">
-      <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
+  </div>
+
+  <div class="container">
+    
+    <!-- ====== TAB: OVERVIEW (Current) ====== -->
+    <div id="overview" class="tab-section active">
+      <div id="errorArea"></div>
+      <div class="cards" id="cardsArea"><div class="loading"><div class="spinner"></div> جاري التحميل...</div></div>
+
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-header"><h2><i class="fas fa-trophy"></i> أفضل الأعضاء</h2><button class="btn-sm btn-success" onclick="showModal('memberModal')">+ عضو</button></div>
+          <div id="topMembersArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
+        <div class="section">
+          <div class="section-header"><h2><i class="fas fa-tasks"></i> ملخص المهام</h2><button class="btn-sm btn-success" onclick="showModal('taskModal')">+ مهمة</button></div>
+          <div id="tasksArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-header"><h2><i class="fas fa-warehouse"></i> المخزون</h2><button class="btn-sm btn-success" onclick="showModal('productModal')">+ منتج</button></div>
+          <div id="inventoryArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
+        <div class="section">
+          <div class="section-header"><h2><i class="fas fa-chart-line"></i> المالية</h2></div>
+          <div id="financeArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-shopping-bag"></i> طلبات العملاء</h2><button class="btn-sm btn-success" onclick="showModal('orderModal')">+ طلب</button></div>
+        <div id="ordersArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
+
+      <!-- Pending Approval -->
+      <div class="section" id="pendingSection" style="display:none;border-right:4px solid var(--warning);">
+        <div class="section-header"><h2><i class="fas fa-clipboard-check"></i> ⚡ المهام بانتظار الاعتماد</h2></div>
+        <div id="pendingArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
+
+      <!-- Mini ERP -->
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-file-invoice-dollar"></i> 💰 المبيعات (Mini ERP)</h2><button class="btn-sm btn-success" onclick="showModal('saleModal')">+ فاتورة</button></div>
+        <div id="salesArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-money-bill-wave"></i> 💸 المصروفات (Mini ERP)</h2><button class="btn-sm btn-warning" onclick="showModal('expenseModal')">+ مصروف</button></div>
+        <div id="expensesArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-users-cog"></i> 🏛️ المساهمون (Mini ERP)</h2><button class="btn-sm btn-info" onclick="showModal('shareholderModal')">+ مساهم</button></div>
+        <div id="shareholdersArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
     </div>
 
-    <div class="grid-2">
-      <div class="section">
-        <div class="section-header"><h2><i class="fas fa-trophy"></i> أفضل الأعضاء</h2></div>
-        <div id="topMembersArea"><div class="loading">جاري التحميل...</div></div>
+    <!-- ====== TAB: CEO ====== -->
+    <div id="ceo" class="tab-section">
+      <div class="cards" id="ceoCardsArea">
+        <div class="card ceo-card revenue"><i class="fas fa-hand-holding-usd card-icon"></i><h3>إيرادات الشهر</h3><div class="value" id="ceoRevenue">0</div></div>
+        <div class="card ceo-card expense"><i class="fas fa-file-invoice-dollar card-icon"></i><h3>مصروفات الشهر</h3><div class="value" id="ceoExpenses">0</div></div>
+        <div class="card ceo-card profit"><i class="fas fa-chart-line card-icon"></i><h3>صافي الربح</h3><div class="value" id="ceoProfit">0</div></div>
+        <div class="card ceo-card"><i class="fas fa-percentage card-icon"></i><h3>هامش الربح</h3><div class="value" id="ceoMargin">0%</div></div>
+        <div class="card ceo-card alert"><i class="fas fa-exclamation-triangle card-icon"></i><h3>اعتمادات معلقة</h3><div class="value" id="ceoPending">0</div></div>
+        <div class="card ceo-card"><i class="fas fa-users card-icon"></i><h3>أعضاء نشطون</h3><div class="value" id="ceoMembers">0</div></div>
+        <div class="card ceo-card alert"><i class="fas fa-boxes card-icon"></i><h3>تنبيهات مخزون</h3><div class="value" id="ceoLowStock">0</div></div>
+        <div class="card ceo-card"><i class="fas fa-warehouse card-icon"></i><h3>قيمة المخزون</h3><div class="value" id="ceoStockValue">0</div></div>
       </div>
-      <div class="section">
-        <div class="section-header"><h2><i class="fas fa-tasks"></i> ملخص المهام</h2></div>
-        <div id="tasksArea"><div class="loading">جاري التحميل...</div></div>
+
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-header"><h2><i class="fas fa-chart-bar"></i> مقارنة الشهر الحالي vs السابق</h2></div>
+          <div id="ceoComparisonArea">
+            <table>
+              <tr><th>المقياس</th><th>الشهر الحالي</th><th>الشهر السابق</th><th>التغير</th></tr>
+              <tr><td>الإيرادات</td><td id="compRevCur">-</td><td id="compRevPrev">-</td><td id="compRevGrowth">-</td></tr>
+              <tr><td>المصروفات</td><td id="compExpCur">-</td><td id="compExpPrev">-</td><td id="compExpGrowth">-</td></tr>
+              <tr><td>الربح</td><td id="compProfCur">-</td><td id="compProfPrev">-</td><td id="compProfGrowth">-</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header"><h2><i class="fas fa-list"></i> آخر المبيعات</h2></div>
+          <div id="ceoRecentSalesArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
       </div>
     </div>
 
-    <div class="grid-2">
-      <div class="section">
-        <div class="section-header"><h2><i class="fas fa-warehouse"></i> المخزون</h2></div>
-        <div id="inventoryArea"><div class="loading">جاري التحميل...</div></div>
+        <!-- ====== TAB: FINANCE ====== -->
+        <div id="finance" class="tab-section">
+          <div class="cards" id="financeCardsArea">
+            <div class="card success"><i class="fas fa-arrow-up card-icon"></i><h3>إجمالي الإيرادات</h3><div class="value" id="finTotalIncome">0</div></div>
+            <div class="card danger"><i class="fas fa-arrow-down card-icon"></i><h3>إجمالي المصروفات</h3><div class="value" id="finTotalExpense">0</div></div>
+            <div class="card" style="border-right-color:#1565C0;"><i class="fas fa-wallet card-icon"></i><h3>صافي الربح</h3><div class="value" id="finNetProfit">0</div></div>
+            <div class="card warning"><i class="fas fa-percentage card-icon"></i><h3>هامش الربح</h3><div class="value" id="finMargin">0%</div></div>
+          </div>
+    
+          <div class="grid-2">
+            <div class="section">
+              <div class="section-header"><h2><i class="fas fa-chart-bar"></i> التدفق النقدي (آخر 6 أشهر)</h2></div>
+              <div id="finCashFlowArea">
+                <table>
+                  <tr><th>الشهر</th><th style="color:#2E7D32">الإيرادات</th><th style="color:#C62828">المصروفات</th><th>الصافي</th></tr>
+                  <tbody id="finCashFlowBody"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-header"><h2><i class="fas fa-pie-chart"></i> أكبر 5 فئات مصروفات</h2></div>
+              <div id="finCategoriesArea"><div class="loading">جاري التحميل...</div></div>
+            </div>
+          </div>
+    
+          <div class="section">
+            <div class="section-header"><h2><i class="fas fa-list-alt"></i> آخر الحركات المالية</h2></div>
+            <div id="finRecentArea"><div class="loading">جاري التحميل...</div></div>
+          </div>
+    
+          <div class="section">
+            <div class="section-header"><h2><i class="fas fa-balance-scale"></i> الميزانية vs الفعلي</h2></div>
+            <div id="finBudgetArea"><div class="loading">جاري التحميل...</div></div>
+          </div>
+        </div>
+
+        <!-- ====== TAB: INVENTORY ====== -->
+        <div id="inventory" class="tab-section">
+          <div class="cards" id="invCardsArea">
+            <div class="card"><i class="fas fa-boxes card-icon"></i><h3>إجمالي المنتجات</h3><div class="value" id="invTotalProducts">0</div></div>
+            <div class="card success"><i class="fas fa-check-circle card-icon"></i><h3>مخزون سليم</h3><div class="value" id="invHealthy">0</div></div>
+            <div class="card warning"><i class="fas fa-exclamation-triangle card-icon"></i><h3>منخفض المخزون</h3><div class="value" id="invLowStock">0</div></div>
+            <div class="card danger"><i class="fas fa-times-circle card-icon"></i><h3>نفذ من المخزون</h3><div class="value" id="invOutStock">0</div></div>
+            <div class="card" style="border-right-color:#1565C0;"><i class="fas fa-warehouse card-icon"></i><h3>الكمية الإجمالية</h3><div class="value" id="invTotalQty">0</div></div>
+            <div class="card" style="border-right-color:#4a148c;"><i class="fas fa-coins card-icon"></i><h3>قيمة المخزون</h3><div class="value" id="invTotalValue">0</div></div>
+          </div>
+    
+          <div class="grid-2">
+            <div class="section">
+              <div class="section-header"><h2><i class="fas fa-chart-pie"></i> توزيع الفئات</h2></div>
+              <div id="invCategoriesArea"><div class="loading">جاري التحميل...</div></div>
+            </div>
+            <div class="section">
+              <div class="section-header"><h2><i class="fas fa-warehouse"></i> توزيع المستودعات</h2></div>
+              <div id="invWarehousesArea"><div class="loading">جاري التحميل...</div></div>
+            </div>
+          </div>
+    
+          <div class="grid-2">
+            <div class="section" style="border-right:4px solid #E65100;">
+              <div class="section-header"><h2><i class="fas fa-bell"></i> ⚠️ تنبيهات منخفض المخزون</h2></div>
+              <div id="invLowStockArea"><div class="loading">جاري التحميل...</div></div>
+            </div>
+            <div class="section" style="border-right:4px solid #C62828;">
+              <div class="section-header"><h2><i class="fas fa-times"></i> ❌ نفذ من المخزون</h2></div>
+              <div id="invOutStockArea"><div class="loading">جاري التحميل...</div></div>
+            </div>
+          </div>
+    
+          <div class="grid-2">
+            <div class="section">
+              <div class="section-header"><h2><i class="fas fa-trophy"></i> أكبر 5 منتجات بالقيمة</h2></div>
+              <div id="invTopProductsArea"><div class="loading">جاري التحميل...</div></div>
+            </div>
+            <div class="section">
+              <div class="section-header"><h2><i class="fas fa-exchange-alt"></i> آخر حركات المخزون</h2></div>
+              <div id="invMovementsArea"><div class="loading">جاري التحميل...</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- ====== TAB: ORDERS ====== -->
+        <div id="orders" class="tab-section">
+          <div class="cards" id="ordCardsArea">
+            <div class="card"><i class="fas fa-shopping-bag card-icon"></i><h3>إجمالي الطلبات</h3><div class="value" id="ordTotal">0</div></div>
+            <div class="card success"><i class="fas fa-check-circle card-icon"></i><h3>تم التسليم</h3><div class="value" id="ordDelivered">0</div></div>
+            <div class="card warning"><i class="fas fa-clock card-icon"></i><h3>معلّقة</h3><div class="value" id="ordPending">0</div></div>
+            <div class="card danger"><i class="fas fa-times-circle card-icon"></i><h3>ملغاة / مرتجعة</h3><div class="value" id="ordProblem">0</div></div>
+            <div class="card" style="border-right-color:#1565C0;"><i class="fas fa-hand-holding-usd card-icon"></i><h3>إجمالي الإيرادات</h3><div class="value" id="ordRevenue">0</div></div>
+            <div class="card" style="border-right-color:#4a148c;"><i class="fas fa-receipt card-icon"></i><h3>متوسط قيمة الطلب</h3><div class="value" id="ordAvg">0</div></div>
+          </div>
+    
+          <div class="grid-2">
+            <div class="section">
+              <div class="section-header"><h2><i class="fas fa-chart-bar"></i> حالة الطلبات</h2></div>
+              <div id="ordStatusArea">
+                <div style="display:flex;flex-wrap:wrap;gap:15px;padding:15px;" id="ordStatusBars">
+                  <!-- Filled by JS -->
+                </div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-header"><h2><i class="fas fa-trophy"></i> أفضل 5 عملاء</h2></div>
+              <div id="ordTopCustomersArea"><div class="loading">جاري التحميل...</div></div>
+            </div>
+          </div>
+    
+          <div class="section">
+            <div class="section-header"><h2><i class="fas fa-chart-line"></i> الطلبات والإيرادات (شهرياً)</h2></div>
+            <div id="ordTrendArea">
+              <table>
+                <tr><th>الشهر</th><th>الطلبات</th><th>الإيرادات</th><th>متوسط</th></tr>
+                <tbody id="ordTrendBody"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+    
+          <div class="section">
+            <div class="section-header"><h2><i class="fas fa-list"></i> آخر 10 طلبات</h2><button class="btn-sm btn-success" onclick="showModal('orderModal')">+ طلب</button></div>
+            <div id="ordRecentArea"><div class="loading">جاري التحميل...</div></div>
+          </div>
+        </div>
+              <!-- ====== TAB: KPI LIBRARY ====== -->
+    <div id="kpi" class="tab-section">
+      
+      <!-- Executive Summary -->
+      <div id="kpiExecSummary">
+        <div class="cards" id="kpiExecCards" style="margin-bottom:20px;">
+          <div class="card" style="border-right-color:#1a237e;"><i class="fas fa-star card-icon"></i><h3>الدرجة العامة</h3><div class="value" id="kpiOverallScore">-</div></div>
+          <div class="card success"><i class="fas fa-trophy card-icon"></i><h3>أقسام متميزة</h3><div class="value" id="kpiExcellent">-</div></div>
+          <div class="card" style="border-right-color:#7B1FA2;"><i class="fas fa-check-circle card-icon"></i><h3>أقسام جيدة</h3><div class="value" id="kpiGood">-</div></div>
+          <div class="card warning"><i class="fas fa-exclamation-triangle card-icon"></i><h3>أقسام متوسطة</h3><div class="value" id="kpiAtRisk">-</div></div>
+          <div class="card danger"><i class="fas fa-times-circle card-icon"></i><h3>أقسام حرجة</h3><div class="value" id="kpiCritical">-</div></div>
+          <div class="card" style="border-right-color:#1565C0;"><i class="fas fa-building card-icon"></i><h3>إجمالي الأقسام</h3><div class="value" id="kpiTotalDepts">-</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="section" style="border-right:4px solid #C62828;" id="kpiAlertsSection">
+            <div class="section-header"><h2><i class="fas fa-bell"></i> 🚨 تنبيهات الأداء</h2></div>
+            <div id="kpiAlertsArea"><div class="loading">جاري التحميل...</div></div>
+          </div>
+          <div class="section" style="border-right:4px solid #2E7D32;">
+            <div class="section-header"><h2><i class="fas fa-lightbulb"></i> 💡 التوصيات التلقائية</h2></div>
+            <div id="kpiRecommendationsArea"><div class="loading">جاري التحميل...</div></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="section">
+            <div class="section-header"><h2><i class="fas fa-arrow-down"></i> أضعف 3 أقسام</h2></div>
+            <div id="kpiWorstArea"><div class="loading">جاري التحميل...</div></div>
+          </div>
+          <div class="section">
+            <div class="section-header"><h2><i class="fas fa-arrow-up"></i> أفضل 3 أقسام</h2></div>
+            <div id="kpiBestArea"><div class="loading">جاري التحميل...</div></div>
+          </div>
+        </div>
+        
+        <div style="text-align:center;color:#999;font-size:12px;margin:15px 0;" id="kpiLastUpdated"></div>
       </div>
-      <div class="section">
-        <div class="section-header"><h2><i class="fas fa-chart-line"></i> المالية</h2></div>
-        <div id="financeArea"><div class="loading">جاري التحميل...</div></div>
+
+      <!-- Departments Grid -->
+      <div id="kpiSummaryArea">
+        <div class="section">
+          <div class="section-header">
+            <h2><i class="fas fa-building"></i> أداء الأقسام</h2>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-sm btn-info" onclick="showKPIExecSummary()" style="background:#1a237e;color:#fff;"><i class="fas fa-chart-pie"></i> الملخص التنفيذي</button>
+              <button class="btn-sm btn-warning" onclick="openKPIBatchModal()" style="background:#ff6f00;color:#fff;"><i class="fas fa-edit"></i> إدخال دفعة KPI</button>
+            </div>
+          </div>
+          <div class="kpi-grid" id="kpiDeptsGrid"><div class="loading">جاري التحميل...</div></div>
+        </div>
       </div>
+      
+      <!-- Detail View -->
+      <div id="kpiDetailArea" style="display:none;">
+        <button class="back-btn" onclick="showKPISummary()"><i class="fas fa-arrow-right"></i> رجوع للأقسام</button>
+        <div class="section">
+          <div class="section-header">
+            <h2 id="kpiDetailTitle"><i class="fas fa-chart-bar"></i> مؤشرات القسم</h2>
+            <span class="kpi-grade-badge" id="kpiDetailBadge" style="font-size:14px;">-</span>
+          </div>
+          <div id="kpiDetailContent"><div class="loading">جاري التحميل...</div></div>
+        </div>
+      </div>
+    </div>
+    <!-- ====== TAB: SECURITY ====== -->
+    <div id="security" class="tab-section">
+      
+      <!-- Executive Security Summary -->
+      <div class="cards" style="margin-bottom:20px;">
+        <div class="card security-card">
+          <div class="security-header"><i class="fas fa-clipboard-check"></i> طلبات الاعتماد المعلقة <span class="security-count" id="secPendingCount">0</span></div>
+          <div style="font-size:12px;color:#666;">تتطلب موافقة CEO/Partner/Finance</div>
+        </div>
+        <div class="card security-card success">
+          <div class="security-header"><i class="fas fa-trash-restore"></i> سلة المحذوفات <span class="security-count success" id="secArchiveCount">0</span></div>
+          <div style="font-size:12px;color:#666;">قابلة للاسترجاع خلال 30 يوم</div>
+        </div>
+        <div class="card security-card info">
+          <div class="security-header"><i class="fas fa-database"></i> النسخ الاحتياطي</div>
+          <div style="font-size:12px;color:#666;" id="secBackupStatus">جاري التحقق...</div>
+        </div>
+        <div class="card security-card warning">
+          <div class="security-header"><i class="fas fa-user-shield"></i> صلاحياتك</div>
+          <div style="font-size:12px;color:#666;" id="secYourRole">جاري التحميل...</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Pending Approvals -->
+        <div class="section" style="border-right:4px solid #E65100;">
+          <div class="section-header"><h2><i class="fas fa-clipboard-list"></i> طلبات الاعتماد المعلقة</h2></div>
+          <div id="secApprovalsArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
+
+        <!-- Archive / Soft Delete -->
+        <div class="section" style="border-right:4px solid #1565C0;">
+          <div class="section-header"><h2><i class="fas fa-archive"></i> سلة المحذوفات (آخر 30 يوم)</h2></div>
+          <div id="secArchiveArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
+      </div>
+
+      <!-- Backup Section -->
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-cloud-download-alt"></i> النسخ الاحتياطي والاستعادة</h2></div>
+        <div style="display:flex;gap:15px;flex-wrap:wrap;align-items:flex-start;">
+          <div class="backup-status" style="flex:1;min-width:200px;">
+            <i class="fas fa-hdd"></i>
+            <div style="font-size:16px;font-weight:700;color:#1a237e;margin-bottom:5px;">حالة النسخ الاحتياطي</div>
+            <div id="secBackupDetail" style="font-size:13px;color:#555;">جاري التحميل...</div>
+          </div>
+          <div style="flex:2;min-width:300px;">
+            <div style="background:#f8f9fa;padding:15px;border-radius:8px;margin-bottom:10px;">
+              <div style="font-weight:700;color:#1a237e;margin-bottom:8px;"><i class="fas fa-info-circle"></i> معلومات</div>
+              <ul style="font-size:13px;color:#555;line-height:2;padding-right:20px;">
+                <li>النسخ الاحتياطي يحفظ نسخة كاملة من كل البيانات</li>
+                <li>يتم حفظ النسخ في مجلد <strong>PHINOX_Backups</strong> في Google Drive</li>
+                <li>يمكن جدولة نسخ تلقائي يومياً الساعة 3:00 صباحاً</li>
+                <li>الحذف الناعم يحفظ السجل لمدة 30 يوم قبل الحذف النهائي</li>
+              </ul>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-success" onclick="createBackupNow()"><i class="fas fa-download"></i> نسخة احتياطية الآن</button>
+              <button class="btn btn-info" onclick="scheduleAutoBackup()" style="background:#1565C0;"><i class="fas fa-calendar-alt"></i> تفعيل النسخ التلقائي</button>
+            </div>
+            <div id="secBackupRecent" style="margin-top:15px;"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <div class="section">
-      <div class="section-header"><h2><i class="fas fa-shopping-bag"></i> طلبات العملاء</h2></div>
-      <div id="ordersArea"><div class="loading">جاري التحميل...</div></div>
-    </div>
   </div>
 
   <!-- Task Modal -->
@@ -262,6 +634,280 @@
 
   
   <script>
+        // ═══════════════════════════════════════════════════════
+    // SECURITY DASHBOARD — Complete & Organized
+    // ═══════════════════════════════════════════════════════
+
+    function loadSecurityDashboard(){
+      loadPendingApprovals();
+      loadArchivedRecords();
+      loadBackupStatus();
+      loadSecurityUserInfo();
+    }
+
+    function loadSecurityUserInfo(){
+      if(currentUser && currentUser.name){
+        var roleText = currentUser.role || 'غير معروف';
+        var canApprove = currentUser.canApprove ? '✅ يمكن الاعتماد' : '❌ لا يمكن الاعتماد';
+        document.getElementById('secYourRole').innerHTML = '<strong>' + roleText + '</strong><br>' + canApprove;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 1. PENDING APPROVALS
+    // ─────────────────────────────────────────────────────
+
+    function loadPendingApprovals(){
+      google.script.run
+        .withSuccessHandler(renderPendingApprovals)
+        .withFailureHandler(function(err){
+          document.getElementById('secApprovalsArea').innerHTML = '<div class="error-box">خطأ: ' + err.message + '</div>';
+          document.getElementById('secPendingCount').textContent = '0';
+        })
+        .getPendingApprovalsFromUI();
+    }
+
+    function renderPendingApprovals(res){
+      if(!res || !res.success){
+        document.getElementById('secApprovalsArea').innerHTML = '<div class="error-box">خطأ في التحميل</div>';
+        document.getElementById('secPendingCount').textContent = '0';
+        return;
+      }
+      
+      var data = res.data || [];
+      document.getElementById('secPendingCount').textContent = data.length;
+      
+      if(data.length === 0){
+        document.getElementById('secApprovalsArea').innerHTML = 
+          '<div style="text-align:center;padding:30px;color:#2E7D32;">' +
+            '<i class="fas fa-check-circle" style="font-size:40px;"></i><br><br>' +
+            'لا توجد طلبات معلقة ✅' +
+          '</div>';
+        return;
+      }
+      
+      var html = '';
+      data.forEach(function(a){
+        var isCritical = a.type.indexOf('حرج') > -1 || a.type.indexOf('حذف') > -1;
+        html += 
+          '<div class="approval-row ' + (isCritical ? 'critical' : '') + '">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+              '<div>' +
+                '<div style="font-weight:700;color:#1a237e;">' + a.type + '</div>' +
+                '<div style="font-size:12px;color:#666;">الطالب: ' + a.requester + ' | التاريخ: ' + a.date + '</div>' +
+                '<div style="font-size:12px;color:#999;">السجل: ' + (a.targetSheet || '-') + ' / ' + (a.targetId || '-') + '</div>' +
+              '</div>' +
+              '<span class="badge badge-yellow">معلق</span>' +
+            '</div>' +
+            '<div class="approval-actions">' +
+              '<button class="btn-approve" onclick="processApprovalAction(\'' + a.id + '\', \'approve\', this)">✅ اعتماد</button>' +
+              '<button class="btn-reject" onclick="processApprovalAction(\'' + a.id + '\', \'reject\', this)">❌ رفض</button>' +
+            '</div>' +
+          '</div>';
+      });
+      
+      document.getElementById('secApprovalsArea').innerHTML = html;
+    }
+
+    function processApprovalAction(requestId, action, btn){
+      var notes = prompt(action === 'approve' ? 'أضف ملاحظات للاعتماد (اختياري):' : 'سبب الرفض:') || '';
+      btn.textContent = '⏳...';
+      btn.disabled = true;
+      
+      var fn = action === 'approve' ? 'approveRequestFromUI' : 'rejectRequestFromUI';
+      
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.success){
+            showToast('✅ ' + res.message);
+            loadPendingApprovals();
+          } else {
+            showToast('❌ ' + (res && res.error ? res.error : 'خطأ'), true);
+            btn.textContent = action === 'approve' ? '✅ اعتماد' : '❌ رفض';
+            btn.disabled = false;
+          }
+        })
+        .withFailureHandler(function(err){
+          showToast('❌ ' + err.message, true);
+          btn.textContent = action === 'approve' ? '✅ اعتماد' : '❌ رفض';
+          btn.disabled = false;
+        })
+        [fn]({requestId: requestId, notes: notes});
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 2. ARCHIVE / SOFT DELETE
+    // ─────────────────────────────────────────────────────
+
+    function loadArchivedRecords(){
+      if(!currentUser || currentUser.role !== 'CEO'){
+        document.getElementById('secArchiveArea').innerHTML = 
+          '<div style="text-align:center;padding:20px;color:#999;">' +
+            '🔒 فقط CEO يمكنه رؤية سلة المحذوفات' +
+          '</div>';
+        document.getElementById('secArchiveCount').textContent = '0';
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(renderArchivedRecords)
+        .withFailureHandler(function(err){
+          document.getElementById('secArchiveArea').innerHTML = '<div class="error-box">خطأ: ' + err.message + '</div>';
+          document.getElementById('secArchiveCount').textContent = '0';
+        })
+        .getArchivedRecordsFromUI();
+    }
+
+    function renderArchivedRecords(res){
+      if(!res || !res.success){
+        document.getElementById('secArchiveArea').innerHTML = '<div class="error-box">خطأ في التحميل</div>';
+        document.getElementById('secArchiveCount').textContent = '0';
+        return;
+      }
+      
+      var data = res.data || [];
+      document.getElementById('secArchiveCount').textContent = data.length;
+      
+      if(data.length === 0){
+        document.getElementById('secArchiveArea').innerHTML = 
+          '<div style="text-align:center;padding:30px;color:#2E7D32;">' +
+            '<i class="fas fa-check-circle" style="font-size:40px;"></i><br><br>' +
+            'السلة فارغة ✅' +
+          '</div>';
+        return;
+      }
+      
+      var html = '<table><tr><th>السجل</th><th>الورقة</th><th>محذوف بواسطة</th><th>التاريخ</th><th>الحذف النهائي</th><th></th></tr>';
+      data.forEach(function(a){
+        html += 
+          '<tr>' +
+            '<td><code style="font-size:11px;">' + a.id + '</code></td>' +
+            '<td>' + a.sheet + '</td>' +
+            '<td>' + a.deletedBy + '</td>' +
+            '<td>' + a.deletedAt + '</td>' +
+            '<td>' + a.purgeAfter + '</td>' +
+            '<td>' +
+              '<button onclick="restoreArchive(\'' + a.id + '\', this)" ' +
+                'style="padding:4px 10px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:#1565C0;color:#fff;">' +
+                '↩️ استرجاع' +
+              '</button>' +
+            '</td>' +
+          '</tr>';
+      });
+      html += '</table>';
+      document.getElementById('secArchiveArea').innerHTML = html;
+    }
+
+    function restoreArchive(archiveId, btn){
+      if(!confirm('هل تريد استرجاع هذا السجل؟')) return;
+      btn.textContent = '⏳...';
+      btn.disabled = true;
+      
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.success){
+            showToast('✅ تم الاسترجاع بنجاح');
+            loadArchivedRecords();
+          } else {
+            showToast('❌ ' + (res && res.error ? res.error : 'خطأ'), true);
+            btn.textContent = '↩️ استرجاع';
+            btn.disabled = false;
+          }
+        })
+        .withFailureHandler(function(err){
+          showToast('❌ ' + err.message, true);
+          btn.textContent = '↩️ استرجاع';
+          btn.disabled = false;
+        })
+        .restoreRecordFromUI({archiveId: archiveId});
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 3. BACKUP
+    // ─────────────────────────────────────────────────────
+
+    function loadBackupStatus(){
+      google.script.run
+        .withSuccessHandler(renderBackupStatus)
+        .withFailureHandler(function(err){
+          document.getElementById('secBackupDetail').innerHTML = '<span style="color:#C62828;">خطأ في التحقق</span>';
+        })
+        .getBackupStatusFromUI();
+    }
+
+    function renderBackupStatus(res){
+      if(!res || !res.success || !res.data){
+        document.getElementById('secBackupDetail').innerHTML = '<span style="color:#999;">لا توجد بيانات</span>';
+        return;
+      }
+      
+      var d = res.data;
+      var statusHtml = '';
+      
+      if(d.lastBackup){
+        statusHtml += 
+          '<div style="color:#2E7D32;font-weight:700;">' +
+            '<i class="fas fa-check-circle"></i> آخر نسخة: ' + d.lastBackup +
+          '</div>' +
+          '<div style="margin-top:5px;color:#555;">' +
+            'عدد النسخ: ' + d.count + ' | الحجم الإجمالي: ' + d.totalSize + ' MB' +
+          '</div>';
+      } else {
+        statusHtml += 
+          '<div style="color:#E65100;">' +
+            '<i class="fas fa-exclamation-triangle"></i> لا توجد نسخ احتياطية بعد' +
+          '</div>';
+      }
+      
+      document.getElementById('secBackupDetail').innerHTML = statusHtml;
+      
+      // Recent backups list
+      if(d.recent && d.recent.length){
+        var recentHtml = '<div style="font-weight:700;color:#1a237e;margin:10px 0 8px;">📁 آخر النسخ:</div>';
+        d.recent.forEach(function(b){
+          recentHtml += 
+            '<div style="font-size:12px;padding:8px;background:#fff;border-radius:4px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">' +
+              '<span style="color:#333;">' + b.name + '</span>' +
+              '<a href="' + b.url + '" target="_blank" style="color:#1565C0;font-size:12px;font-weight:700;">فتح ↗</a>' +
+            '</div>';
+        });
+        document.getElementById('secBackupRecent').innerHTML = recentHtml;
+      } else {
+        document.getElementById('secBackupRecent').innerHTML = '';
+      }
+    }
+
+    function createBackupNow(){
+      if(!confirm('إنشاء نسخة احتياطية الآن؟ قد تستغرق دقيقة.')) return;
+      showToast('⏳ جاري إنشاء النسخة الاحتياطية...');
+      
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.success){
+            showToast('✅ تم: ' + res.name);
+            loadBackupStatus();
+          } else {
+            showToast('❌ ' + (res && res.error ? res.error : 'فشل'), true);
+          }
+        })
+        .withFailureHandler(function(err){
+          showToast('❌ ' + err.message, true);
+        })
+        .createBackupFromUI();
+    }
+
+    function scheduleAutoBackup(){
+      if(!confirm('تفعيل النسخ الاحتياطي التلقائي يومياً الساعة 3:00 صباحاً؟')) return;
+      
+      google.script.run
+        .withSuccessHandler(function(){
+          showToast('✅ تم جدولة النسخ التلقائي اليومي');
+        })
+        .withFailureHandler(function(err){
+          showToast('❌ ' + err.message, true);
+        })
+        .scheduleDailyBackup();
+    }
 
     // ── Mini ERP: Render Functions ──
     function renderMiniERP(data){
@@ -692,6 +1338,840 @@
         })
         .deleteRecordFromUI({sheet: sheetName, id: id});
     }
+    // ── Tab Switcher ──
+    function switchTab(tabName){
+      document.querySelectorAll('.tab-section').forEach(function(el){ el.classList.remove('active'); });
+      document.querySelectorAll('.tab-btn').forEach(function(el){ el.classList.remove('active'); });
+      document.getElementById(tabName).classList.add('active');
+      document.getElementById('tab-' + tabName).classList.add('active');
+      if(tabName === 'ceo') loadCEODashboard();
+      if(tabName === 'finance') loadFinanceDashboard();
+      if(tabName === 'inventory') loadInventoryDashboard();
+      if(tabName === 'orders') loadOrdersDashboard();
+      if(tabName === 'kpi') loadKPIDashboard();
+      if(tabName === 'security') loadSecurityDashboard();
+    }
+
+    // ── CEO Dashboard ──
+    function loadCEODashboard(){
+      google.script.run
+        .withSuccessHandler(renderCEODashboard)
+        .withFailureHandler(function(err){
+          document.getElementById('ceoRecentSalesArea').innerHTML = '<div class="error-box">خطأ: ' + err.message + '</div>';
+        })
+        .getCEODashboardData();
+    }
+
+    function renderCEODashboard(d){
+      document.getElementById('ceoRevenue').textContent = formatCurrency(d.revenue, d.currency);
+      document.getElementById('ceoExpenses').textContent = formatCurrency(d.expenses, d.currency);
+      document.getElementById('ceoProfit').textContent = formatCurrency(d.profit, d.currency);
+      document.getElementById('ceoMargin').textContent = d.margin + '%';
+      document.getElementById('ceoPending').textContent = d.pendingApprovals;
+      document.getElementById('ceoMembers').textContent = d.activeMembers;
+      document.getElementById('ceoLowStock').textContent = d.lowStock;
+      document.getElementById('ceoStockValue').textContent = formatCurrency(d.stockValue, d.currency);
+
+      // Comparison
+      var revBadge = d.revGrowth >= 0 ? '<span class="growth-badge growth-up">▲ ' + d.revGrowth + '%</span>' : '<span class="growth-badge growth-down">▼ ' + Math.abs(d.revGrowth) + '%</span>';
+      var expBadge = d.expGrowth >= 0 ? '<span class="growth-badge growth-down">▲ ' + d.expGrowth + '%</span>' : '<span class="growth-badge growth-up">▼ ' + Math.abs(d.expGrowth) + '%</span>';
+      
+      document.getElementById('compRevCur').innerHTML = '<strong>' + formatCurrency(d.revenue, d.currency) + '</strong>';
+      document.getElementById('compRevGrowth').innerHTML = revBadge;
+      document.getElementById('compExpCur').innerHTML = '<strong>' + formatCurrency(d.expenses, d.currency) + '</strong>';
+      document.getElementById('compExpGrowth').innerHTML = expBadge;
+      document.getElementById('compProfCur').innerHTML = '<strong>' + formatCurrency(d.profit, d.currency) + '</strong>';
+
+      // Recent sales
+      var html = '<table><tr><th>الفاتورة</th><th>التاريخ</th><th>العميل</th><th>المبلغ</th></tr>';
+      if(d.recentSales && d.recentSales.length){
+        d.recentSales.forEach(function(s){
+          html += '<tr><td>' + s.id + '</td><td>' + s.date + '</td><td>' + s.customer + '</td><td><strong>' + s.amount + ' ' + d.currency + '</strong></td></tr>';
+        });
+      } else {
+        html += '<tr><td colspan="4" style="text-align:center;color:#999;">لا توجد مبيعات</td></tr>';
+      }
+      document.getElementById('ceoRecentSalesArea').innerHTML = html + '</table>';
+    }
+
+    function formatCurrency(val, currency){
+      currency = currency || 'EGP';
+      var sym = currency === 'EGP' ? 'ج.م' : currency;
+      return val.toLocaleString('ar-SA') + ' ' + sym;
+    }
+
+    // ── Finance Dashboard ──
+    function loadFinanceDashboard(){
+      google.script.run
+        .withSuccessHandler(renderFinanceDashboard)
+        .withFailureHandler(function(err){
+          document.getElementById('finCashFlowBody').innerHTML = '<tr><td colspan="4" class="error-box">خطأ: ' + err.message + '</td></tr>';
+        })
+        .getFinanceDashboardData();
+    }
+
+    function renderFinanceDashboard(d){
+      var cur = d.summary.currency === 'EGP' ? 'ج.م' : d.summary.currency;
+      
+      document.getElementById('finTotalIncome').textContent = d.summary.totalIncome.toLocaleString('ar-SA') + ' ' + cur;
+      document.getElementById('finTotalExpense').textContent = d.summary.totalExpense.toLocaleString('ar-SA') + ' ' + cur;
+      document.getElementById('finNetProfit').textContent = d.summary.netProfit.toLocaleString('ar-SA') + ' ' + cur;
+      document.getElementById('finNetProfit').style.color = d.summary.netProfit >= 0 ? '#2E7D32' : '#C62828';
+      document.getElementById('finMargin').textContent = d.summary.margin + '%';
+      document.getElementById('finMargin').style.color = d.summary.margin >= 0 ? '#2E7D32' : '#C62828';
+
+      // Cash flow
+      var cfHtml = '';
+      if(d.cashFlow && d.cashFlow.length){
+        d.cashFlow.forEach(function(m){
+          var netColor = m.net >= 0 ? 'color:#2E7D32' : 'color:#C62828';
+          cfHtml += '<tr><td><strong>' + m.month + '</strong></td><td>' + m.income.toLocaleString('ar-SA') + '</td><td>' + m.expense.toLocaleString('ar-SA') + '</td><td style="' + netColor + '"><strong>' + m.net.toLocaleString('ar-SA') + '</strong></td></tr>';
+        });
+      }
+      document.getElementById('finCashFlowBody').innerHTML = cfHtml || '<tr><td colspan="4" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>';
+
+      // Top categories
+      var catHtml = '<table><tr><th>الفئة</th><th>المبلغ</th><th>النسبة</th></tr>';
+      if(d.topCategories && d.topCategories.length){
+        var totalCat = d.topCategories.reduce(function(s,c){ return s + c.amount; }, 0);
+        d.topCategories.forEach(function(c){
+          var pct = totalCat > 0 ? Math.round((c.amount / totalCat) * 100) : 0;
+          catHtml += '<tr><td>' + c.category + '</td><td><strong>' + c.amount.toLocaleString('ar-SA') + ' ' + cur + '</strong></td><td><div style="background:#e0e0e0;border-radius:10px;height:20px;position:relative;"><div style="background:#C62828;height:20px;border-radius:10px;width:' + pct + '%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;">' + pct + '%</div></div></td></tr>';
+        });
+      } else {
+        catHtml += '<tr><td colspan="3" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>';
+      }
+      document.getElementById('finCategoriesArea').innerHTML = catHtml + '</table>';
+
+      // Recent transactions
+      var txnHtml = '<table><tr><th>التاريخ</th><th>النوع</th><th>الفئة</th><th>الوصف</th><th>المبلغ</th></tr>';
+      if(d.recentTransactions && d.recentTransactions.length){
+        d.recentTransactions.forEach(function(t){
+          var color = (t.type === 'Income' || t.type === 'إيراد') ? 'color:#2E7D32' : 'color:#C62828';
+          var sign = (t.type === 'Income' || t.type === 'إيراد') ? '+' : '-';
+          txnHtml += '<tr><td>' + t.date + '</td><td>' + t.type + '</td><td>' + t.category + '</td><td>' + t.description + '</td><td style="' + color + '"><strong>' + sign + ' ' + t.amount.toLocaleString('ar-SA') + '</strong></td></tr>';
+        });
+      } else {
+        txnHtml += '<tr><td colspan="5" style="text-align:center;color:#999;">لا توجد حركات</td></tr>';
+      }
+      document.getElementById('finRecentArea').innerHTML = txnHtml + '</table>';
+
+      // Budget
+      var budHtml = '<table><tr><th>الفئة</th><th>الميزانية</th><th>الفعلي</th><th>الفرق</th><th>النسبة</th></tr>';
+      if(d.budget && d.budget.categories && d.budget.categories.length){
+        d.budget.categories.forEach(function(b){
+          var varColor = b.variance > 0 ? 'color:#C62828' : 'color:#2E7D32';
+          var badge = b.percent > 100 ? '<span class="badge badge-red">تجاوز!</span>' : (b.percent > 80 ? '<span class="badge badge-yellow">قريب</span>' : '<span class="badge badge-green">جيد</span>');
+          budHtml += '<tr><td>' + b.category + '</td><td>' + b.budget.toLocaleString('ar-SA') + '</td><td>' + b.actual.toLocaleString('ar-SA') + '</td><td style="' + varColor + '">' + (b.variance > 0 ? '+' : '') + b.variance.toLocaleString('ar-SA') + '</td><td>' + badge + ' ' + b.percent + '%</td></tr>';
+        });
+        budHtml += '<tr style="background:#f5f5f5;font-weight:bold;"><td>الإجمالي</td><td>' + d.budget.totalBudget.toLocaleString('ar-SA') + '</td><td>' + d.budget.totalActual.toLocaleString('ar-SA') + '</td><td>' + (d.budget.totalActual - d.budget.totalBudget).toLocaleString('ar-SA') + '</td><td></td></tr>';
+      } else {
+        budHtml += '<tr><td colspan="5" style="text-align:center;color:#999;">لا توجد بيانات ميزانية</td></tr>';
+      }
+      document.getElementById('finBudgetArea').innerHTML = budHtml + '</table>';
+    }
+
+    // ── Inventory Dashboard ──
+    function loadInventoryDashboard(){
+      google.script.run
+        .withSuccessHandler(renderInventoryDashboard)
+        .withFailureHandler(function(err){
+          document.getElementById('invCategoriesArea').innerHTML = '<div class="error-box">خطأ: ' + err.message + '</div>';
+        })
+        .getInventoryDashboardData();
+    }
+
+    function renderInventoryDashboard(d){
+      document.getElementById('invTotalProducts').textContent = d.summary.totalProducts.toLocaleString('ar-SA');
+      document.getElementById('invHealthy').textContent = d.summary.healthy.toLocaleString('ar-SA');
+      document.getElementById('invLowStock').textContent = d.summary.lowStock.toLocaleString('ar-SA');
+      document.getElementById('invOutStock').textContent = d.summary.outOfStock.toLocaleString('ar-SA');
+      document.getElementById('invTotalQty').textContent = d.summary.totalQuantity.toLocaleString('ar-SA');
+      document.getElementById('invTotalValue').textContent = d.summary.totalValue.toLocaleString('ar-SA') + ' ج.م';
+
+      // Categories
+      var catHtml = '<table><tr><th>الفئة</th><th>المنتجات</th><th>الكمية</th><th>القيمة</th></tr>';
+      if(d.categories && d.categories.length){
+        d.categories.forEach(function(c){
+          catHtml += '<tr><td><strong>' + c.name + '</strong></td><td>' + c.count + '</td><td>' + c.qty.toLocaleString('ar-SA') + '</td><td>' + c.value.toLocaleString('ar-SA') + ' ج.م</td></tr>';
+        });
+      } else {
+        catHtml += '<tr><td colspan="4" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>';
+      }
+      document.getElementById('invCategoriesArea').innerHTML = catHtml + '</table>';
+
+      // Warehouses
+      var whHtml = '<table><tr><th>المستودع</th><th>المنتجات</th><th>الكمية</th></tr>';
+      if(d.warehouses && d.warehouses.length){
+        d.warehouses.forEach(function(w){
+          whHtml += '<tr><td><strong>' + w.name + '</strong></td><td>' + w.count + '</td><td>' + w.qty.toLocaleString('ar-SA') + '</td></tr>';
+        });
+      } else {
+        whHtml += '<tr><td colspan="3" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>';
+      }
+      document.getElementById('invWarehousesArea').innerHTML = whHtml + '</table>';
+
+      // Low stock alerts
+      var lowHtml = '<table><tr><th>المنتج</th><th>الفئة</th><th>الكمية</th><th>الحد الأدنى</th><th>المستودع</th></tr>';
+      if(d.lowStockItems && d.lowStockItems.length){
+        d.lowStockItems.forEach(function(item){
+          lowHtml += '<tr><td><strong>' + item.name + '</strong></td><td>' + item.category + '</td><td><span class="badge badge-yellow">' + item.qty + '</span></td><td>' + item.min + '</td><td>' + item.warehouse + '</td></tr>';
+        });
+      } else {
+        lowHtml += '<tr><td colspan="5" style="text-align:center;color:#999;">لا توجد تنبيهات ✅</td></tr>';
+      }
+      document.getElementById('invLowStockArea').innerHTML = lowHtml + '</table>';
+
+      // Out of stock
+      var outHtml = '<table><tr><th>المنتج</th><th>الفئة</th><th>المستودع</th></tr>';
+      if(d.outStockItems && d.outStockItems.length){
+        d.outStockItems.forEach(function(item){
+          outHtml += '<tr><td><strong>' + item.name + '</strong></td><td>' + item.category + '</td><td>' + item.warehouse + '</td></tr>';
+        });
+      } else {
+        outHtml += '<tr><td colspan="3" style="text-align:center;color:#999;">لا يوجد منتجات نافذة ✅</td></tr>';
+      }
+      document.getElementById('invOutStockArea').innerHTML = outHtml + '</table>';
+
+      // Top products
+      var topHtml = '<table><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>القيمة</th></tr>';
+      if(d.topProducts && d.topProducts.length){
+        d.topProducts.forEach(function(p, idx){
+          topHtml += '<tr><td>' + (idx + 1) + '</td><td><strong>' + p.name + '</strong></td><td>' + p.qty.toLocaleString('ar-SA') + '</td><td>' + p.value.toLocaleString('ar-SA') + ' ج.م</td></tr>';
+        });
+      } else {
+        topHtml += '<tr><td colspan="4" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>';
+      }
+      document.getElementById('invTopProductsArea').innerHTML = topHtml + '</table>';
+
+      // Movements
+      var moveHtml = '<table><tr><th>التاريخ</th><th>المنتج</th><th>النوع</th><th>الكمية</th><th>المستودع</th></tr>';
+      if(d.movements && d.movements.length){
+        d.movements.forEach(function(m){
+          var typeBadge = m.type === 'IN' ? '<span class="badge badge-green">دخول</span>' : '<span class="badge badge-red">خروج</span>';
+          moveHtml += '<tr><td>' + m.date + '</td><td>' + m.product + '</td><td>' + typeBadge + '</td><td>' + m.qty + '</td><td>' + m.warehouse + '</td></tr>';
+        });
+      } else {
+        moveHtml += '<tr><td colspan="5" style="text-align:center;color:#999;">لا توجد حركات مسجلة</td></tr>';
+      }
+      document.getElementById('invMovementsArea').innerHTML = moveHtml + '</table>';
+    }
+
+    // ── Orders Dashboard ──
+    function loadOrdersDashboard(){
+      google.script.run
+        .withSuccessHandler(renderOrdersDashboard)
+        .withFailureHandler(function(err){
+          document.getElementById('ordStatusBars').innerHTML = '<div class="error-box">خطأ: ' + err.message + '</div>';
+        })
+        .getOrdersDashboardData();
+    }
+
+    function renderOrdersDashboard(d){
+      document.getElementById('ordTotal').textContent = d.summary.totalOrders.toLocaleString('ar-SA');
+      document.getElementById('ordDelivered').textContent = d.status.delivered.toLocaleString('ar-SA');
+      document.getElementById('ordPending').textContent = (d.status.pending + d.status.confirmed + d.status.processing + d.status.shipped).toLocaleString('ar-SA');
+      document.getElementById('ordProblem').textContent = (d.status.cancelled + d.status.returned).toLocaleString('ar-SA');
+      document.getElementById('ordRevenue').textContent = d.summary.totalRevenue.toLocaleString('ar-SA') + ' ج.م';
+      document.getElementById('ordAvg').textContent = d.summary.avgOrderValue.toLocaleString('ar-SA') + ' ج.م';
+
+      // Status bars
+      var total = d.summary.totalOrders || 1;
+      var statuses = [
+        {label: 'معلّقة', val: d.status.pending, color: '#E65100', icon: '⏳'},
+        {label: 'مؤكدة', val: d.status.confirmed, color: '#1565C0', icon: '✅'},
+        {label: 'قيد التجهيز', val: d.status.processing, color: '#7B1FA2', icon: '⚙️'},
+        {label: 'تم الشحن', val: d.status.shipped, color: '#F9A825', icon: '🚚'},
+        {label: 'تم التسليم', val: d.status.delivered, color: '#2E7D32', icon: '📦'},
+        {label: 'ملغاة', val: d.status.cancelled, color: '#C62828', icon: '❌'},
+        {label: 'مرتجعة', val: d.status.returned, color: '#C62828', icon: '↩️'}
+      ];
+      
+      var barsHtml = '';
+      statuses.forEach(function(s){
+        if(s.val > 0){
+          var pct = Math.round((s.val / total) * 100);
+          barsHtml += '<div style="flex:1;min-width:120px;text-align:center;">' +
+            '<div style="font-size:24px;margin-bottom:5px;">' + s.icon + '</div>' +
+            '<div style="font-size:22px;font-weight:700;color:' + s.color + ';">' + s.val + '</div>' +
+            '<div style="font-size:12px;color:#666;margin-bottom:8px;">' + s.label + '</div>' +
+            '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">' +
+              '<div style="background:' + s.color + ';height:8px;border-radius:8px;width:' + pct + '%;"></div>' +
+            '</div>' +
+            '<div style="font-size:11px;color:#999;margin-top:4px;">' + pct + '%</div>' +
+          '</div>';
+        }
+      });
+      document.getElementById('ordStatusBars').innerHTML = barsHtml || '<div style="text-align:center;color:#999;width:100%;">لا توجد طلبات</div>';
+
+      // Top customers
+      var custHtml = '<table><tr><th>#</th><th>العميل</th><th>الطلبات</th><th>القيمة</th></tr>';
+      if(d.topCustomers && d.topCustomers.length){
+        d.topCustomers.forEach(function(c, idx){
+          custHtml += '<tr><td>' + (idx + 1) + '</td><td><strong>' + c.name + '</strong></td><td>' + c.orders + '</td><td>' + c.revenue.toLocaleString('ar-SA') + ' ج.م</td></tr>';
+        });
+      } else {
+        custHtml += '<tr><td colspan="4" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>';
+      }
+      document.getElementById('ordTopCustomersArea').innerHTML = custHtml + '</table>';
+
+      // Trend
+      var trendHtml = '';
+      if(d.trend && d.trend.length){
+        d.trend.forEach(function(t){
+          var avg = t.orders > 0 ? Math.round(t.revenue / t.orders) : 0;
+          trendHtml += '<tr><td><strong>' + t.month + '</strong></td><td>' + t.orders + '</td><td>' + t.revenue.toLocaleString('ar-SA') + ' ج.م</td><td>' + avg.toLocaleString('ar-SA') + ' ج.م</td></tr>';
+        });
+      }
+      document.getElementById('ordTrendBody').innerHTML = trendHtml || '<tr><td colspan="4" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>';
+
+      // Recent orders
+      var recHtml = '<table><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>الحالة</th><th>العناصر</th><th>المبلغ</th></tr>';
+      if(d.recentOrders && d.recentOrders.length){
+        d.recentOrders.forEach(function(o){
+          var statusBadge = '';
+          if(o.status === 'Delivered') statusBadge = '<span class="badge badge-green">تم التسليم</span>';
+          else if(o.status === 'Pending') statusBadge = '<span class="badge badge-yellow">معلّق</span>';
+          else if(o.status === 'Cancelled') statusBadge = '<span class="badge badge-red">ملغى</span>';
+          else if(o.status === 'Returned') statusBadge = '<span class="badge badge-red">مرتجع</span>';
+          else if(o.status === 'Shipped') statusBadge = '<span class="badge badge-blue">تم الشحن</span>';
+          else statusBadge = '<span class="badge badge-blue">' + o.status + '</span>';
+          
+          recHtml += '<tr><td>' + o.id + '</td><td>' + o.customer + '</td><td>' + o.date + '</td><td>' + statusBadge + '</td><td>' + o.items + '</td><td><strong>' + o.amount.toLocaleString('ar-SA') + ' ج.م</strong></td></tr>';
+        });
+      } else {
+        recHtml += '<tr><td colspan="6" style="text-align:center;color:#999;">لا توجد طلبات</td></tr>';
+      }
+      document.getElementById('ordRecentArea').innerHTML = recHtml + '</table>';
+    }
+    
+    // ═══════════════════════════════════════════════════════
+    // KPI DASHBOARD v4 — Auto + Manual Input
+    // ═══════════════════════════════════════════════════════
+    var currentKPIDept = null;
+    var currentMonthKey = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0');
+
+    function loadKPIDashboard(){
+      loadKPIExecutiveSummary();
+      loadKPIDepartments();
+      loadKPIsNeedingInput();
+    }
+
+    function loadKPIsNeedingInput(){
+      google.script.run
+        .withSuccessHandler(renderKPIsNeedingInput)
+        .withFailureHandler(function(err){ console.log('KPI input check:', err); })
+        .getKPIsNeedingInput_UI();
+    }
+
+    function renderKPIsNeedingInput(res){
+      if(!res || !res.success || !res.data || !res.data.length) return;
+      var count = res.data.length;
+      // أضف تنبيه في الهيدر إن وجد
+      var header = document.querySelector('.app-header h1');
+      if(header && !document.getElementById('kpiInputAlert')){
+        var alert = document.createElement('span');
+        alert.id = 'kpiInputAlert';
+        alert.style.cssText = 'background:#ff6f00;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;margin-right:10px;cursor:pointer;';
+        alert.textContent = '⚠️ ' + count + ' KPI يحتاج إدخال';
+        alert.onclick = function(){ switchTab('kpi'); showKPISummary(); };
+        header.appendChild(alert);
+      }
+    }
+
+    function loadKPIExecutiveSummary(){
+      google.script.run
+        .withSuccessHandler(renderKPIExecutiveSummary)
+        .withFailureHandler(function(err){
+          document.getElementById('kpiAlertsArea').innerHTML = '<div class="error-box">خطأ: ' + err.message + '</div>';
+        })
+        .getKPIExecutiveSummaryFromUI();
+    }
+
+    function renderKPIExecutiveSummary(res){
+      if(!res || !res.success || !res.data) return;
+      var d = res.data;
+      document.getElementById('kpiOverallScore').textContent = d.overallScore + '%';
+      document.getElementById('kpiOverallScore').style.color = d.overallColor;
+      document.getElementById('kpiExcellent').textContent = d.excellent;
+      document.getElementById('kpiGood').textContent = d.good;
+      document.getElementById('kpiAtRisk').textContent = d.atRisk;
+      document.getElementById('kpiCritical').textContent = d.critical;
+      document.getElementById('kpiTotalDepts').textContent = d.totalDepartments;
+      document.getElementById('kpiLastUpdated').textContent = 'آخر تحديث: ' + d.lastUpdated;
+
+      var alertsHtml = '';
+      if(d.alerts && d.alerts.length){
+        d.alerts.forEach(function(a){
+          var bg = a.type==='critical'?'#fce8e6':'#fef3e8';
+          var color = a.type==='critical'?'#C62828':'#E65100';
+          alertsHtml += '<div style="background:'+bg+';padding:12px;border-radius:8px;margin-bottom:8px;border-right:3px solid '+color+';">'+
+            '<div style="font-weight:700;color:'+color+';">'+a.dept+' ('+a.score+'%)</div>'+
+            '<div style="font-size:13px;color:#555;">'+a.message+'</div></div>';
+        });
+      } else {
+        alertsHtml = '<div style="text-align:center;padding:20px;color:#2E7D32;"><i class="fas fa-check-circle" style="font-size:32px;"></i><br><br>لا توجد تنبيهات ✅</div>';
+      }
+      document.getElementById('kpiAlertsArea').innerHTML = alertsHtml;
+
+      var recHtml = '';
+      if(d.recommendations && d.recommendations.length){
+        d.recommendations.forEach(function(r){
+          var color = r.priority==='P1'?'#C62828':(r.priority==='P2'?'#E65100':'#2E7D32');
+          recHtml += '<div style="padding:10px 0;border-bottom:1px solid #f0f0f0;">'+
+            '<span style="background:'+color+';color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-left:8px;">'+r.priority+'</span>'+
+            '<span style="font-size:13px;">'+r.icon+' '+r.text+'</span></div>';
+        });
+      }
+      document.getElementById('kpiRecommendationsArea').innerHTML = recHtml || '<div style="text-align:center;padding:20px;color:#666;">لا توجد توصيات</div>';
+    }
+
+    function showKPIExecSummary(){
+      document.getElementById('kpiExecSummary').style.display = 'block';
+      document.getElementById('kpiSummaryArea').style.display = 'none';
+      document.getElementById('kpiDetailArea').style.display = 'none';
+      loadKPIExecutiveSummary();
+    }
+
+    function loadKPIDepartments(){
+      document.getElementById('kpiDeptsGrid').innerHTML = '<div class="loading" style="grid-column:1/-1;"><div class="spinner"></div> جاري التحميل...</div>';
+      google.script.run
+        .withSuccessHandler(renderKPIDashboard)
+        .withFailureHandler(function(err){
+          document.getElementById('kpiDeptsGrid').innerHTML = '<div class="error-box" style="grid-column:1/-1;">خطأ: '+err.message+'</div>';
+        })
+        .getAllDepartmentsSummary_v4_UI(currentMonthKey);
+    }
+
+    function renderKPIDashboard(res){
+      if(!res || !res.success || !res.data){
+        document.getElementById('kpiDeptsGrid').innerHTML = '<div class="error-box" style="grid-column:1/-1;">لا توجد بيانات</div>';
+        return;
+      }
+      var html = '';
+      res.data.forEach(function(dept){
+        var width = Math.min(dept.score, 100);
+        html += '<div class="kpi-dept-card" onclick="loadDepartmentKPIs(\''+dept.name+'\')" style="border-right-color:'+dept.color+';">'+
+          '<div class="kpi-dept-header">'+
+            '<span class="kpi-dept-name">'+getDeptArabicName(dept.name)+'</span>'+
+            '<span class="kpi-grade-badge" style="background:'+dept.color+';">'+dept.grade+'</span>'+
+          '</div>'+
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;">'+
+            '<span style="font-size:12px;color:#666;">'+dept.kpisCount+' مؤشر</span>'+
+            '<span class="kpi-dept-score" style="color:'+dept.color+';">'+dept.score+'%</span>'+
+          '</div>'+
+          '<div class="kpi-progress-bg"><div class="kpi-progress-fill" style="width:'+width+'%;background:'+dept.color+';"></div></div>'+
+        '</div>';
+      });
+      document.getElementById('kpiDeptsGrid').innerHTML = html;
+    }
+
+    function loadDepartmentKPIs(deptName){
+      currentKPIDept = deptName;
+      document.getElementById('kpiExecSummary').style.display = 'none';
+      document.getElementById('kpiSummaryArea').style.display = 'none';
+      document.getElementById('kpiDetailArea').style.display = 'block';
+      document.getElementById('kpiDetailTitle').innerHTML = '<i class="fas fa-chart-bar"></i> '+getDeptArabicName(deptName);
+      document.getElementById('kpiDetailContent').innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
+      
+      google.script.run
+        .withSuccessHandler(renderDepartmentKPIs)
+        .withFailureHandler(function(err){
+          document.getElementById('kpiDetailContent').innerHTML = '<div class="error-box">خطأ: '+err.message+'</div>';
+        })
+        .getDepartmentKPIs_v4_UI(deptName, currentMonthKey);
+    }
+
+    function renderDepartmentKPIs(res){
+      if(!res || !res.success || !res.data){
+        document.getElementById('kpiDetailContent').innerHTML = '<div class="error-box">لا توجد بيانات</div>';
+        return;
+      }
+      var d = res.data;
+      document.getElementById('kpiDetailBadge').textContent = d.score+'% ('+d.grade+')';
+      document.getElementById('kpiDetailBadge').style.background = d.color;
+      
+      var html = '<div class="kpi-grid">';
+      d.kpis.forEach(function(kpi){
+        var trendIcon = kpi.trend==='up'?'▲':(kpi.trend==='down'?'▼':'●');
+        var trendClass = kpi.trend==='up'?'trend-up':(kpi.trend==='down'?'trend-down':'trend-stable');
+        var progress = Math.min(kpi.achievement, 100);
+        var sourceBadge = kpi.source==='auto'?'<span class="kpi-source-badge source-auto">🤖 آلي</span>':
+                         (kpi.source==='manual'?'<span class="kpi-source-badge source-manual">✏️ يدوي</span>':
+                         '<span class="kpi-source-badge source-nodata">⚪ لا بيانات</span>');
+        var rec = '';
+        if(kpi.achievement>=120) rec='أداء ممتاز — استمر';
+        else if(kpi.achievement>=100) rec='على المستهدف — حافظ';
+        else if(kpi.achievement>=80) rec='قريب من المستهدف — تحسين طفيف';
+        else if(kpi.achievement>=60) rec='يحتاج خطة عمل';
+        else rec='تدخل عاجل مطلوب';
+        
+        var inputBtn = (kpi.source==='nodata' || kpi.source==='manual') ? 
+          '<button class="kpi-input-btn" onclick="openKPIInput(\''+kpi.id+'\',\''+kpi.name+'\',\''+d.department+'\',\''+kpi.unit+'\')"><i class="fas fa-edit"></i> إدخال قيمة</button>' : '';
+        
+        html += '<div class="kpi-detail-card" style="border-top-color:'+kpi.color+';">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
+            '<div>'+
+              '<div style="font-size:14px;font-weight:700;color:#1a237e;">'+kpi.name+' '+sourceBadge+'</div>'+
+              '<div style="font-size:11px;color:#666;">'+kpi.nameEn+'</div>'+
+            '</div>'+
+            '<span class="kpi-grade-badge" style="background:'+kpi.color+';">'+kpi.grade+'</span>'+
+          '</div>'+
+          '<div class="kpi-metric-row">'+
+            '<span style="color:#666;">القيمة الفعلية</span>'+
+            '<span style="font-weight:700;font-size:15px;">'+kpi.actual.toLocaleString('ar-SA')+' '+kpi.unit+'</span>'+
+          '</div>'+
+          '<div class="kpi-metric-row">'+
+            '<span style="color:#666;">المستهدف</span>'+
+            '<span>'+kpi.target.toLocaleString('ar-SA')+' '+kpi.unit+'</span>'+
+          '</div>'+
+          '<div class="kpi-metric-row">'+
+            '<span style="color:#666;">التحقق <span class="kpi-trend '+trendClass+'">'+trendIcon+'</span></span>'+
+            '<span style="font-weight:700;color:'+kpi.color+';">'+kpi.achievement+'%</span>'+
+          '</div>'+
+          '<div class="kpi-progress-bg"><div class="kpi-progress-fill" style="width:'+progress+'%;background:'+kpi.color+';"></div></div>'+
+          '<div style="margin-top:10px;padding:8px;background:#f8f9fa;border-radius:6px;font-size:12px;color:#555;">'+
+            '<i class="fas fa-lightbulb" style="color:#F9A825;"></i> '+rec+
+          '</div>'+
+          '<div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">'+
+            '<div><span class="kpi-freq-badge">'+getFreqLabel(kpi.freq)+'</span><span style="font-size:11px;color:#999;margin-right:8px;">الوزن: '+kpi.weight+'%</span></div>'+
+            inputBtn+
+          '</div>'+
+        '</div>';
+      });
+      html += '</div>';
+      document.getElementById('kpiDetailContent').innerHTML = html;
+    }
+
+    function openKPIInput(kpiId, name, dept, unit){
+      var val = prompt('أدخل قيمة "'+name+'" ('+unit+'):');
+      if(val===null) return;
+      val = parseFloat(val);
+      if(isNaN(val)){ showToast('قيمة غير صالحة', true); return; }
+      
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.success){
+            showToast('✅ '+res.message);
+            loadDepartmentKPIs(dept);
+          } else {
+            showToast('❌ '+(res&&res.error?res.error:'خطأ'), true);
+          }
+        })
+        .withFailureHandler(function(err){ showToast('❌ '+err.message, true); })
+        .submitKPIInput_UI({kpiId:kpiId, dept:dept, value:val, month:currentMonthKey, notes:'يدوي من WebApp'});
+    }
+
+    function getFreqLabel(freq){
+      var map = {'daily':'يومي','weekly':'أسبوعي','monthly':'شهري','quarterly':'ربع سنوي','yearly':'سنوي'};
+      return map[freq]||freq;
+    }
+
+    function showKPISummary(){
+      document.getElementById('kpiExecSummary').style.display = 'none';
+      document.getElementById('kpiSummaryArea').style.display = 'block';
+      document.getElementById('kpiDetailArea').style.display = 'none';
+      currentKPIDept = null;
+      loadKPIDepartments();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // BATCH KPI INPUT
+    // ═══════════════════════════════════════════════════════
+
+    function openKPIBatchModal(){
+      document.getElementById('batchMonth').value = currentMonthKey;
+      document.getElementById('batchItemsContainer').innerHTML = '<div class="loading">جاري التحميل...</div>';
+      document.getElementById('batchSummary').style.display = 'none';
+      showModal('kpiBatchModal');
+      
+      google.script.run
+        .withSuccessHandler(renderBatchKPIForm)
+        .withFailureHandler(function(err){
+          document.getElementById('batchItemsContainer').innerHTML = '<div class="error-box">خطأ: '+err.message+'</div>';
+        })
+        .getKPIsNeedingInput_UI();
+    }
+
+    function renderBatchKPIForm(res){
+      if(!res || !res.success || !res.data || !res.data.length){
+        document.getElementById('batchItemsContainer').innerHTML = 
+          '<div style="text-align:center;padding:30px;color:#2E7D32;">'+
+            '<i class="fas fa-check-circle" style="font-size:32px;"></i><br><br>'+
+            'جميع KPIs لها بيانات آلية ✅ لا يحتاج إدخال يدوي'+
+          '</div>';
+        return;
+      }
+      
+      var html = '';
+      res.data.forEach(function(k, idx){
+        html += 
+          '<div class="batch-item" data-kpiid="'+k.id+'" data-dept="'+k.dept+'">'+
+            '<div>'+
+              '<div style="font-weight:700;color:#1a237e;font-size:13px;">'+k.name+'</div>'+
+              '<div style="font-size:11px;color:#666;">'+getDeptArabicName(k.dept)+'</div>'+
+            '</div>'+
+            '<input type="number" class="batch-val" placeholder="0" step="0.01">'+
+            '<div class="batch-unit">'+k.unit+'</div>'+
+            '<div class="batch-check"><input type="checkbox" class="batch-include" checked></div>'+
+          '</div>';
+      });
+      document.getElementById('batchItemsContainer').innerHTML = html;
+    }
+
+    function toggleAllBatch(chk){
+      document.querySelectorAll('.batch-include').forEach(function(c){ c.checked = chk.checked; });
+    }
+
+    function submitKPIBatch(){
+      var month = document.getElementById('batchMonth').value || currentMonthKey;
+      var items = [];
+      
+      document.querySelectorAll('.batch-item').forEach(function(row){
+        var chk = row.querySelector('.batch-include');
+        if(!chk.checked) return;
+        
+        var val = parseFloat(row.querySelector('.batch-val').value);
+        if(isNaN(val)) return;
+        
+        items.push({
+          kpiId: row.getAttribute('data-kpiid'),
+          dept: row.getAttribute('data-dept'),
+          value: val,
+          month: month,
+          notes: 'إدخال دفعة WebApp'
+        });
+      });
+      
+      if(items.length === 0){ showToast('لم تختر أي قيم للحفظ', true); return; }
+      
+      var btn = event.target;
+      btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+      
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 حفظ الدفعة'; btn.disabled = false;
+          if(res && res.success && res.data){
+            var d = res.data;
+            var summary = document.getElementById('batchSummary');
+            summary.style.display = 'block';
+            summary.className = d.failed > 0 ? 'batch-summary error' : 'batch-summary';
+            summary.innerHTML = 
+              '<i class="fas fa-info-circle"></i> '+
+              'تم حفظ: <strong>'+d.updated+'</strong> | '+
+              'فشل: <strong>'+d.failed+'</strong> من أصل '+items.length;
+            
+            if(d.failed === 0){
+              setTimeout(function(){
+                hideModal('kpiBatchModal');
+                if(currentKPIDept) loadDepartmentKPIs(currentKPIDept);
+                else loadKPIDashboard();
+              }, 1500);
+            }
+          } else {
+            showToast('❌ '+(res&&res.error?res.error:'خطأ'), true);
+          }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 حفظ الدفعة'; btn.disabled = false;
+          showToast('❌ '+err.message, true);
+        })
+        .submitKPIBatch_UI({inputs: items});
+    }
+
+// ── Security Dashboard ──
+    function loadSecurityDashboard(){
+      loadPendingApprovals();
+      loadArchivedRecords();
+      loadBackupStatus();
+      loadSecurityUserInfo();
+    }
+
+    function loadSecurityUserInfo(){
+      if(currentUser && currentUser.name){
+        var roleText = currentUser.role || 'غير معروف';
+        var canApprove = currentUser.canApprove ? '✅ يمكن الاعتماد' : '❌ لا يمكن الاعتماد';
+        document.getElementById('secYourRole').innerHTML = '<strong>' + roleText + '</strong><br>' + canApprove;
+      }
+    }
+
+    // ── Pending Approvals ──
+    function loadPendingApprovals(){
+      google.script.run
+        .withSuccessHandler(renderPendingApprovals)
+        .withFailureHandler(function(err){
+          document.getElementById('secApprovalsArea').innerHTML = '<div class="error-box">خطأ: ' + err.message + '</div>';
+        })
+        .getPendingApprovalsFromUI();
+    }
+
+    function renderPendingApprovals(res){
+      if(!res || !res.success){
+        document.getElementById('secApprovalsArea').innerHTML = '<div class="error-box">خطأ في التحميل</div>';
+        document.getElementById('secPendingCount').textContent = '0';
+        return;
+      }
+      
+      var data = res.data || [];
+      document.getElementById('secPendingCount').textContent = data.length;
+      
+      if(data.length === 0){
+        document.getElementById('secApprovalsArea').innerHTML = '<div style="text-align:center;padding:30px;color:#2E7D32;"><i class="fas fa-check-circle" style="font-size:40px;"></i><br><br>لا توجد طلبات معلقة ✅</div>';
+        return;
+      }
+      
+      var html = '';
+      data.forEach(function(a){
+        var isCritical = a.type.indexOf('حرج') > -1 || a.type.indexOf('حذف') > -1;
+        html += '<div class="approval-row ' + (isCritical ? 'critical' : '') + '">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+            '<div>' +
+              '<div style="font-weight:700;color:#1a237e;">' + a.type + '</div>' +
+              '<div style="font-size:12px;color:#666;">الطالب: ' + a.requester + ' | التاريخ: ' + a.date + '</div>' +
+              '<div style="font-size:12px;color:#999;">السجل: ' + (a.targetSheet || '-') + ' / ' + (a.targetId || '-') + '</div>' +
+            '</div>' +
+            '<span class="badge badge-yellow">معلق</span>' +
+          '</div>' +
+          '<div class="approval-actions">' +
+            '<button class="btn-approve" onclick="processApprovalAction(\'' + a.id + '\', \'approve\', this)">✅ اعتماد</button>' +
+            '<button class="btn-reject" onclick="processApprovalAction(\'' + a.id + '\', \'reject\', this)">❌ رفض</button>' +
+          '</div>' +
+        '</div>';
+      });
+      
+      document.getElementById('secApprovalsArea').innerHTML = html;
+    }
+
+    function processApprovalAction(requestId, action, btn){
+      var notes = prompt(action === 'approve' ? 'أضف ملاحظات للاعتماد (اختياري):' : 'سبب الرفض:') || '';
+      btn.textContent = '⏳...';
+      btn.disabled = true;
+      
+      var fn = action === 'approve' ? 'approveRequestFromUI' : 'rejectRequestFromUI';
+      
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.success){
+            showToast('✅ ' + res.message);
+            loadPendingApprovals();
+          } else {
+            showToast('❌ ' + (res && res.error ? res.error : 'خطأ'), true);
+            btn.textContent = action === 'approve' ? '✅ اعتماد' : '❌ رفض';
+            btn.disabled = false;
+          }
+        })
+        .withFailureHandler(function(err){
+          showToast('❌ ' + err.message, true);
+          btn.textContent = action === 'approve' ? '✅ اعتماد' : '❌ رفض';
+          btn.disabled = false;
+        })
+        [fn]({requestId: requestId, notes: notes});
+    }
+
+    // ── Archive / Soft Delete ──
+    function loadArchivedRecords(){
+      if(!currentUser || currentUser.role !== 'CEO'){
+        document.getElementById('secArchiveArea').innerHTML = '<div style="text-align:center;padding:20px;color:#999;">فقط CEO يمكنه رؤية سلة المحذوفات</div>';
+        document.getElementById('secArchiveCount').textContent = '0';
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(renderArchivedRecords)
+        .withFailureHandler(function(err){
+          document.getElementById('secArchiveArea').innerHTML = '<div class="error-box">خطأ: ' + err.message + '</div>';
+        })
+        .getArchivedRecordsFromUI();
+    }
+
+        // ── Backup ──
+        function loadBackupStatus(){
+      google.script.run
+        .withSuccessHandler(renderBackupStatus)
+        .withFailureHandler(function(err){
+          document.getElementById('secBackupDetail').innerHTML = '<span style="color:#C62828;">خطأ في التحقق</span>';
+        })
+        .getBackupStatusFromUI();
+    }
+
+    function renderBackupStatus(res){
+      if(!res || !res.success || !res.data){
+        document.getElementById('secBackupDetail').innerHTML = '<span style="color:#999;">لا توجد بيانات</span>';
+        return;
+      }
+      
+      var d = res.data;
+      var statusHtml = '';
+      
+      if(d.lastBackup){
+        statusHtml += 
+          '<div style="color:#2E7D32;font-weight:700;">' +
+            '<i class="fas fa-check-circle"></i> آخر نسخة: ' + d.lastBackup +
+          '</div>' +
+          '<div style="margin-top:5px;color:#555;">' +
+            'عدد النسخ: ' + d.count + ' | الحجم الإجمالي: ' + d.totalSize + ' MB' +
+          '</div>';
+      } else {
+        statusHtml += 
+          '<div style="color:#E65100;">' +
+            '<i class="fas fa-exclamation-triangle"></i> لا توجد نسخ احتياطية بعد' +
+          '</div>';
+      }
+      
+      document.getElementById('secBackupDetail').innerHTML = statusHtml;
+      
+      if(d.recent && d.recent.length){
+        var recentHtml = '<div style="font-weight:700;color:#1a237e;margin:10px 0 8px;">📁 آخر النسخ:</div>';
+        d.recent.forEach(function(b){
+          recentHtml += 
+            '<div style="font-size:12px;padding:8px;background:#fff;border-radius:4px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">' +
+              '<span style="color:#333;">' + b.name + '</span>' +
+              '<a href="' + b.url + '" target="_blank" style="color:#1565C0;font-size:12px;font-weight:700;">فتح ↗</a>' +
+            '</div>';
+        });
+        document.getElementById('secBackupRecent').innerHTML = recentHtml;
+      } else {
+        document.getElementById('secBackupRecent').innerHTML = '';
+      }
+    }
+
+    function createBackupNow(){
+      if(!confirm('إنشاء نسخة احتياطية الآن؟ قد تستغرق دقيقة.')) return;
+      showToast('⏳ جاري إنشاء النسخة الاحتياطية...');
+      
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.success){
+            showToast('✅ تم: ' + res.name);
+            loadBackupStatus();
+          } else {
+            showToast('❌ ' + (res && res.error ? res.error : 'فشل'), true);
+          }
+        })
+        .withFailureHandler(function(err){
+          showToast('❌ ' + err.message, true);
+        })
+        .createBackupFromUI();
+    }
+
+    function scheduleAutoBackup(){
+      if(!confirm('تفعيل النسخ الاحتياطي التلقائي يومياً الساعة 3:00 صباحاً؟')) return;
+      
+      google.script.run
+        .withSuccessHandler(function(){
+          showToast('✅ تم جدولة النسخ التلقائي اليومي');
+        })
+        .withFailureHandler(function(err){
+          showToast('❌ ' + err.message, true);
+        })
+        .scheduleDailyBackup();
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', function(){
+      console.log('DOM ready, loading dashboard...');
+      loadDashboard();
+    });
     // Init
     document.addEventListener('DOMContentLoaded', function(){
       console.log('DOM ready, loading dashboard...');
@@ -767,6 +2247,33 @@
         <div class="form-actions">
           <button class="btn btn-secondary" onclick="hideModal('shareholderModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
           <button class="btn btn-primary" onclick="submitShareholder()" style="background:var(--info);color:#fff;">💾 حفظ المساهم</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Batch KPI Input Modal -->
+  <div class="modal-overlay batch-modal" id="kpiBatchModal">
+    <div class="modal-box">
+      <div class="modal-header"><h3>✏️ إدخال دفعة KPI</h3><button class="modal-close" onclick="hideModal('kpiBatchModal')">&times;</button></div>
+      <div class="modal-body">
+        <div style="margin-bottom:15px;">
+          <div style="font-size:13px;color:#666;margin-bottom:10px;">اختر الشهر:</div>
+          <input type="month" id="batchMonth" style="padding:8px;border:1px solid #ccc;border-radius:6px;">
+        </div>
+        <div class="batch-header">
+          <span>المؤشر / القسم</span>
+          <span>القيمة</span>
+          <span>الوحدة</span>
+          <span><input type="checkbox" checked onclick="toggleAllBatch(this)"></span>
+        </div>
+        <div id="batchItemsContainer" style="max-height:400px;overflow-y:auto;">
+          <div class="loading">جاري التحميل...</div>
+        </div>
+        <div class="batch-summary" id="batchSummary"></div>
+        <div class="batch-actions">
+          <button class="btn btn-secondary" onclick="hideModal('kpiBatchModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
+          <button class="btn btn-primary" onclick="submitKPIBatch()" style="background:#ff6f00;color:#fff;">💾 حفظ الدفعة</button>
         </div>
       </div>
     </div>
