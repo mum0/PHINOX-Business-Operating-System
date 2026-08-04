@@ -1,569 +1,336 @@
 /**
- * عرض الواجهة الرسومية
- */
-function showDashboardUI(){
-  const html = HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('PHINOX Dashboard')
-    .setWidth(1400)
-    .setHeight(900);
-  SpreadsheetApp.getUi().showModalDialog(html, 'PHINOX Business Operating System');
-}
-
-/**
- * تضمين ملفات HTML
- */
-function include(filename){
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
-}
-
-/**
- * دوال مساعدة للواجهة
- */
-function getDashboardCards(){
-  return [
-    {label:'الأعضاء', value:totalMembers(), class:''},
-    {label:'المهام', value:totalTasks(), class:''},
-    {label:'المنجزة', value:completedTasks(), class:'success'},
-    {label:'المتأخرة', value:getLateTasks().length, class:'danger'},
-    {label:'متوسط KPI', value:teamAverageKPI(), class:''},
-    {label:'الإنتاجية', value:averageProductivity()+'%', class:'success'}
-  ];
-}
-
-function getTasksSummary(){
-  return [
-    ['قيد الانتظار', pendingReviewCount()],
-    ['قيد التنفيذ', activeTasks()],
-    ['المنجزة', completedTasks()],
-    ['المتأخرة', getLateTasks().length],
-    ['متوسط الدرجة', averageTaskScore()]
-  ];
-}
-
-/**
  * ============================================================
  * PHINOX Business Operating System
- * KPI.gs - Part 1
+ * KPI.gs
  * KPI Calculation Engine
  * ============================================================
  */
+
+/* ───────────────────────────────────────────
+   PART 1 — Task-Level KPI Scoring
+   ─────────────────────────────────────────── */
 
 /**
  * حساب الجودة
  */
 function calculateQualityScore(task){
-
     const quality = toNumber(task[10]);
-
-    return clamp(quality,0,100);
-
-}
-
-/**
- * حساب الالتزام بالمواعيد
- */
-function calculateOnTimeScore(task){
-
+    return clamp(quality, 0, 100);
+  }
+  
+  /**
+   * حساب الالتزام بالمواعيد
+   */
+  function calculateOnTimeScore(task){
     const daysLate = calculateLateDays(task);
-
-    if(daysLate===0)
-        return 100;
-
-    const penalty =
-        APP.REVIEW.PENALTY_PER_DAY * daysLate;
-
-    return clamp(
-        100-penalty,
-        0,
-        100
-    );
-
-}
-
-/**
- * حساب التأثير
- */
-function calculateImpactScore(task){
-
-    return clamp(
-        toNumber(task[11]),
-        0,
-        100
-    );
-
-}
-
-/**
- * حساب الأدلة
- */
-function calculateEvidenceScore(task){
-
-    return clamp(
-        toNumber(task[12]),
-        0,
-        100
-    );
-
-}
-
-/**
- * حساب الإنجاز
- */
-function calculateCompletionScore(task){
-
-    return clamp(
-        toNumber(task[9]),
-        0,
-        100
-    );
-
-}
-
-/**
- * حساب KPI النهائي للمهمة
- */
-function calculateTaskKPI(task){
-
-    const profile =
-        APP.KPI_PROFILE[
-            task[2]
-        ] || APP.KPI_PROFILE.CEO;
-
+    if(daysLate === 0) return 100;
+    const penalty = APP.REVIEW.PENALTY_PER_DAY * daysLate;
+    return clamp(100 - penalty, 0, 100);
+  }
+  
+  /**
+   * حساب التأثير
+   */
+  function calculateImpactScore(task){
+    return clamp(toNumber(task[11]), 0, 100);
+  }
+  
+  /**
+   * حساب الأدلة
+   */
+  function calculateEvidenceScore(task){
+    return clamp(toNumber(task[12]), 0, 100);
+  }
+  
+  /**
+   * حساب الإنجاز
+   */
+  function calculateCompletionScore(task){
+    return clamp(toNumber(task[9]), 0, 100);
+  }
+  
+  /**
+   * حساب KPI النهائي للمهمة
+   */
+  function calculateTaskKPI(task){
+    const profile = APP.KPI_PROFILE[task[2]] || APP.KPI_PROFILE.CEO;
     const score =
-
-        calculateQualityScore(task) *
-        profile.QUALITY /100 +
-
-        calculateCompletionScore(task) *
-        profile.COMPLETION /100 +
-
-        calculateOnTimeScore(task) *
-        profile.ON_TIME /100 +
-
-        calculateImpactScore(task) *
-        profile.IMPACT /100 +
-
-        calculateEvidenceScore(task) *
-        profile.EVIDENCE /100;
-
+      calculateQualityScore(task) * profile.QUALITY / 100 +
+      calculateCompletionScore(task) * profile.COMPLETION / 100 +
+      calculateOnTimeScore(task) * profile.ON_TIME / 100 +
+      calculateImpactScore(task) * profile.IMPACT / 100 +
+      calculateEvidenceScore(task) * profile.EVIDENCE / 100;
     return round(score);
-
-}
-
-/**
- * حساب Bonus
- */
-function calculateBonus(task){
-
-    const score =
-        calculateTaskKPI(task);
-
-    if(score>=95)
-        return 10;
-
-    if(score>=90)
-        return 5;
-
+  }
+  
+  /**
+   * حساب Bonus
+   */
+  function calculateBonus(task){
+    const score = calculateTaskKPI(task);
+    if(score >= 95) return 10;
+    if(score >= 90) return 5;
     return 0;
-
-}
-
-/**
- * خصومات التأخير
- */
-function calculatePenalty(task){
-
-    return calculateLateDays(task)
-        *APP.REVIEW.PENALTY_PER_DAY;
-
-}
-
-/**
- * ============================================================
- * KPI.gs - Part 2
- * Member KPI Engine
- * ============================================================
- */
-
-/**
- * جميع مهام العضو
- */
-function getMemberTasks(member){
-
-    return getTasks().filter(task =>
-        task[3] === member
-    );
-
-}
-
-/**
- * KPI العضو
- */
-function calculateMemberKPI(member){
-
-    const tasks = getMemberTasks(member);
-
-    if(tasks.length === 0)
-        return 0;
-
-    let total = 0;
-
-    tasks.forEach(task => {
-
-        total += calculateTaskKPI(task);
-
+  }
+  
+  /**
+   * خصومات التأخير
+   */
+  function calculatePenalty(task){
+    return calculateLateDays(task) * APP.REVIEW.PENALTY_PER_DAY;
+  }
+  
+  /* ───────────────────────────────────────────
+     PART 2 — Member KPI Engine
+     ─────────────────────────────────────────── */
+  
+  /**
+   * جميع مهام العضو
+   */
+  function getMemberTasks(member){
+    return getTasks().filter(function(task){
+      return task[3] === member;
     });
-
-    return round(total / tasks.length);
-
-}
-
-/**
- * عدد المهام المكتملة
- */
-function memberCompletedTasks(member){
-
-    return getMemberTasks(member).filter(task =>
-        task[6] === APP.TASK_STATUS.APPROVED
-    ).length;
-
-}
-
-/**
- * عدد المهام المتأخرة
- */
-function memberLateTasks(member){
-
-    return getMemberTasks(member).filter(task =>
-        calculateLateDays(task) > 0
-    ).length;
-
-}
-
-/**
- * متوسط الجودة
- */
-function memberQuality(member){
-
+  }
+  
+  /**
+   * KPI العضو
+   */
+  function calculateMemberKPI(member){
     const tasks = getMemberTasks(member);
-
-    if(tasks.length === 0)
-        return 0;
-
+    if(tasks.length === 0) return 0;
     let total = 0;
-
-    tasks.forEach(task => {
-
-        total += calculateQualityScore(task);
-
+    tasks.forEach(function(task){
+      total += calculateTaskKPI(task);
     });
-
     return round(total / tasks.length);
-
-}
-
-/**
- * تصنيف الأداء
- */
-function memberGrade(score){
-
+  }
+  
+  /**
+   * عدد المهام المكتملة
+   */
+  function memberCompletedTasks(member){
+    return getMemberTasks(member).filter(function(task){
+      return task[6] === APP.TASK_STATUS.APPROVED;
+    }).length;
+  }
+  
+  /**
+   * عدد المهام المتأخرة
+   */
+  function memberLateTasks(member){
+    return getMemberTasks(member).filter(function(task){
+      return calculateLateDays(task) > 0;
+    }).length;
+  }
+  
+  /**
+   * متوسط الجودة
+   */
+  function memberQuality(member){
+    const tasks = getMemberTasks(member);
+    if(tasks.length === 0) return 0;
+    let total = 0;
+    tasks.forEach(function(task){
+      total += calculateQualityScore(task);
+    });
+    return round(total / tasks.length);
+  }
+  
+  /**
+   * تصنيف الأداء
+   */
+  function memberGrade(score){
     if(score >= 97) return "A+";
-
     if(score >= APP.SCORE.EXCELLENT) return "A";
-
     if(score >= 90) return "A-";
-
     if(score >= APP.SCORE.VERY_GOOD) return "B+";
-
     if(score >= 80) return "B";
-
     if(score >= 75) return "B-";
-
     if(score >= APP.SCORE.GOOD) return "C+";
-
     if(score >= APP.SCORE.NEEDS_IMPROVEMENT) return "C";
-
     return "D";
-
-}
-
-/**
- * تحديث بيانات عضو
- */
-function updateMemberKPI(member){
-
+  }
+  
+  /**
+   * تحديث بيانات عضو
+   */
+  function updateMemberKPI(member){
     const sheet = getSheet(APP.SHEETS.MEMBERS);
-
     const data = sheet.getDataRange().getValues();
-
     for(let i = 1; i < data.length; i++){
-
-        if(data[i][1] === member){
-
-            data[i][7] = calculateMemberKPI(member);
-
-            data[i][8] = memberCompletedTasks(member);
-
-            data[i][9] = memberLateTasks(member);
-
-            data[i][10] = memberQuality(member);
-
-            sheet.getRange(i + 1,1,1,data[i].length)
-                 .setValues([data[i]]);
-
-            return;
-
-        }
-
+      if(data[i][1] === member){
+        data[i][7] = calculateMemberKPI(member);
+        data[i][8] = memberCompletedTasks(member);
+        data[i][9] = memberLateTasks(member);
+        data[i][10] = memberQuality(member);
+        sheet.getRange(i + 1, 1, 1, data[i].length).setValues([data[i]]);
+        return;
+      }
     }
-
-}
-
-/**
- * تحديث جميع الأعضاء
- */
-function refreshMembersKPI(){
-
+  }
+  
+  /**
+   * تحديث جميع الأعضاء
+   */
+  function refreshMembersKPI(){
     const sheet = getSheet(APP.SHEETS.MEMBERS);
-
     const data = sheet.getDataRange().getValues();
-
     for(let i = 1; i < data.length; i++){
-
-        updateMemberKPI(data[i][1]);
-
+      updateMemberKPI(data[i][1]);
     }
-
-}
-
-/**
- * ترتيب الأعضاء حسب KPI
- */
-function getLeaderboard(){
-
+  }
+  
+  /**
+   * ترتيب الأعضاء حسب KPI
+   */
+  function getLeaderboard(){
     const sheet = getSheet(APP.SHEETS.MEMBERS);
-
     const data = sheet.getDataRange().getValues();
-
     data.shift();
-
-    return data.sort((a,b)=>b[7]-a[7]);
-
-}
-
-/**
- * أفضل عضو
- */
-function bestMember(){
-
+    return data.sort(function(a, b){ return b[7] - a[7]; });
+  }
+  
+  /**
+   * أفضل عضو
+   */
+  function bestMember(){
     const board = getLeaderboard();
-
-    if(board.length === 0)
-        return null;
-
+    if(board.length === 0) return null;
     return board[0];
-
-}
-
-/**
- * متوسط KPI الفريق
- */
-function teamAverageKPI(){
-
+  }
+  
+  /**
+   * متوسط KPI الفريق
+   */
+  function teamAverageKPI(){
     const board = getLeaderboard();
-
-    if(board.length === 0)
-        return 0;
-
+    if(board.length === 0) return 0;
     let total = 0;
-
-    board.forEach(member=>{
-
-        total += toNumber(member[7]);
-
+    board.forEach(function(member){
+      total += toNumber(member[7]);
     });
-
     return round(total / board.length);
-
-}
-
-/**
- * ============================================================
- * KPI.gs - Part 3
- * Analytics & Dashboard Integration
- * ============================================================
- */
-
-/**
- * KPI أسبوعي
- */
-function weeklyKPI(member){
-
+  }
+  
+  /* ───────────────────────────────────────────
+     PART 3 — Analytics & Dashboard Integration
+     ─────────────────────────────────────────── */
+  
+  /**
+   * KPI أسبوعي
+   */
+  function weeklyKPI(member){
     const tasks = getMemberTasks(member);
-
     const today = new Date();
-
     const weekAgo = new Date();
-
-    weekAgo.setDate(today.getDate()-7);
-
-    const filtered = tasks.filter(task=>{
-
-        const date = new Date(task[20]);
-
-        return date >= weekAgo;
-
+    weekAgo.setDate(today.getDate() - 7);
+    const filtered = tasks.filter(function(task){
+      const date = new Date(task[20]);
+      return date >= weekAgo;
     });
-
-    if(filtered.length===0)
-        return 0;
-
+    if(filtered.length === 0) return 0;
     let total = 0;
-
-    filtered.forEach(task=>{
-
-        total += calculateTaskKPI(task);
-
+    filtered.forEach(function(task){
+      total += calculateTaskKPI(task);
     });
-
-    return round(total/filtered.length);
-
-}
-
-/**
- * KPI شهري
- */
-function monthlyKPI(member){
-
+    return round(total / filtered.length);
+  }
+  
+  /**
+   * KPI شهري
+   */
+  function monthlyKPI(member){
     const tasks = getMemberTasks(member);
-
     const today = new Date();
-
     const month = today.getMonth();
-
     const year = today.getFullYear();
-
-    const filtered = tasks.filter(task=>{
-
-        const d = new Date(task[20]);
-
-        return d.getMonth()===month &&
-               d.getFullYear()===year;
-
+    const filtered = tasks.filter(function(task){
+      const d = new Date(task[20]);
+      return d.getMonth() === month && d.getFullYear() === year;
     });
-
-    if(filtered.length===0)
-        return 0;
-
-    let total=0;
-
-    filtered.forEach(task=>{
-
-        total+=calculateTaskKPI(task);
-
+    if(filtered.length === 0) return 0;
+    let total = 0;
+    filtered.forEach(function(task){
+      total += calculateTaskKPI(task);
     });
-
-    return round(total/filtered.length);
-
-}
-
-/**
- * اتجاه الأداء
- */
-function performanceTrend(member){
+    return round(total / filtered.length);
+  }
+  
+  /**
+   * اتجاه الأداء
+   */
+  function performanceTrend(member){
     const week = weeklyKPI(member);
     const month = monthlyKPI(member);
-    if(week > month) return t("perf_trend_up");
-    if(week < month) return t("perf_trend_down");
-    return t("perf_trend_stable");
-}
-/**
- * إنتاجية العضو
- */
-function productivity(member){
-
-    const completed =
-        memberCompletedTasks(member);
-
-    const total =
-        getMemberTasks(member).length;
-
-    if(total===0)
-        return 0;
-
-    return round(
-        completed/total*100
-    );
-
-}
-
-/**
- * تحديث Dashboard KPI
- * يُرجع البيانات ليتم عرضها في Dashboard.gs
- */
-function updateKPIDashboard(){
+    if(week > month) return "perf_trend_up";
+    if(week < month) return "perf_trend_down";
+    return "perf_trend_stable";
+  }
+  
+  /**
+   * إنتاجية العضو
+   */
+  function productivity(member){
+    const completed = memberCompletedTasks(member);
+    const total = getMemberTasks(member).length;
+    if(total === 0) return 0;
+    return round(completed / total * 100);
+  }
+  
+  /**
+   * تحديث Dashboard KPI
+   */
+  function updateKPIDashboard(){
     const best = bestMember();
     return [
-        ["Team KPI", teamAverageKPI()],
-        ["Best Member", best ? best[1] : "-"]
+      ["Team KPI", teamAverageKPI()],
+      ["Best Member", best ? best[1] : "-"]
     ];
-}
-
-/**
- * تحديث كامل
- */
-function refreshKPI(){
-
+  }
+  
+  /**
+   * تحديث كامل
+   */
+  function refreshKPI(){
     refreshMembersKPI();
-
     updateKPIDashboard();
-
-}
-
-/**
- * تشغيل كامل للنظام
- */
-function systemRefresh(){
-
+  }
+  
+  /**
+   * تشغيل كامل للنظام
+   */
+  function systemRefresh(){
     recalculateAllTasks();
-
     refreshMembersKPI();
-
     updateDashboard();
-
     updateKPIDashboard();
-
-}
-
-/**
- * تشغيل مجدول
- */
-function dailyRefresh(){
-
+  }
+  
+  /**
+   * تشغيل مجدول
+   */
+  function dailyRefresh(){
     systemRefresh();
-
-}
-
-/**
- * إنشاء Trigger يومي
- */
-function createDailyTrigger(){
-
+  }
+  
+  /**
+   * إنشاء Trigger يومي
+   */
+  function createDailyTrigger(){
     ScriptApp.newTrigger("dailyRefresh")
-        .timeBased()
-        .everyDays(1)
-        .atHour(1)
-        .create();
-
-}
-/**
- * ============================================================
- * Enterprise KPI Library v3.3
- * Department-Level Performance Metrics
- * ============================================================
- */
-
-const KPI_LIBRARY = {
+      .timeBased()
+      .everyDays(1)
+      .atHour(1)
+      .create();
+  }
+  
+  /* ───────────────────────────────────────────
+     PART 4 — Enterprise KPI Library
+     Department-Level Performance Metrics
+     ─────────────────────────────────────────── */
+  
+  const KPI_LIBRARY = {
     CEO: [
       {id: 'rev_growth', name: 'نمو الإيرادات', nameEn: 'Revenue Growth', formula: 'growth', source: 'sales', field: 'amount', weight: 25, target: 15, unit: '%', freq: 'monthly'},
       {id: 'net_margin', name: 'هامش الربح الصافي', nameEn: 'Net Margin', formula: 'margin', source: 'finance', field: 'net', weight: 25, target: 20, unit: '%', freq: 'monthly'},
@@ -611,7 +378,7 @@ const KPI_LIBRARY = {
       {id: 'throughput', name: 'الإنتاجية', nameEn: 'Throughput', formula: 'throughput', source: 'tasks', weight: 25, target: 100, unit: 'مهمة/يوم', freq: 'weekly'},
       {id: 'error_rate', name: 'معدل الخطأ', nameEn: 'Error Rate', formula: 'errorrate', source: 'tasks', weight: 20, target: 2, unit: '%', freq: 'weekly'},
       {id: 'oee', name: 'الكفاءة الشاملة', nameEn: 'OEE', formula: 'oee', source: 'inventory', weight: 20, target: 85, unit: '%', freq: 'monthly'},
-      {id: 'bottleneck', name: ' bottleneck الوقت', nameEn: 'Bottleneck Time', formula: 'bottleneck', source: 'tasks', weight: 10, target: 24, unit: 'ساعة', freq: 'weekly'}
+      {id: 'bottleneck', name: 'bottleneck الوقت', nameEn: 'Bottleneck Time', formula: 'bottleneck', source: 'tasks', weight: 10, target: 24, unit: 'ساعة', freq: 'weekly'}
     ],
     Sales: [
       {id: 'sales_growth', name: 'نمو المبيعات', nameEn: 'Sales Growth', formula: 'growth', source: 'sales', weight: 30, target: 20, unit: '%', freq: 'monthly'},
@@ -696,14 +463,18 @@ const KPI_LIBRARY = {
     ]
   };
   
+  /* ───────────────────────────────────────────
+     PART 5 — Department KPI Calculator
+     ─────────────────────────────────────────── */
+  
   /**
-   * حساب قيمة KPI بناءً على نوعه
+   * حساب قيمة KPI بناءً على البيانات الحقيقية
    */
   function calculateKPIValue(kpiDef){
     try{
       var formula = kpiDef.formula;
       var source = kpiDef.source;
-      
+  
       switch(formula){
         case 'growth': {
           var sales = getSales();
@@ -711,7 +482,6 @@ const KPI_LIBRARY = {
           var curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
           var prevMonth = now.getFullYear() + '-' + String(now.getMonth()).padStart(2, '0');
           if(now.getMonth() === 0) prevMonth = (now.getFullYear() - 1) + '-12';
-          
           var cur = 0, prev = 0;
           sales.forEach(function(s){
             var mk = toMonthKey(new Date(s[SALE_COL.DATE]));
@@ -728,119 +498,6 @@ const KPI_LIBRARY = {
             var a = toNumber(fin[i][5]);
             if(t === 'Income' || t === 'إيراد') inc += a;
             else exp += a;
-          }
-          return inc > 0 ? Math.round(((inc - exp) / inc) * 100) : 0;
-        }
-        case 'count': {
-          if(source === 'sales') return getSales().length;
-          if(source === 'orders') return getSheet(APP.SHEETS.ORDERS).getLastRow() - 1;
-          return 0;
-        }
-        case 'avg': {
-          if(source === 'sales'){
-            var s = getSales();
-            var total = s.reduce(function(sum, r){ return sum + toNumber(r[SALE_COL.AMOUNT]); }, 0);
-            return s.length > 0 ? Math.round(total / s.length) : 0;
-          }
-          return 0;
-        }
-        case 'conversion': {
-          var oData = getSheet(APP.SHEETS.ORDERS).getDataRange().getValues();
-          var del = 0, total = 0;
-          for(var j = 1; j < oData.length; j++){
-            total++;
-            if(String(oData[j][5]).trim() === 'Delivered') del++;
-          }
-          return total > 0 ? Math.round((del / total) * 100) : 0;
-        }
-        case 'returnrate': {
-          var oD = getSheet(APP.SHEETS.ORDERS).getDataRange().getValues();
-          var ret = 0, tot = 0;
-          for(var k = 1; k < oD.length; k++){
-            tot++;
-            if(String(oD[k][5]).trim() === 'Returned') ret++;
-          }
-          return tot > 0 ? Math.round((ret / tot) * 100) : 0;
-        }
-        case 'aov': {
-          var oData2 = getSheet(APP.SHEETS.ORDERS).getDataRange().getValues();
-          var rev = 0, cnt = 0;
-          for(var m = 1; m < oData2.length; m++){
-            if(String(oData2[m][5]).trim() !== 'Cancelled'){
-              rev += toNumber(oData2[m][7]);
-              cnt++;
-            }
-          }
-          return cnt > 0 ? Math.round(rev / cnt) : 0;
-        }
-        case 'cashflow': {
-          var fData = getSheet(APP.SHEETS.FINANCE).getDataRange().getValues();
-          var bal = 0;
-          for(var n = 1; n < fData.length; n++) bal += toNumber(fData[n][6]);
-          return Math.round(bal);
-        }
-        case 'turnover': {
-          var inv = getSheet(APP.SHEETS.INVENTORY).getDataRange().getValues();
-          var avgVal = 0, sold = totalSales();
-          for(var p = 1; p < inv.length; p++) avgVal += toNumber(inv[p][7]) * toNumber(inv[p][12]);
-          avgVal = avgVal / Math.max(1, inv.length - 1);
-          return avgVal > 0 ? Math.round((sold / avgVal) * 100) / 100 : 0;
-        }
-        case 'accuracy':
-        case 'passrate':
-        case 'efficiency':
-        case 'ontime': {
-          var tData = getSheet(APP.SHEETS.TASKS).getDataRange().getValues();
-          var completed = 0, scored = 0;
-          for(var q = 1; q < tData.length; q++){
-            if(String(tData[q][6]).trim() === 'Completed' || String(tData[q][6]).trim() === 'Approved'){
-              completed++;
-              scored += toNumber(tData[q][15]);
-            }
-          }
-          if(formula === 'efficiency') return completed > 0 ? Math.round((scored / completed)) : 0;
-          return completed > 0 ? Math.round((scored / (completed * 100)) * 100) : 0;
-        }
-        case 'retention': {
-          var mData = getSheet(APP.SHEETS.MEMBERS).getDataRange().getValues();
-          var active = 0, total = 0;
-          for(var r = 1; r < mData.length; r++){
-            total++;
-            if(String(mData[r][5]).toLowerCase() === 'active') active++;
-          }
-          return total > 0 ? Math.round((active / total) * 100) : 0;
-        }
-  /**
- * حساب قيمة KPI بناءً على البيانات الحقيقية فقط
- */
-function calculateKPIValue(kpiDef){
-    try{
-      var formula = kpiDef.formula;
-      var source = kpiDef.source;
-      
-      // ── صيغ منفذة بالكامل ──
-      switch(formula){
-        case 'growth': {
-          var sales = getSales();
-          var now = new Date();
-          var curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-          var prevMonth = now.getFullYear() + '-' + String(now.getMonth()).padStart(2, '0');
-          if(now.getMonth() === 0) prevMonth = (now.getFullYear() - 1) + '-12';
-          var cur = 0, prev = 0;
-          sales.forEach(function(s){
-            var mk = toMonthKey(new Date(s[SALE_COL.DATE]));
-            if(mk === curMonth) cur += toNumber(s[SALE_COL.AMOUNT]);
-            if(mk === prevMonth) prev += toNumber(s[SALE_COL.AMOUNT]);
-          });
-          return prev > 0 ? Math.round(((cur - prev) / prev) * 100) : 0;
-        }
-        case 'margin': {
-          var fin = getSheet(APP.SHEETS.FINANCE).getDataRange().getValues();
-          var inc = 0, exp = 0;
-          for(var i = 1; i < fin.length; i++){
-            var t = String(fin[i][2]).trim();
-            var a = toNumber(fin[i][5]);
-            if(t === 'Income' || t === 'إيراد') inc += a; else exp += a;
           }
           return inc > 0 ? Math.round(((inc - exp) / inc) * 100) : 0;
         }
@@ -951,7 +608,8 @@ function calculateKPIValue(kpiDef){
           for(var i = 1; i < fin.length; i++){
             var t = String(fin[i][2]).trim();
             var a = toNumber(fin[i][5]);
-            if(t === 'Income' || t === 'إيراد') inc += a; else exp += a;
+            if(t === 'Income' || t === 'إيراد') inc += a;
+            else exp += a;
           }
           return inc > 0 ? Math.round((exp / inc) * 100) : 0;
         }
@@ -965,15 +623,13 @@ function calculateKPIValue(kpiDef){
           return total > 0 ? Math.round((filled / total) * 100) : 0;
         }
         case 'shrinkage': {
-          // يحتاج بيانات فعلية للفاقد - مؤقتاً 0 حتى يتم إدخالها يدوياً
           return getManualKPIValue(kpiDef.id) || 0;
         }
         case 'carrying': {
           var inv = getSheet(APP.SHEETS.INVENTORY).getDataRange().getValues();
           var val = 0;
           for(var i = 1; i < inv.length; i++) val += toNumber(inv[i][7]) * toNumber(inv[i][12]);
-          // تكلفة التخزين تقديرية 20% من قيمة المخزون سنوياً
-          return Math.round((val * 0.2) / 12); // شهرياً
+          return Math.round((val * 0.2) / 12);
         }
         case 'fulfillment_time': {
           var o = getSheet(APP.SHEETS.ORDERS).getDataRange().getValues();
@@ -1003,23 +659,20 @@ function calculateKPIValue(kpiDef){
           var hours = 0;
           for(var i = 1; i < t.length; i++){
             if(String(t[i][3]).toLowerCase().indexOf('training') > -1 || String(t[i][3]).toLowerCase().indexOf('تدريب') > -1){
-              hours += toNumber(t[i][15]); // استخدام الدرجة كمؤقت
+              hours += toNumber(t[i][15]);
             }
           }
           return hours;
         }
         case 'absent': {
-          // يحتاج تتبع الحضور - يُرجع القيمة اليدوية إن وجدت
           return getManualKPIValue(kpiDef.id) || 0;
         }
         case 'satisfaction':
         case 'csat':
         case 'nps': {
-          // استطلاعات الرأي - يُرجع القيمة اليدوية
           return getManualKPIValue(kpiDef.id) || 0;
         }
         case 'downtime': {
-          // نسبة التوقف - يدوي أو من بيانات المهام
           return getManualKPIValue(kpiDef.id) || 0;
         }
         case 'defect': {
@@ -1027,7 +680,6 @@ function calculateKPIValue(kpiDef){
           var defect = 0, total = 0;
           for(var i = 1; i < inv.length; i++){
             total += toNumber(inv[i][7]);
-            // افتراض: العيوب في ملاحظات المنتج
             if(String(inv[i][16] || '').toLowerCase().indexOf('defect') > -1) defect += toNumber(inv[i][7]);
           }
           return total > 0 ? Math.round((defect / total) * 100) : 0;
@@ -1036,7 +688,6 @@ function calculateKPIValue(kpiDef){
           var inv = getSheet(APP.SHEETS.INVENTORY).getDataRange().getValues();
           var totalQty = 0;
           for(var i = 1; i < inv.length; i++) totalQty += toNumber(inv[i][7]);
-          // افتراض طاقة تخزين قصوى 10000 وحدة
           return Math.min(100, Math.round((totalQty / 10000) * 100));
         }
         case 'yield': {
@@ -1045,7 +696,7 @@ function calculateKPIValue(kpiDef){
           for(var i = 1; i < inv.length; i++){
             var q = toNumber(inv[i][7]);
             total += q;
-            if(q > 0) good += q; // مبسط - يمكن ربطه بجودة المنتج
+            if(q > 0) good += q;
           }
           return total > 0 ? Math.round((good / total) * 100) : 0;
         }
@@ -1076,7 +727,7 @@ function calculateKPIValue(kpiDef){
           var shipCost = 0, rev = 0;
           for(var i = 1; i < o.length; i++){
             rev += toNumber(o[i][7]);
-            shipCost += toNumber(o[i][12]); // افتراض تكلفة الشحن في عمود المورد
+            shipCost += toNumber(o[i][12]);
           }
           return rev > 0 ? Math.round((shipCost / rev) * 100) : 0;
         }
@@ -1102,14 +753,14 @@ function calculateKPIValue(kpiDef){
         }
         case 'velocity': {
           var t = getSheet(APP.SHEETS.TASKS).getDataRange().getValues();
-          var completed = 0, onTime = 0;
+          var completed = 0, ontime = 0;
           for(var i = 1; i < t.length; i++){
             if(String(t[i][6]).trim() === 'Completed'){
               completed++;
-              if(toNumber(t[i][18]) <= 0) onTime++; // Days Late <= 0
+              if(toNumber(t[i][18]) <= 0) ontime++;
             }
           }
-          return completed > 0 ? Math.round((onTime / completed) * 100) : 0;
+          return completed > 0 ? Math.round((ontime / completed) * 100) : 0;
         }
         case 'burn': {
           var fin = getSheet(APP.SHEETS.FINANCE).getDataRange().getValues();
@@ -1133,7 +784,6 @@ function calculateKPIValue(kpiDef){
           return d.length > 1 ? Math.round((totalVar / (d.length - 1)) * 100) : 0;
         }
         case 'days': {
-          // أيام التحصيل - متوسط أيام انتظار الدفع
           var s = getSales();
           var days = 0, count = 0;
           var now = new Date();
@@ -1146,7 +796,6 @@ function calculateKPIValue(kpiDef){
           return count > 0 ? Math.round(days / count) : 0;
         }
         default: {
-          // ❌ لا عشوائية! إما قيمة يدوية أو 0
           return getManualKPIValue(kpiDef.id) || 0;
         }
       }
@@ -1172,12 +821,6 @@ function calculateKPIValue(kpiDef){
     }catch(e){}
     return null;
   }
-      }
-    }catch(e){
-      Logger.log("KPI calculation error for " + kpiDef.id + ": " + e);
-      return 0;
-    }
-  }
   
   /**
    * جلب KPIs لقسم معين
@@ -1185,20 +828,20 @@ function calculateKPIValue(kpiDef){
   function getDepartmentKPIs(deptName){
     var dept = KPI_LIBRARY[deptName];
     if(!dept) return {department: deptName, kpis: [], score: 0};
-    
+  
     var result = [];
     var totalWeight = 0;
     var weightedScore = 0;
-    
+  
     dept.forEach(function(kpi){
       var actual = calculateKPIValue(kpi);
       var achievement = kpi.target > 0 ? (actual / kpi.target) * 100 : 0;
-      if(['returnrate','burn_rate','shrinkage','expense_ratio','defect_rate','error_rate','downtime','bottleneck','absenteeism','damage_rate','complaints','incident_count','litigation_risk','findings','risk_score'].indexOf(kpi.id) > -1){
-        // Lower is better - invert achievement
-        achievement = achievement > 0 ? Math.min(200, (kpi.target / actual) * 100) : 100;
+      var lowerBetter = ['returnrate','burn_rate','shrinkage','expense_ratio','defect_rate','error_rate','downtime','bottleneck','absenteeism','damage_rate','complaints','incident_count','litigation_risk','findings','risk_score'].indexOf(kpi.id) > -1;
+      if(lowerBetter && achievement > 0){
+        achievement = Math.min(200, (kpi.target / actual) * 100);
       }
-      achievement = Math.min(achievement, 200); // Cap at 200%
-      
+      achievement = Math.min(achievement, 200);
+  
       var grade = 'F';
       var color = '#C62828';
       if(achievement >= 120){ grade = 'A+'; color = '#1B5E20'; }
@@ -1206,9 +849,7 @@ function calculateKPIValue(kpiDef){
       else if(achievement >= 80){ grade = 'B'; color = '#7B1FA2'; }
       else if(achievement >= 60){ grade = 'C'; color = '#F9A825'; }
       else if(achievement >= 40){ grade = 'D'; color = '#E65100'; }
-      
-      var trend = 'stable'; // يمكن ربطه لاحقاً بالمقارنة مع الشهر السابق
-      
+  
       result.push({
         id: kpi.id,
         name: kpi.name,
@@ -1220,16 +861,16 @@ function calculateKPIValue(kpiDef){
         grade: grade,
         color: color,
         weight: kpi.weight,
-        trend: trend,
+        trend: 'stable',
         freq: kpi.freq
       });
-      
+  
       totalWeight += kpi.weight;
       weightedScore += (achievement * kpi.weight);
     });
-    
+  
     var deptScore = totalWeight > 0 ? Math.round(weightedScore / totalWeight) : 0;
-    
+  
     return {
       department: deptName,
       kpis: result,
@@ -1255,5 +896,5 @@ function calculateKPIValue(kpiDef){
         kpisCount: k.kpis.length
       });
     });
-    return result.sort(function(a,b){ return b.score - a.score; });
+    return result.sort(function(a, b){ return b.score - a.score; });
   }

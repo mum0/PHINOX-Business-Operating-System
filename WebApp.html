@@ -5,196 +5,217 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PHINOX BOS</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    :root{--primary:#1a237e;--primary-light:#e8eaf6;--success:#2E7D32;--warning:#E65100;--danger:#C62828;--info:#1565C0;--header:#37474f;--bg:#f5f5f5;--card:#fff;--text:#212121;}
+    :root{
+      --primary:#1a237e;--primary-light:#e8eaf6;--primary-dark:#0d1245;
+      --success:#2E7D32;--success-light:#e6f4ea;
+      --warning:#E65100;--warning-light:#fef3e8;
+      --danger:#C62828;--danger-light:#fce8e6;
+      --info:#1565C0;--info-light:#e8f0fe;
+      --header:#1a237e;--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;
+      --shadow:0 4px 20px rgba(0,0,0,.08);--shadow-lg:0 8px 40px rgba(0,0,0,.12);
+      --radius:14px;--radius-sm:8px;--transition:all .3s cubic-bezier(.4,0,.2,1);
+    }
     *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
-    body{background:var(--bg);color:var(--text);}
-    .app-header{background:var(--primary);color:#fff;padding:15px 25px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:10px;}
-    .app-header h1{font-size:20px;}
-    .header-actions{display:flex;gap:10px;flex-wrap:wrap;}
-    .btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;transition:.2s;}
-    .btn:hover{opacity:.85;transform:translateY(-1px);}
-    .btn-primary{background:#fff;color:var(--primary);} .btn-success{background:var(--success);color:#fff;}
+    body{background:var(--bg);color:var(--text);overflow-x:hidden;}
+
+    /* Header */
+    .app-header{background:linear-gradient(135deg,var(--primary) 0%,#283593 100%);color:#fff;padding:0 25px;height:60px;display:flex;justify-content:space-between;align-items:center;position:fixed;top:0;left:0;right:0;z-index:100;box-shadow:var(--shadow-lg);}
+    .app-header h1{font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px;}
+    .app-header h1 i{font-size:22px;}
+    .header-actions{display:flex;gap:8px;align-items:center;}
+    .btn{padding:8px 16px;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;transition:var(--transition);white-space:nowrap;}
+    .btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.15);}
+    .btn-primary{background:#fff;color:var(--primary);} .btn-primary:hover{background:var(--primary-light);}
+    .btn-success{background:var(--success);color:#fff;} .btn-danger{background:var(--danger);color:#fff;}
     .btn-info{background:var(--info);color:#fff;} .btn-warning{background:var(--warning);color:#fff;}
-    .container{padding:20px;max-width:1400px;margin:0 auto;}
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:25px;}
-    .card{background:var(--card);border-radius:10px;padding:18px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-right:4px solid var(--info);position:relative;}
-    .card.success{border-right-color:var(--success);} .card.warning{border-right-color:var(--warning);} .card.danger{border-right-color:var(--danger);}
-    .card-icon{position:absolute;left:15px;top:15px;font-size:28px;opacity:.15;}
-    .card h3{font-size:12px;color:#666;margin-bottom:6px;} .card .value{font-size:26px;font-weight:700;}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-    @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
-    .section{background:var(--card);border-radius:10px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);margin-bottom:20px;}
-    .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;}
-    .section h2{font-size:16px;color:var(--primary);}
-    table{width:100%;border-collapse:collapse;font-size:13px;}
-    th{background:var(--header);color:#fff;padding:10px;text-align:right;}
-    td{padding:10px;border-bottom:1px solid #e0e0e0;} tr:hover{background:#f8f9fa;}
-    .badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-    .badge-green{background:#e6f4ea;color:var(--success);} .badge-red{background:#fce8e6;color:var(--danger);}
-    .badge-yellow{background:#fef3e8;color:#b06000;} .badge-blue{background:#e8f0fe;color:var(--info);}
-    .error-box{background:#fce8e6;color:var(--danger);padding:15px;border-radius:8px;margin:20px;text-align:center;}
-    .loading{text-align:center;padding:30px;color:#999;}
-    .spinner{display:inline-block;width:20px;height:20px;border:3px solid #f3f3f3;border-top:3px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite;}
-    @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
-    .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--header);color:#fff;padding:12px 24px;border-radius:8px;font-size:13px;z-index:9999;display:none;}
-    .toast.show{display:block;}
-    .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;justify-content:center;align-items:center;padding:20px;}
-    .modal-box{background:#fff;border-radius:12px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 10px 40px rgba(0,0,0,0.2);}
-    .modal-header{background:var(--primary);color:#fff;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;}
-    .modal-header h3{font-size:16px;}
-    .modal-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;}
-    .modal-body{padding:20px;}
-    .form-group{margin-bottom:15px;}
-    .form-group label{display:block;font-size:13px;font-weight:700;color:#555;margin-bottom:5px;}
-    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;}
-    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);}
-    .form-row{display:flex;gap:15px;}
-    .form-row .form-group{flex:1;}
-    .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
-    .btn-add{background:var(--success);color:#fff;padding:6px 12px;font-size:12px;border:none;border-radius:4px;cursor:pointer;}
-    .btn-remove{background:var(--danger);color:#fff;padding:6px 10px;font-size:12px;border:none;border-radius:4px;cursor:pointer;}
-    .item-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-end;}
-    .item-row .form-group{margin-bottom:0;}
-    .item-row .form-group.qty{flex:0 0 70px;} .item-row .form-group.price{flex:0 0 90px;}
-    .section-actions{display:flex;gap:8px;margin-bottom:12px;}
-    .btn-sm{padding:5px 12px;font-size:12px;border:none;border-radius:4px;cursor:pointer;font-weight:700;}
-    .btn-sm:hover{opacity:.85;}
-    .btn-del{background:var(--danger);color:#fff;}
-    .btn-edit{background:var(--info);color:#fff;}
-    .btn-view{background:#757575;color:#fff;}
-    .actions-col{white-space:nowrap;width:120px;}
-    .actions-col button{margin-left:4px;padding:3px 8px;font-size:11px;border:none;border-radius:3px;cursor:pointer;}
-    .tabs-bar{background:#fff;padding:10px 25px;border-bottom:1px solid #e0e0e0;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:60px;z-index:90;}
-    .tab-btn{padding:8px 18px;border:none;background:transparent;color:#666;font-size:13px;font-weight:700;cursor:pointer;border-radius:6px;transition:.2s;font-family:'Cairo',sans-serif;}
-    .tab-btn:hover{background:#e8eaf6;color:#1a237e;}
-    .tab-btn.active{background:#1a237e;color:#fff;}
-    .tab-section{display:none;animation:fadeIn .3s ease;}
-    .tab-section.active{display:block;}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-    .ceo-card{border-right:4px solid #4a148c;}
-    .ceo-card.revenue{border-right-color:#2E7D32;}
-    .ceo-card.expense{border-right-color:#C62828;}
-    .ceo-card.profit{border-right-color:#1565C0;}
-    .ceo-card.alert{border-right-color:#E65100;}
-    .growth-badge{font-size:11px;padding:2px 8px;border-radius:12px;margin-right:8px;}
-    .growth-up{background:#e6f4ea;color:#2E7D32;}
-    .growth-down{background:#fce8e6;color:#C62828;}
-    .growth-neutral{background:#f5f5f5;color:#757575;}
-    .kpi-dept-card{background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,.08);cursor:pointer;transition:.2s;border-right:4px solid #ccc;}
-    .kpi-dept-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.12);}
-    .kpi-dept-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-    .kpi-dept-name{font-size:15px;font-weight:700;color:#1a237e;}
-    .kpi-dept-score{font-size:22px;font-weight:700;}
-    .kpi-grade-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;}
-    .kpi-progress-bg{background:#e0e0e0;border-radius:10px;height:10px;overflow:hidden;margin-top:8px;}
-    .kpi-progress-fill{height:10px;border-radius:10px;transition:width .5s ease;}
-    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-bottom:20px;}
-    .kpi-detail-card{background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-top:3px solid #1a237e;}
-    .kpi-metric-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;}
-    .kpi-metric-row:last-child{border-bottom:none;}
-    .kpi-trend{font-size:11px;margin-right:5px;}
-    .trend-up{color:#2E7D32;} .trend-down{color:#C62828;} .trend-stable{color:#757575;}
-    .back-btn{background:#1a237e;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:15px;font-family:'Cairo',sans-serif;}
-    .back-btn:hover{opacity:.9;}
-    .kpi-freq-badge{font-size:10px;padding:2px 8px;border-radius:12px;background:#e8eaf6;color:#1a237e;}
-    .security-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:15px;margin-bottom:20px;}
-    .security-card{background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-top:3px solid #1a237e;}
-    .security-card.warning{border-top-color:#E65100;}
-    .security-card.danger{border-top-color:#C62828;}
-    .security-card.success{border-top-color:#2E7D32;}
-    .approval-item{background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:10px;border-right:3px solid #E65100;}
-    .approval-item.approved{border-right-color:#2E7D32;}
-    .approval-item.rejected{border-right-color:#C62828;}
-    .approval-actions{display:flex;gap:8px;margin-top:10px;}
-    .approval-actions button{padding:6px 14px;font-size:12px;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-family:'Cairo',sans-serif;}
-    .btn-approve{background:#2E7D32;color:#fff;}
-    .btn-reject{background:#C62828;color:#fff;}
-    .archive-item{background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
-    .archive-meta{font-size:12px;color:#666;}
-    .backup-status{padding:15px;background:#e8eaf6;border-radius:8px;text-align:center;}
-    .backup-btn{background:#1a237e;color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;font-family:'Cairo',sans-serif;}
-    .security-note{font-size:12px;color:#666;background:#fffde7;padding:10px;border-radius:6px;margin-top:10px;border-right:3px solid #F9A825;}
-    .no-data{text-align:center;padding:30px;color:#999;}
-    .kpi-input-btn{background:#ff6f00;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;}
-    .kpi-input-btn:hover{background:#e65100;}
-    .kpi-source-badge{font-size:10px;padding:2px 8px;border-radius:12px;margin-right:6px;}
-    .source-auto{background:#e8f5e9;color:#2e7d32;}
-    .source-manual{background:#fff3e0;color:#ef6c00;}
-    .source-nodata{background:#f5f5f5;color:#9e9e9e;}
-    .kpi-need-input{background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
-    .batch-modal .modal-box{max-width:700px;}
-    .batch-item{display:grid;grid-template-columns:2fr 1fr 80px 40px;gap:10px;align-items:center;padding:10px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;}
-    .batch-item label{font-size:12px;color:#555;font-weight:700;}
-    .batch-item input{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:13px;}
-    .batch-item .batch-unit{font-size:12px;color:#666;text-align:center;}
-    .batch-item .batch-check{text-align:center;}
-    .batch-header{display:grid;grid-template-columns:2fr 1fr 80px 40px;gap:10px;padding:0 10px 8px;font-size:12px;font-weight:700;color:#1a237e;border-bottom:2px solid #e0e0e0;margin-bottom:10px;}
-    .batch-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:15px;}
-    .batch-summary{background:#e8f5e9;padding:12px;border-radius:8px;margin-top:15px;font-size:13px;color:#2e7d32;display:none;}
-    .batch-summary.error{background:#fce8e6;color:#c62828;}
-    .approval-row{background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:10px;border-right:3px solid #E65100;}
-    .approval-row.critical{border-right-color:#C62828;background:#fce8e6;}
-    /* Sidebar Styles */
-    .sidebar-nav{position:fixed;right:0;top:60px;width:200px;height:calc(100vh - 60px);background:#1a237e;color:#fff;padding:15px 0;z-index:80;overflow-y:auto;transition:.3s;}
-    .sidebar-nav.collapsed{width:50px;}
-    .sidebar-nav.collapsed .nav-text{display:none;}
-    .sidebar-nav.collapsed .nav-item{justify-content:center;padding:12px 0;}
-    .nav-toggle{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:10px 15px;width:100%;text-align:right;margin-bottom:10px;}
-    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;transition:.2s;font-size:13px;font-weight:700;}
-    .nav-item:hover,.nav-item.active{background:rgba(255,255,255,.15);}
-    .nav-icon{font-size:16px;width:20px;text-align:center;}
+    .btn-ghost{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);}
+    .btn-ghost:hover{background:rgba(255,255,255,.25);}
+    .btn-sm{padding:6px 12px;font-size:12px;border-radius:6px;}
+
+    /* Sidebar */
+    .sidebar{position:fixed;right:0;top:60px;width:240px;height:calc(100vh - 60px);background:#fff;z-index:90;overflow-y:auto;box-shadow:var(--shadow);transition:var(--transition);border-left:1px solid #e8eaf6;}
+    .sidebar.collapsed{width:60px;}
+    .sidebar.collapsed .nav-text,.sidebar.collapsed .nav-section-title{display:none;}
+    .sidebar.collapsed .nav-item{justify-content:center;padding:12px 0;}
+    .nav-toggle{background:none;border:none;color:var(--primary);font-size:18px;cursor:pointer;padding:12px 15px;width:100%;text-align:right;border-bottom:1px solid #f0f2f5;}
+    .nav-section-title{font-size:10px;font-weight:700;color:#9e9e9e;text-transform:uppercase;padding:15px 15px 5px;letter-spacing:1px;}
+    .nav-item{display:flex;align-items:center;gap:12px;padding:10px 15px;cursor:pointer;transition:var(--transition);font-size:13px;font-weight:600;color:#555;border-radius:0;margin:2px 0;position:relative;}
+    .nav-item:hover{background:var(--primary-light);color:var(--primary);}
+    .nav-item.active{background:var(--primary-light);color:var(--primary);border-left:3px solid var(--primary);}
+    .nav-item.active::before{content:'';position:absolute;right:0;top:0;bottom:0;width:3px;background:var(--primary);}
+    .nav-icon{font-size:18px;width:24px;text-align:center;}
     .nav-text{white-space:nowrap;}
-    .main-with-sidebar{margin-right:200px;transition:.3s;}
-    .main-with-sidebar.collapsed{margin-right:50px;}
-    @media(max-width:900px){.sidebar-nav{width:50px;}.sidebar-nav .nav-text{display:none;}.main-with-sidebar{margin-right:50px;}}
+    .nav-divider{height:1px;background:#f0f2f5;margin:8px 15px;}
+
+    /* Main Layout */
+    .main{margin-right:240px;margin-top:60px;min-height:calc(100vh - 60px);transition:var(--transition);padding:25px;}
+    .main.collapsed{margin-right:60px;}
+    @media(max-width:1024px){.sidebar{width:60px;}.sidebar .nav-text,.sidebar .nav-section-title{display:none;}.main{margin-right:60px;}}
+
+    /* Cards */
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-bottom:25px;}
+    .card{background:var(--card);border-radius:var(--radius);padding:22px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:var(--transition);border:none;}
+    .card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);}
+    .card::after{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--info);}
+    .card.success::after{background:var(--success);} .card.warning::after{background:var(--warning);} .card.danger::after{background:var(--danger);}
+    .card-icon{position:absolute;left:18px;top:18px;font-size:32px;opacity:.08;transition:var(--transition);}
+    .card:hover .card-icon{opacity:.15;transform:scale(1.1);}
+    .card h3{font-size:12px;color:#888;margin-bottom:8px;font-weight:600;} .card .value{font-size:28px;font-weight:800;color:var(--text);}
+    .card .sub{font-size:12px;color:#aaa;margin-top:4px;}
+
+    /* Sections */
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+    @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+    .section{background:var(--card);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);margin-bottom:22px;transition:var(--transition);}
+    .section:hover{box-shadow:var(--shadow-lg);}
+    .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+    .section h2{font-size:15px;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:8px;}
+
+    /* Tables */
+    .table-wrap{overflow-x:auto;border-radius:var(--radius-sm);border:1px solid #f0f2f5;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{background:linear-gradient(135deg,var(--primary) 0%,#283593 100%);color:#fff;padding:12px 14px;text-align:right;font-weight:600;font-size:12px;white-space:nowrap;}
+    td{padding:12px 14px;border-bottom:1px solid #f0f2f5;color:#444;} tr:last-child td{border-bottom:none;}
+    tr:hover{background:#f8f9ff;} tr:nth-child(even){background:#fafbfc;} tr:nth-child(even):hover{background:#f0f2ff;}
+    .actions-col{white-space:nowrap;width:100px;}
+    .actions-col button{margin-left:4px;padding:4px 10px;font-size:11px;border:none;border-radius:4px;cursor:pointer;transition:var(--transition);}
+    .actions-col button:hover{transform:scale(1.05);}
+
+    /* Badges */
+    .badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;}
+    .badge-green{background:var(--success-light);color:var(--success);} .badge-red{background:var(--danger-light);color:var(--danger);}
+    .badge-yellow{background:var(--warning-light);color:var(--warning);} .badge-blue{background:var(--info-light);color:var(--info);}
+    .badge-purple{background:#f3e5f5;color:#7B1FA2;} .badge-gray{background:#f5f5f5;color:#757575;}
+
+    /* States */
+    .loading{text-align:center;padding:40px;color:#bbb;}
+    .spinner{display:inline-block;width:24px;height:24px;border:3px solid #f3f3f3;border-top:3px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .error-box{background:var(--danger-light);color:var(--danger);padding:18px;border-radius:var(--radius-sm);margin:20px 0;text-align:center;font-weight:600;border:1px solid #ffcdd2;}
+    .no-data{text-align:center;padding:40px;color:#bbb;font-size:14px;}
+    .empty-state{display:flex;flex-direction:column;align-items:center;padding:40px;color:#bbb;}
+    .empty-state i{font-size:48px;margin-bottom:12px;opacity:.3;}
+
+    /* Toast */
+    .toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--header);color:#fff;padding:14px 28px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:all .4s cubic-bezier(.68,-.55,.265,1.55);box-shadow:var(--shadow-lg);}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+    /* Modal */
+    .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:1000;justify-content:center;align-items:center;padding:20px;opacity:0;transition:opacity .3s;}
+    .modal-overlay.show{display:flex;opacity:1;}
+    .modal-box{background:#fff;border-radius:var(--radius);width:100%;max-width:650px;max-height:90vh;overflow-y:auto;position:relative;box-shadow:var(--shadow-lg);transform:scale(.9);transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+    .modal-overlay.show .modal-box{transform:scale(1);}
+    .modal-header{background:linear-gradient(135deg,var(--primary) 0%,#283593 100%);color:#fff;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;}
+    .modal-header h3{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+    .modal-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:var(--transition);}
+    .modal-close:hover{background:rgba(255,255,255,.2);}
+    .modal-body{padding:24px;}
+    .form-group{margin-bottom:16px;}
+    .form-group label{display:block;font-size:12px;font-weight:700;color:#666;margin-bottom:6px;}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:var(--radius-sm);font-size:13px;transition:var(--transition);background:#fafbfc;}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(26,35,126,.08);}
+    .form-row{display:flex;gap:14px;}
+    .form-row .form-group{flex:1;}
+    .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid #f0f2f5;}
+    .item-row{display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;background:#f8f9fc;padding:10px;border-radius:var(--radius-sm);}
+    .item-row .form-group{margin-bottom:0;}
+    .item-row .form-group.qty{flex:0 0 80px;} .item-row .form-group.price{flex:0 0 100px;}
+    .btn-add{background:var(--success);color:#fff;padding:6px 14px;font-size:12px;border:none;border-radius:6px;cursor:pointer;font-weight:600;transition:var(--transition);}
+    .btn-add:hover{background:#1b5e20;}
+    .btn-remove{background:var(--danger-light);color:var(--danger);padding:6px 12px;font-size:12px;border:none;border-radius:6px;cursor:pointer;font-weight:700;transition:var(--transition);}
+    .btn-remove:hover{background:var(--danger);color:#fff;}
+
+    /* Tabs */
+    .tab-section{display:none;animation:fadeIn .4s ease;}
+    .tab-section.active{display:block;}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+    /* KPI */
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-bottom:20px;}
+    .kpi-card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:var(--transition);border-right:4px solid #ccc;position:relative;overflow:hidden;}
+    .kpi-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);}
+    .kpi-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+    .kpi-card-name{font-size:15px;font-weight:700;color:var(--primary);}
+    .kpi-card-score{font-size:26px;font-weight:800;}
+    .kpi-grade{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;}
+    .kpi-bar-bg{background:#e8eaf6;border-radius:10px;height:8px;overflow:hidden;margin-top:10px;}
+    .kpi-bar-fill{height:8px;border-radius:10px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+    .kpi-detail-card{background:#fff;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border-top:3px solid var(--primary);margin-bottom:12px;transition:var(--transition);}
+    .kpi-detail-card:hover{box-shadow:var(--shadow-lg);}
+    .kpi-metric{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f5f5f5;}
+    .kpi-metric:last-child{border-bottom:none;}
+    .back-btn{background:var(--primary);color:#fff;border:none;padding:10px 20px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:700;margin-bottom:18px;display:inline-flex;align-items:center;gap:8px;transition:var(--transition);}
+    .back-btn:hover{background:var(--primary-dark);transform:translateX(-4px);}
+    .batch-item{display:grid;grid-template-columns:2fr 1fr 80px 40px;gap:12px;align-items:center;padding:12px;background:#f8f9fc;border-radius:var(--radius-sm);margin-bottom:8px;}
+    .batch-item label{font-size:12px;color:#555;font-weight:700;}
+    .batch-item input{width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:var(--radius-sm);font-size:13px;}
+    .batch-header{display:grid;grid-template-columns:2fr 1fr 80px 40px;gap:12px;padding:0 12px 10px;font-size:12px;font-weight:700;color:var(--primary);border-bottom:2px solid #e8eaf6;margin-bottom:12px;}
+
+    /* Security */
+    .sec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-bottom:20px;}
+    .sec-card{background:#fff;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border-top:3px solid var(--primary);transition:var(--transition);}
+    .sec-card:hover{box-shadow:var(--shadow-lg);}
+    .sec-card.warning{border-top-color:var(--warning);} .sec-card.danger{border-top-color:var(--danger);} .sec-card.success{border-top-color:var(--success);}
+    .approval-item{background:#f8f9fc;border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;border-right:3px solid var(--warning);transition:var(--transition);}
+    .approval-item:hover{background:#f0f2ff;}
+    .approval-item.approved{border-right-color:var(--success);} .approval-item.rejected{border-right-color:var(--danger);}
+    .approval-actions{display:flex;gap:8px;margin-top:10px;}
+    .approval-actions button{padding:7px 16px;font-size:12px;border:none;border-radius:6px;cursor:pointer;font-weight:700;transition:var(--transition);}
+    .btn-approve{background:var(--success);color:#fff;} .btn-approve:hover{background:#1b5e20;}
+    .btn-reject{background:var(--danger);color:#fff;} .btn-reject:hover{background:#b71c1c;}
+    .archive-item{background:#f8f9fc;border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;transition:var(--transition);}
+    .archive-item:hover{background:#f0f2ff;}
+    .archive-meta{font-size:12px;color:#888;}
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:6px;height:6px;}
+    ::-webkit-scrollbar-track{background:#f1f1f1;}
+    ::-webkit-scrollbar-thumb{background:#c5cae9;border-radius:3px;}
+    ::-webkit-scrollbar-thumb:hover{background:#9fa8da;}
   </style>
 <base target="_blank">
 </head>
 <body>
-  <div class="sidebar-nav" id="sidebarNav">
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
     <button class="nav-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
-    <div class="nav-item active" onclick="switchTab('overview'); setNavActive(this);"><span class="nav-icon">📊</span><span class="nav-text">نظرة عامة</span></div>
-    <div class="nav-item" onclick="switchTab('ceo'); setNavActive(this);"><span class="nav-icon">👔</span><span class="nav-text">CEO</span></div>
-    <div class="nav-item" onclick="switchTab('finance'); setNavActive(this);"><span class="nav-icon">💰</span><span class="nav-text">المالية</span></div>
-    <div class="nav-item" onclick="switchTab('inventory'); setNavActive(this);"><span class="nav-icon">📦</span><span class="nav-text">المخزون</span></div>
-    <div class="nav-item" onclick="switchTab('orders'); setNavActive(this);"><span class="nav-icon">🛒</span><span class="nav-text">الطلبات</span></div>
-    <div class="nav-item" onclick="switchTab('kpi'); setNavActive(this);"><span class="nav-icon">📈</span><span class="nav-text">KPI</span></div>
-    <div class="nav-item" onclick="switchTab('security'); setNavActive(this);"><span class="nav-icon">🛡️</span><span class="nav-text">الأمان</span></div>
-    <div style="border-top:1px solid rgba(255,255,255,.2);margin:10px 0;"></div>
+    <div class="nav-section-title">القائمة الرئيسية</div>
+    <div class="nav-item active" onclick="switchTab('overview');setNav(this);"><span class="nav-icon">📊</span><span class="nav-text">نظرة عامة</span></div>
+    <div class="nav-item" onclick="switchTab('ceo');setNav(this);"><span class="nav-icon">👔</span><span class="nav-text">CEO</span></div>
+    <div class="nav-item" onclick="switchTab('finance');setNav(this);"><span class="nav-icon">💰</span><span class="nav-text">المالية</span></div>
+    <div class="nav-item" onclick="switchTab('inventory');setNav(this);"><span class="nav-icon">📦</span><span class="nav-text">المخزون</span></div>
+    <div class="nav-item" onclick="switchTab('orders');setNav(this);"><span class="nav-icon">🛒</span><span class="nav-text">الطلبات</span></div>
+    <div class="nav-item" onclick="switchTab('kpi');setNav(this);"><span class="nav-icon">📈</span><span class="nav-text">KPI</span></div>
+    <div class="nav-item" onclick="switchTab('security');setNav(this);"><span class="nav-icon">🛡️</span><span class="nav-text">الأمان</span></div>
+    <div class="nav-divider"></div>
+    <div class="nav-section-title">إجراءات سريعة</div>
+    <div class="nav-item" onclick="showModal('taskModal')"><span class="nav-icon">✅</span><span class="nav-text">مهمة جديدة</span></div>
+    <div class="nav-item" onclick="showModal('memberModal')"><span class="nav-icon">👤</span><span class="nav-text">عضو جديد</span></div>
+    <div class="nav-item" onclick="showModal('productModal')"><span class="nav-icon">📦</span><span class="nav-text">منتج جديد</span></div>
+    <div class="nav-item" onclick="showModal('orderModal')"><span class="nav-icon">🛒</span><span class="nav-text">طلب جديد</span></div>
     <div class="nav-item" onclick="showModal('saleModal')"><span class="nav-icon">🧾</span><span class="nav-text">فاتورة مبيعات</span></div>
     <div class="nav-item" onclick="showModal('expenseModal')"><span class="nav-icon">💸</span><span class="nav-text">مصروف جديد</span></div>
     <div class="nav-item" onclick="showModal('shareholderModal')"><span class="nav-icon">🏛️</span><span class="nav-text">مساهم جديد</span></div>
   </div>
 
+  <!-- Header -->
   <div class="app-header">
-    <h1><i class="fas fa-bolt"></i> PHINOX <span style="font-size:14px;opacity:.8">نظام التشغيل المؤسسي</span></h1>
+    <h1><i class="fas fa-bolt"></i> PHINOX <span style="font-size:13px;opacity:.7;font-weight:400;">نظام التشغيل المؤسسي</span></h1>
     <div class="header-actions">
-      <button class="btn btn-primary" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> تحديث</button>
-      <button class="btn btn-success" onclick="showModal('taskModal')"><i class="fas fa-plus"></i> مهمة</button>
-      <button class="btn btn-info" onclick="showModal('memberModal')"><i class="fas fa-user-plus"></i> عضو</button>
-      <button class="btn btn-warning" onclick="showModal('productModal')"><i class="fas fa-box"></i> منتج</button>
-      <button class="btn btn-success" onclick="showModal('orderModal')"><i class="fas fa-shopping-cart"></i> طلب</button>
-      <button class="btn btn-success" onclick="showModal('saleModal')" style="background:#2E7D32;"><i class="fas fa-file-invoice-dollar"></i> 💰 مبيعات</button>
-      <button class="btn btn-warning" onclick="showModal('expenseModal')" style="background:#E65100;"><i class="fas fa-money-bill-wave"></i> 💸 مصروف</button>
-      <button class="btn btn-info" onclick="showModal('shareholderModal')" style="background:#1565C0;"><i class="fas fa-users-cog"></i> 🏛️ مساهم</button>
+      <button class="btn btn-ghost btn-sm" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> <span class="hide-mobile">تحديث</span></button>
+      <button class="btn btn-primary btn-sm" onclick="showModal('taskModal')"><i class="fas fa-plus"></i> مهمة</button>
     </div>
   </div>
 
-  <div class="tabs-bar">
-    <button class="tab-btn active" onclick="switchTab('overview')" id="tab-overview">📊 نظرة عامة</button>
-    <button class="tab-btn" onclick="switchTab('ceo')" id="tab-ceo">👔 CEO</button>
-    <button class="tab-btn" onclick="switchTab('finance')" id="tab-finance">💰 المالية</button>
-    <button class="tab-btn" onclick="switchTab('inventory')" id="tab-inventory">📦 المخزون</button>
-    <button class="tab-btn" onclick="switchTab('orders')" id="tab-orders">🛒 الطلبات</button>
-    <button class="tab-btn" onclick="switchTab('kpi')" id="tab-kpi">📈 KPIs</button>
-    <button class="tab-btn" onclick="switchTab('security')" id="tab-security">🛡️ الأمان</button>
-  </div>
+  <!-- Main Content -->
+  <div class="main" id="mainArea">
 
-  <div class="container main-with-sidebar" id="mainContainer">
-<div id="overview" class="tab-section active">
+    <!-- Overview -->
+    <div id="overview" class="tab-section active">
       <div id="errorArea"></div>
       <div class="cards" id="cardsArea"><div class="loading"><div class="spinner"></div> جاري التحميل...</div></div>
       <div class="grid-2">
@@ -222,45 +243,48 @@
         <div id="ordersArea"><div class="loading">جاري التحميل...</div></div>
       </div>
       <div class="section" id="pendingSection" style="display:none;border-right:4px solid var(--warning);">
-        <div class="section-header"><h2><i class="fas fa-clipboard-check"></i> ⚡ المهام بانتظار الاعتماد</h2></div>
+        <div class="section-header"><h2><i class="fas fa-clipboard-check"></i> المهام بانتظار الاعتماد</h2></div>
         <div id="pendingArea"><div class="loading">جاري التحميل...</div></div>
       </div>
-      <div class="section">
-        <div class="section-header"><h2><i class="fas fa-file-invoice-dollar"></i> 💰 المبيعات (Mini ERP)</h2><button class="btn-sm btn-success" onclick="showModal('saleModal')">+ فاتورة</button></div>
-        <div id="salesArea"><div class="loading">جاري التحميل...</div></div>
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-header"><h2><i class="fas fa-file-invoice-dollar"></i> المبيعات</h2><button class="btn-sm btn-success" onclick="showModal('saleModal')">+ فاتورة</button></div>
+          <div id="salesArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
+        <div class="section">
+          <div class="section-header"><h2><i class="fas fa-money-bill-wave"></i> المصروفات</h2><button class="btn-sm btn-warning" onclick="showModal('expenseModal')">+ مصروف</button></div>
+          <div id="expensesArea"><div class="loading">جاري التحميل...</div></div>
+        </div>
       </div>
       <div class="section">
-        <div class="section-header"><h2><i class="fas fa-money-bill-wave"></i> 💸 المصروفات (Mini ERP)</h2><button class="btn-sm btn-warning" onclick="showModal('expenseModal')">+ مصروف</button></div>
-        <div id="expensesArea"><div class="loading">جاري التحميل...</div></div>
-      </div>
-      <div class="section">
-        <div class="section-header"><h2><i class="fas fa-users-cog"></i> 🏛️ المساهمون (Mini ERP)</h2><button class="btn-sm btn-info" onclick="showModal('shareholderModal')">+ مساهم</button></div>
+        <div class="section-header"><h2><i class="fas fa-users-cog"></i> المساهمون</h2><button class="btn-sm btn-info" onclick="showModal('shareholderModal')">+ مساهم</button></div>
         <div id="shareholdersArea"><div class="loading">جاري التحميل...</div></div>
       </div>
     </div>
 
+    <!-- CEO -->
     <div id="ceo" class="tab-section">
       <div class="cards" id="ceoCardsArea">
-        <div class="card ceo-card revenue"><i class="fas fa-hand-holding-usd card-icon"></i><h3>إيرادات الشهر</h3><div class="value" id="ceoRevenue">0</div></div>
-        <div class="card ceo-card expense"><i class="fas fa-file-invoice-dollar card-icon"></i><h3>مصروفات الشهر</h3><div class="value" id="ceoExpenses">0</div></div>
-        <div class="card ceo-card profit"><i class="fas fa-chart-line card-icon"></i><h3>صافي الربح</h3><div class="value" id="ceoProfit">0</div></div>
-        <div class="card ceo-card"><i class="fas fa-percentage card-icon"></i><h3>هامش الربح</h3><div class="value" id="ceoMargin">0%</div></div>
-        <div class="card ceo-card alert"><i class="fas fa-exclamation-triangle card-icon"></i><h3>اعتمادات معلقة</h3><div class="value" id="ceoPending">0</div></div>
-        <div class="card ceo-card"><i class="fas fa-users card-icon"></i><h3>أعضاء نشطون</h3><div class="value" id="ceoMembers">0</div></div>
-        <div class="card ceo-card alert"><i class="fas fa-boxes card-icon"></i><h3>تنبيهات مخزون</h3><div class="value" id="ceoLowStock">0</div></div>
-        <div class="card ceo-card"><i class="fas fa-warehouse card-icon"></i><h3>قيمة المخزون</h3><div class="value" id="ceoStockValue">0</div></div>
+        <div class="card success"><i class="fas fa-hand-holding-usd card-icon"></i><h3>إيرادات الشهر</h3><div class="value" id="ceoRevenue">0</div></div>
+        <div class="card danger"><i class="fas fa-file-invoice-dollar card-icon"></i><h3>مصروفات الشهر</h3><div class="value" id="ceoExpenses">0</div></div>
+        <div class="card" style="--info:#1565C0;"><i class="fas fa-chart-line card-icon"></i><h3>صافي الربح</h3><div class="value" id="ceoProfit">0</div></div>
+        <div class="card"><i class="fas fa-percentage card-icon"></i><h3>هامش الربح</h3><div class="value" id="ceoMargin">0%</div></div>
+        <div class="card warning"><i class="fas fa-exclamation-triangle card-icon"></i><h3>اعتمادات معلقة</h3><div class="value" id="ceoPending">0</div></div>
+        <div class="card"><i class="fas fa-users card-icon"></i><h3>أعضاء نشطون</h3><div class="value" id="ceoMembers">0</div></div>
+        <div class="card warning"><i class="fas fa-boxes card-icon"></i><h3>تنبيهات مخزون</h3><div class="value" id="ceoLowStock">0</div></div>
+        <div class="card"><i class="fas fa-warehouse card-icon"></i><h3>قيمة المخزون</h3><div class="value" id="ceoStockValue">0</div></div>
       </div>
       <div class="grid-2">
         <div class="section">
           <div class="section-header"><h2><i class="fas fa-chart-bar"></i> مقارنة الشهر الحالي vs السابق</h2></div>
-          <div id="ceoComparisonArea">
-            <table>
-              <tr><th>المقياس</th><th>الشهر الحالي</th><th>الشهر السابق</th><th>التغير</th></tr>
+          <div class="table-wrap"><table>
+            <thead><tr><th>المقياس</th><th>الشهر الحالي</th><th>الشهر السابق</th><th>التغير</th></tr></thead>
+            <tbody>
               <tr><td>الإيرادات</td><td id="compRevCur">-</td><td id="compRevPrev">-</td><td id="compRevGrowth">-</td></tr>
               <tr><td>المصروفات</td><td id="compExpCur">-</td><td id="compExpPrev">-</td><td id="compExpGrowth">-</td></tr>
               <tr><td>الربح</td><td id="compProfCur">-</td><td id="compProfPrev">-</td><td id="compProfGrowth">-</td></tr>
-            </table>
-          </div>
+            </tbody>
+          </table></div>
         </div>
         <div class="section">
           <div class="section-header"><h2><i class="fas fa-list"></i> آخر المبيعات</h2></div>
@@ -269,22 +293,21 @@
       </div>
     </div>
 
+    <!-- Finance -->
     <div id="finance" class="tab-section">
       <div class="cards" id="financeCardsArea">
         <div class="card success"><i class="fas fa-arrow-up card-icon"></i><h3>إجمالي الإيرادات</h3><div class="value" id="finTotalIncome">0</div></div>
         <div class="card danger"><i class="fas fa-arrow-down card-icon"></i><h3>إجمالي المصروفات</h3><div class="value" id="finTotalExpense">0</div></div>
-        <div class="card" style="border-right-color:#1565C0;"><i class="fas fa-wallet card-icon"></i><h3>صافي الربح</h3><div class="value" id="finNetProfit">0</div></div>
+        <div class="card" style="--info:#1565C0;"><i class="fas fa-wallet card-icon"></i><h3>صافي الربح</h3><div class="value" id="finNetProfit">0</div></div>
         <div class="card warning"><i class="fas fa-percentage card-icon"></i><h3>هامش الربح</h3><div class="value" id="finMargin">0%</div></div>
       </div>
       <div class="grid-2">
         <div class="section">
           <div class="section-header"><h2><i class="fas fa-chart-bar"></i> التدفق النقدي (آخر 6 أشهر)</h2></div>
-          <div id="finCashFlowArea">
-            <table>
-              <tr><th>الشهر</th><th style="color:#2E7D32">الإيرادات</th><th style="color:#C62828">المصروفات</th><th>الصافي</th></tr>
-              <tbody id="finCashFlowBody"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
-            </table>
-          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>الشهر</th><th style="color:var(--success)">الإيرادات</th><th style="color:var(--danger)">المصروفات</th><th>الصافي</th></tr></thead>
+            <tbody id="finCashFlowBody"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
+          </table></div>
         </div>
         <div class="section">
           <div class="section-header"><h2><i class="fas fa-pie-chart"></i> أكبر 5 فئات مصروفات</h2></div>
@@ -295,20 +318,17 @@
         <div class="section-header"><h2><i class="fas fa-list-alt"></i> آخر الحركات المالية</h2></div>
         <div id="finRecentArea"><div class="loading">جاري التحميل...</div></div>
       </div>
-      <div class="section">
-        <div class="section-header"><h2><i class="fas fa-balance-scale"></i> الميزانية vs الفعلي</h2></div>
-        <div id="finBudgetArea"><div class="loading">جاري التحميل...</div></div>
-      </div>
     </div>
 
+    <!-- Inventory -->
     <div id="inventory" class="tab-section">
       <div class="cards" id="invCardsArea">
         <div class="card"><i class="fas fa-boxes card-icon"></i><h3>إجمالي المنتجات</h3><div class="value" id="invTotalProducts">0</div></div>
         <div class="card success"><i class="fas fa-check-circle card-icon"></i><h3>مخزون سليم</h3><div class="value" id="invHealthy">0</div></div>
         <div class="card warning"><i class="fas fa-exclamation-triangle card-icon"></i><h3>منخفض المخزون</h3><div class="value" id="invLowStock">0</div></div>
         <div class="card danger"><i class="fas fa-times-circle card-icon"></i><h3>نفذ من المخزون</h3><div class="value" id="invOutStock">0</div></div>
-        <div class="card" style="border-right-color:#1565C0;"><i class="fas fa-warehouse card-icon"></i><h3>الكمية الإجمالية</h3><div class="value" id="invTotalQty">0</div></div>
-        <div class="card" style="border-right-color:#4a148c;"><i class="fas fa-coins card-icon"></i><h3>قيمة المخزون</h3><div class="value" id="invTotalValue">0</div></div>
+        <div class="card" style="--info:#1565C0;"><i class="fas fa-warehouse card-icon"></i><h3>الكمية الإجمالية</h3><div class="value" id="invTotalQty">0</div></div>
+        <div class="card" style="--info:#4a148c;"><i class="fas fa-coins card-icon"></i><h3>قيمة المخزون</h3><div class="value" id="invTotalValue">0</div></div>
       </div>
       <div class="grid-2">
         <div class="section">
@@ -321,42 +341,31 @@
         </div>
       </div>
       <div class="grid-2">
-        <div class="section" style="border-right:4px solid #E65100;">
-          <div class="section-header"><h2><i class="fas fa-bell"></i> ⚠️ تنبيهات منخفض المخزون</h2></div>
+        <div class="section" style="border-right:4px solid var(--warning);">
+          <div class="section-header"><h2><i class="fas fa-bell"></i> تنبيهات منخفض المخزون</h2></div>
           <div id="invLowStockArea"><div class="loading">جاري التحميل...</div></div>
         </div>
-        <div class="section" style="border-right:4px solid #C62828;">
-          <div class="section-header"><h2><i class="fas fa-times"></i> ❌ نفذ من المخزون</h2></div>
+        <div class="section" style="border-right:4px solid var(--danger);">
+          <div class="section-header"><h2><i class="fas fa-times"></i> نفذ من المخزون</h2></div>
           <div id="invOutStockArea"><div class="loading">جاري التحميل...</div></div>
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="section">
-          <div class="section-header"><h2><i class="fas fa-trophy"></i> أكبر 5 منتجات بالقيمة</h2></div>
-          <div id="invTopProductsArea"><div class="loading">جاري التحميل...</div></div>
-        </div>
-        <div class="section">
-          <div class="section-header"><h2><i class="fas fa-exchange-alt"></i> آخر حركات المخزون</h2></div>
-          <div id="invMovementsArea"><div class="loading">جاري التحميل...</div></div>
         </div>
       </div>
     </div>
 
+    <!-- Orders -->
     <div id="orders" class="tab-section">
       <div class="cards" id="ordCardsArea">
         <div class="card"><i class="fas fa-shopping-bag card-icon"></i><h3>إجمالي الطلبات</h3><div class="value" id="ordTotal">0</div></div>
         <div class="card success"><i class="fas fa-check-circle card-icon"></i><h3>تم التسليم</h3><div class="value" id="ordDelivered">0</div></div>
         <div class="card warning"><i class="fas fa-clock card-icon"></i><h3>معلّقة</h3><div class="value" id="ordPending">0</div></div>
         <div class="card danger"><i class="fas fa-times-circle card-icon"></i><h3>ملغاة / مرتجعة</h3><div class="value" id="ordProblem">0</div></div>
-        <div class="card" style="border-right-color:#1565C0;"><i class="fas fa-hand-holding-usd card-icon"></i><h3>إجمالي الإيرادات</h3><div class="value" id="ordRevenue">0</div></div>
-        <div class="card" style="border-right-color:#4a148c;"><i class="fas fa-receipt card-icon"></i><h3>متوسط قيمة الطلب</h3><div class="value" id="ordAvg">0</div></div>
+        <div class="card" style="--info:#1565C0;"><i class="fas fa-hand-holding-usd card-icon"></i><h3>إجمالي الإيرادات</h3><div class="value" id="ordRevenue">0</div></div>
+        <div class="card" style="--info:#4a148c;"><i class="fas fa-receipt card-icon"></i><h3>متوسط قيمة الطلب</h3><div class="value" id="ordAvg">0</div></div>
       </div>
       <div class="grid-2">
         <div class="section">
           <div class="section-header"><h2><i class="fas fa-chart-bar"></i> حالة الطلبات</h2></div>
-          <div id="ordStatusArea">
-            <div style="display:flex;flex-wrap:wrap;gap:15px;padding:15px;" id="ordStatusBars"></div>
-          </div>
+          <div id="ordStatusArea"><div style="display:flex;flex-wrap:wrap;gap:15px;padding:15px;" id="ordStatusBars"></div></div>
         </div>
         <div class="section">
           <div class="section-header"><h2><i class="fas fa-trophy"></i> أفضل 5 عملاء</h2></div>
@@ -365,12 +374,10 @@
       </div>
       <div class="section">
         <div class="section-header"><h2><i class="fas fa-chart-line"></i> الطلبات والإيرادات (شهرياً)</h2></div>
-        <div id="ordTrendArea">
-          <table>
-            <tr><th>الشهر</th><th>الطلبات</th><th>الإيرادات</th><th>متوسط</th></tr>
-            <tbody id="ordTrendBody"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
-          </table>
-        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>الشهر</th><th>الطلبات</th><th>الإيرادات</th><th>متوسط</th></tr></thead>
+          <tbody id="ordTrendBody"><tr><td colspan="4" class="loading">جاري التحميل...</td></tr></tbody>
+        </table></div>
       </div>
       <div class="section">
         <div class="section-header"><h2><i class="fas fa-list"></i> آخر 10 طلبات</h2><button class="btn-sm btn-success" onclick="showModal('orderModal')">+ طلب</button></div>
@@ -378,23 +385,24 @@
       </div>
     </div>
 
+    <!-- KPI -->
     <div id="kpi" class="tab-section">
       <div id="kpiExecSummary">
         <div class="cards" id="kpiExecCards" style="margin-bottom:20px;">
-          <div class="card" style="border-right-color:#1a237e;"><i class="fas fa-star card-icon"></i><h3>الدرجة العامة</h3><div class="value" id="kpiOverallScore">-</div></div>
+          <div class="card" style="--info:#1a237e;"><i class="fas fa-star card-icon"></i><h3>الدرجة العامة</h3><div class="value" id="kpiOverallScore">-</div></div>
           <div class="card success"><i class="fas fa-trophy card-icon"></i><h3>أقسام متميزة</h3><div class="value" id="kpiExcellent">-</div></div>
-          <div class="card" style="border-right-color:#7B1FA2;"><i class="fas fa-check-circle card-icon"></i><h3>أقسام جيدة</h3><div class="value" id="kpiGood">-</div></div>
+          <div class="card" style="--info:#7B1FA2;"><i class="fas fa-check-circle card-icon"></i><h3>أقسام جيدة</h3><div class="value" id="kpiGood">-</div></div>
           <div class="card warning"><i class="fas fa-exclamation-triangle card-icon"></i><h3>أقسام متوسطة</h3><div class="value" id="kpiAtRisk">-</div></div>
           <div class="card danger"><i class="fas fa-times-circle card-icon"></i><h3>أقسام حرجة</h3><div class="value" id="kpiCritical">-</div></div>
-          <div class="card" style="border-right-color:#1565C0;"><i class="fas fa-building card-icon"></i><h3>إجمالي الأقسام</h3><div class="value" id="kpiTotalDepts">-</div></div>
+          <div class="card" style="--info:#1565C0;"><i class="fas fa-building card-icon"></i><h3>إجمالي الأقسام</h3><div class="value" id="kpiTotalDepts">-</div></div>
         </div>
         <div class="grid-2">
-          <div class="section" style="border-right:4px solid #C62828;" id="kpiAlertsSection">
-            <div class="section-header"><h2><i class="fas fa-bell"></i> 🚨 تنبيهات الأداء</h2></div>
+          <div class="section" style="border-right:4px solid var(--danger);">
+            <div class="section-header"><h2><i class="fas fa-bell"></i> تنبيهات الأداء</h2></div>
             <div id="kpiAlertsArea"><div class="loading">جاري التحميل...</div></div>
           </div>
-          <div class="section" style="border-right:4px solid #2E7D32;">
-            <div class="section-header"><h2><i class="fas fa-lightbulb"></i> 💡 التوصيات التلقائية</h2></div>
+          <div class="section" style="border-right:4px solid var(--success);">
+            <div class="section-header"><h2><i class="fas fa-lightbulb"></i> التوصيات التلقائية</h2></div>
             <div id="kpiRecommendationsArea"><div class="loading">جاري التحميل...</div></div>
           </div>
         </div>
@@ -408,15 +416,15 @@
             <div id="kpiBestArea"><div class="loading">جاري التحميل...</div></div>
           </div>
         </div>
-        <div style="text-align:center;color:#999;font-size:12px;margin:15px 0;" id="kpiLastUpdated"></div>
+        <div style="text-align:center;color:#bbb;font-size:12px;margin:15px 0;" id="kpiLastUpdated"></div>
       </div>
       <div id="kpiSummaryArea">
         <div class="section">
           <div class="section-header">
             <h2><i class="fas fa-building"></i> أداء الأقسام</h2>
             <div style="display:flex;gap:8px;">
-              <button class="btn-sm btn-info" onclick="showKPIExecSummary()" style="background:#1a237e;color:#fff;"><i class="fas fa-chart-pie"></i> الملخص التنفيذي</button>
-              <button class="btn-sm btn-warning" onclick="openKPIBatchModal()" style="background:#ff6f00;color:#fff;"><i class="fas fa-edit"></i> إدخال دفعة KPI</button>
+              <button class="btn-sm btn-info" onclick="showKPIExecSummary()" style="background:var(--primary);color:#fff;"><i class="fas fa-chart-pie"></i> الملخص التنفيذي</button>
+              <button class="btn-sm btn-warning" onclick="openKPIBatchModal()" style="background:var(--warning);color:#fff;"><i class="fas fa-edit"></i> إدخال دفعة KPI</button>
             </div>
           </div>
           <div class="kpi-grid" id="kpiDeptsGrid"><div class="loading">جاري التحميل...</div></div>
@@ -427,54 +435,55 @@
         <div class="section">
           <div class="section-header">
             <h2 id="kpiDetailTitle"><i class="fas fa-chart-bar"></i> مؤشرات القسم</h2>
-            <span class="kpi-grade-badge" id="kpiDetailBadge" style="font-size:14px;">-</span>
+            <span class="kpi-grade" id="kpiDetailBadge" style="font-size:14px;">-</span>
           </div>
           <div id="kpiDetailContent"><div class="loading">جاري التحميل...</div></div>
         </div>
       </div>
     </div>
 
+    <!-- Security -->
     <div id="security" class="tab-section">
       <div class="cards" style="margin-bottom:20px;">
-        <div class="card security-card">
-          <div style="font-weight:700;color:#1a237e;margin-bottom:5px;"><i class="fas fa-clipboard-check"></i> طلبات الاعتماد المعلقة <span class="badge badge-yellow" id="secPendingCount" style="margin-right:8px;">0</span></div>
-          <div style="font-size:12px;color:#666;">تتطلب موافقة CEO/Partner/Finance</div>
+        <div class="card sec-card">
+          <div style="font-weight:700;color:var(--primary);margin-bottom:5px;"><i class="fas fa-clipboard-check"></i> طلبات الاعتماد المعلقة <span class="badge badge-yellow" id="secPendingCount" style="margin-right:8px;">0</span></div>
+          <div style="font-size:12px;color:#888;">تتطلب موافقة CEO/Partner/Finance</div>
         </div>
-        <div class="card security-card success">
-          <div style="font-weight:700;color:#1a237e;margin-bottom:5px;"><i class="fas fa-trash-restore"></i> سلة المحذوفات <span class="badge badge-green" id="secArchiveCount" style="margin-right:8px;">0</span></div>
-          <div style="font-size:12px;color:#666;">قابلة للاسترجاع خلال 30 يوم</div>
+        <div class="card sec-card success">
+          <div style="font-weight:700;color:var(--primary);margin-bottom:5px;"><i class="fas fa-trash-restore"></i> سلة المحذوفات <span class="badge badge-green" id="secArchiveCount" style="margin-right:8px;">0</span></div>
+          <div style="font-size:12px;color:#888;">قابلة للاسترجاع خلال 30 يوم</div>
         </div>
-        <div class="card security-card info">
-          <div style="font-weight:700;color:#1a237e;margin-bottom:5px;"><i class="fas fa-database"></i> النسخ الاحتياطي</div>
-          <div style="font-size:12px;color:#666;" id="secBackupStatus">جاري التحقق...</div>
+        <div class="card sec-card info">
+          <div style="font-weight:700;color:var(--primary);margin-bottom:5px;"><i class="fas fa-database"></i> النسخ الاحتياطي</div>
+          <div style="font-size:12px;color:#888;" id="secBackupStatus">جاري التحقق...</div>
         </div>
-        <div class="card security-card warning">
-          <div style="font-weight:700;color:#1a237e;margin-bottom:5px;"><i class="fas fa-user-shield"></i> صلاحياتك</div>
-          <div style="font-size:12px;color:#666;" id="secYourRole">جاري التحميل...</div>
+        <div class="card sec-card warning">
+          <div style="font-weight:700;color:var(--primary);margin-bottom:5px;"><i class="fas fa-user-shield"></i> صلاحياتك</div>
+          <div style="font-size:12px;color:#888;" id="secYourRole">جاري التحميل...</div>
         </div>
       </div>
       <div class="grid-2">
-        <div class="section" style="border-right:4px solid #E65100;">
+        <div class="section" style="border-right:4px solid var(--warning);">
           <div class="section-header"><h2><i class="fas fa-clipboard-list"></i> طلبات الاعتماد المعلقة</h2></div>
           <div id="secApprovalsArea"><div class="loading">جاري التحميل...</div></div>
         </div>
-        <div class="section" style="border-right:4px solid #1565C0;">
+        <div class="section" style="border-right:4px solid var(--info);">
           <div class="section-header"><h2><i class="fas fa-archive"></i> سلة المحذوفات (آخر 30 يوم)</h2></div>
           <div id="secArchiveArea"><div class="loading">جاري التحميل...</div></div>
         </div>
       </div>
       <div class="section">
         <div class="section-header"><h2><i class="fas fa-cloud-download-alt"></i> النسخ الاحتياطي والاستعادة</h2></div>
-        <div style="display:flex;gap:15px;flex-wrap:wrap;align-items:flex-start;">
-          <div class="backup-status" style="flex:1;min-width:200px;">
-            <i class="fas fa-hdd"></i>
-            <div style="font-size:16px;font-weight:700;color:#1a237e;margin-bottom:5px;">حالة النسخ الاحتياطي</div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+          <div style="flex:1;min-width:220px;background:var(--info-light);padding:20px;border-radius:var(--radius);text-align:center;">
+            <i class="fas fa-hdd" style="font-size:32px;color:var(--info);margin-bottom:10px;"></i>
+            <div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:5px;">حالة النسخ الاحتياطي</div>
             <div id="secBackupDetail" style="font-size:13px;color:#555;">جاري التحميل...</div>
           </div>
           <div style="flex:2;min-width:300px;">
-            <div style="background:#f8f9fa;padding:15px;border-radius:8px;margin-bottom:10px;">
-              <div style="font-weight:700;color:#1a237e;margin-bottom:8px;"><i class="fas fa-info-circle"></i> معلومات</div>
-              <ul style="font-size:13px;color:#555;line-height:2;padding-right:20px;">
+            <div style="background:#f8f9fc;padding:18px;border-radius:var(--radius);margin-bottom:12px;">
+              <div style="font-weight:700;color:var(--primary);margin-bottom:10px;"><i class="fas fa-info-circle"></i> معلومات</div>
+              <ul style="font-size:13px;color:#555;line-height:2.2;padding-right:20px;">
                 <li>النسخ الاحتياطي يحفظ نسخة كاملة من كل البيانات</li>
                 <li>يتم حفظ النسخ في مجلد <strong>PHINOX_Backups</strong> في Google Drive</li>
                 <li>يمكن جدولة نسخ تلقائي يومياً الساعة 3:00 صباحاً</li>
@@ -483,25 +492,106 @@
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn btn-success" onclick="createBackupNow()"><i class="fas fa-download"></i> نسخة احتياطية الآن</button>
-              <button class="btn btn-info" onclick="scheduleAutoBackup()" style="background:#1565C0;"><i class="fas fa-calendar-alt"></i> تفعيل النسخ التلقائي</button>
+              <button class="btn btn-info" onclick="scheduleAutoBackup()"><i class="fas fa-calendar-alt"></i> تفعيل النسخ التلقائي</button>
             </div>
-            <div id="secBackupRecent" style="margin-top:15px;"></div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-    <div class="modal-overlay" id="orderModal">
-    <div class="modal-box" style="max-width:700px;">
-      <div class="modal-header"><h3>🛒 طلب جديد</h3><button class="modal-close" onclick="hideModal('orderModal')">&times;</button></div>
+  <!-- Modals -->
+
+  <!-- Task Modal -->
+  <div class="modal-overlay" id="taskModal">
+    <div class="modal-box">
+      <div class="modal-header"><h3><i class="fas fa-tasks"></i> مهمة جديدة</h3><button class="modal-close" onclick="hideModal('taskModal')">&times;</button></div>
       <div class="modal-body">
         <div class="form-row">
-          <div class="form-group"><label>العميل *</label><input type="text" id="oCustomer" placeholder="اسم العميل"></div>
+          <div class="form-group" style="flex:2;"><label>العنوان *</label><input type="text" id="tTitle" placeholder="عنوان المهمة"></div>
+          <div class="form-group"><label>الفئة</label><select id="tCategory"><option>Operations</option><option>Sales</option><option>Finance</option><option>HR</option><option>IT</option><option>Marketing</option></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>مسندة إلى *</label><input type="text" id="tAssigned" placeholder="اسم العضو"></div>
+          <div class="form-group"><label>الأولوية</label><select id="tPriority"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></div>
+          <div class="form-group"><label>الصعوبة</label><select id="tDifficulty"><option>Easy</option><option selected>Medium</option><option>Hard</option><option>Complex</option></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>تاريخ البدء</label><input type="date" id="tStart"></div>
+          <div class="form-group"><label>تاريخ الاستحقاق *</label><input type="date" id="tDue"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" style="background:#e0e0e0;color:#333;" onclick="hideModal('taskModal')">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--primary);color:#fff;" onclick="submitTask()">💾 حفظ المهمة</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Member Modal -->
+  <div class="modal-overlay" id="memberModal">
+    <div class="modal-box">
+      <div class="modal-header"><h3><i class="fas fa-user-plus"></i> عضو جديد</h3><button class="modal-close" onclick="hideModal('memberModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label>الاسم الكامل *</label><input type="text" id="mName" placeholder="اسم العضو"></div>
+          <div class="form-group"><label>الدور</label><select id="mRole"><option>Operations</option><option>Sales</option><option>Finance</option><option>HR</option><option>IT</option><option>CEO</option><option>Partner</option></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>البريد الإلكتروني *</label><input type="email" id="mEmail" placeholder="example@domain.com"></div>
+          <div class="form-group"><label>رقم الهاتف</label><input type="text" id="mPhone" placeholder="01234567890"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" style="background:#e0e0e0;color:#333;" onclick="hideModal('memberModal')">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--primary);color:#fff;" onclick="submitMember()">💾 حفظ العضو</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Modal -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-box">
+      <div class="modal-header"><h3><i class="fas fa-box"></i> منتج جديد</h3><button class="modal-close" onclick="hideModal('productModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label>اسم المنتج *</label><input type="text" id="pName" placeholder="اسم المنتج"></div>
+          <div class="form-group"><label>الفئة</label><select id="pCategory"><option>General</option><option>Electronics</option><option>Clothing</option><option>Food</option><option>Other</option></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>المتغير</label><input type="text" id="pVariant" placeholder="مثال: v1"></div>
+          <div class="form-group"><label>اللون</label><input type="text" id="pColor" placeholder="مثال: أحمر"></div>
+          <div class="form-group"><label>المقاس</label><input type="text" id="pSize" placeholder="مثال: XL"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>الكمية *</label><input type="number" id="pQty" value="0" min="0"></div>
+          <div class="form-group"><label>الحد الأدنى</label><input type="number" id="pMin" value="10" min="0"></div>
+          <div class="form-group"><label>التكلفة</label><input type="number" id="pCost" value="0" min="0" step="0.01"></div>
+          <div class="form-group"><label>السعر *</label><input type="number" id="pPrice" value="0" min="0" step="0.01"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>المستودع</label><input type="text" id="pWarehouse" placeholder="Main"></div>
+          <div class="form-group"><label>المورد</label><input type="text" id="pSupplier" placeholder="اسم المورد"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" style="background:#e0e0e0;color:#333;" onclick="hideModal('productModal')">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--primary);color:#fff;" onclick="submitProduct()">💾 حفظ المنتج</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Modal -->
+  <div class="modal-overlay" id="orderModal">
+    <div class="modal-box" style="max-width:720px;">
+      <div class="modal-header"><h3><i class="fas fa-shopping-cart"></i> طلب جديد</h3><button class="modal-close" onclick="hideModal('orderModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label>العميل *</label><input type="text" id="oCustomer" placeholder="اسم العميل"></div>
           <div class="form-group"><label>رقم الهاتف</label><input type="text" id="oPhone" placeholder="01234567890"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>الحالة *</label><select id="oStatus"><option selected>Pending</option><option>Processing</option><option>Shipped</option><option>Delivered</option><option>Cancelled</option></select></div>
+          <div class="form-group"><label>الحالة</label><select id="oStatus"><option selected>Pending</option><option>Processing</option><option>Shipped</option><option>Delivered</option><option>Cancelled</option></select></div>
           <div class="form-group"><label>طريقة الدفع</label><select id="oPayment"><option>Cash</option><option>Card</option><option>Transfer</option><option>Installment</option></select></div>
         </div>
         <div class="form-group"><label>العنوان</label><textarea id="oAddress" rows="2" placeholder="عنوان التوصيل"></textarea></div>
@@ -522,19 +612,20 @@
         </div>
         <div class="form-group"><label>ملاحظات</label><textarea id="oNotes" rows="2" placeholder="ملاحظات إضافية..."></textarea></div>
         <div class="form-actions">
-          <button class="btn btn-secondary" onclick="hideModal('orderModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
-          <button class="btn btn-primary" onclick="submitOrder()" style="background:var(--primary);color:#fff;">💾 حفظ الطلب</button>
+          <button class="btn" style="background:#e0e0e0;color:#333;" onclick="hideModal('orderModal')">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--primary);color:#fff;" onclick="submitOrder()">💾 حفظ الطلب</button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Sale Modal -->
   <div class="modal-overlay" id="saleModal">
-    <div class="modal-box" style="max-width:700px;">
-      <div class="modal-header"><h3>🧾 فاتورة مبيعات</h3><button class="modal-close" onclick="hideModal('saleModal')">&times;</button></div>
+    <div class="modal-box" style="max-width:720px;">
+      <div class="modal-header"><h3><i class="fas fa-file-invoice-dollar"></i> فاتورة مبيعات</h3><button class="modal-close" onclick="hideModal('saleModal')">&times;</button></div>
       <div class="modal-body">
         <div class="form-row">
-          <div class="form-group"><label>العميل *</label><input type="text" id="sCustomer" placeholder="اسم العميل"></div>
+          <div class="form-group" style="flex:2;"><label>العميل *</label><input type="text" id="sCustomer" placeholder="اسم العميل"></div>
           <div class="form-group"><label>التاريخ *</label><input type="date" id="sDate"></div>
         </div>
         <div class="form-group"><label>المنتجات</label>
@@ -554,19 +645,20 @@
         </div>
         <div class="form-group"><label>ملاحظات</label><textarea id="sNotes" rows="2" placeholder="ملاحظات..."></textarea></div>
         <div class="form-actions">
-          <button class="btn btn-secondary" onclick="hideModal('saleModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
-          <button class="btn btn-primary" onclick="submitSale()" style="background:var(--primary);color:#fff;">💾 حفظ الفاتورة</button>
+          <button class="btn" style="background:#e0e0e0;color:#333;" onclick="hideModal('saleModal')">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--primary);color:#fff;" onclick="submitSale()">💾 حفظ الفاتورة</button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Expense Modal -->
   <div class="modal-overlay" id="expenseModal">
     <div class="modal-box">
-      <div class="modal-header"><h3>💸 مصروف جديد</h3><button class="modal-close" onclick="hideModal('expenseModal')">&times;</button></div>
+      <div class="modal-header"><h3><i class="fas fa-money-bill-wave"></i> مصروف جديد</h3><button class="modal-close" onclick="hideModal('expenseModal')">&times;</button></div>
       <div class="modal-body">
         <div class="form-row">
-          <div class="form-group"><label>العنوان *</label><input type="text" id="eTitle" placeholder="مثال: إيجار المكتب"></div>
+          <div class="form-group" style="flex:2;"><label>العنوان *</label><input type="text" id="eTitle" placeholder="مثال: إيجار المكتب"></div>
           <div class="form-group"><label>المبلغ (ج.م) *</label><input type="number" id="eAmount" value="0" min="0" step="0.01"></div>
         </div>
         <div class="form-row">
@@ -576,16 +668,17 @@
         <div class="form-group"><label>الوصف</label><textarea id="eDesc" rows="2" placeholder="تفاصيل المصروف..."></textarea></div>
         <div class="form-group"><label>المرفقات (رابط)</label><input type="text" id="eAttachment" placeholder="رابط الفاتورة أو الملف"></div>
         <div class="form-actions">
-          <button class="btn btn-secondary" onclick="hideModal('expenseModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
-          <button class="btn btn-primary" onclick="submitExpense()" style="background:var(--primary);color:#fff;">💾 حفظ المصروف</button>
+          <button class="btn" style="background:#e0e0e0;color:#333;" onclick="hideModal('expenseModal')">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--primary);color:#fff;" onclick="submitExpense()">💾 حفظ المصروف</button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Shareholder Modal -->
   <div class="modal-overlay" id="shareholderModal">
     <div class="modal-box">
-      <div class="modal-header"><h3>🏛️ مساهم جديد</h3><button class="modal-close" onclick="hideModal('shareholderModal')">&times;</button></div>
+      <div class="modal-header"><h3><i class="fas fa-users-cog"></i> مساهم جديد</h3><button class="modal-close" onclick="hideModal('shareholderModal')">&times;</button></div>
       <div class="modal-body">
         <div class="form-group"><label>الاسم الكامل *</label><input type="text" id="shName" placeholder="اسم المساهم"></div>
         <div class="form-row">
@@ -598,24 +691,25 @@
         </div>
         <div class="form-group"><label>ملاحظات</label><textarea id="shNotes" rows="2" placeholder="ملاحظات..."></textarea></div>
         <div class="form-actions">
-          <button class="btn btn-secondary" onclick="hideModal('shareholderModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
-          <button class="btn btn-primary" onclick="submitShareholder()" style="background:var(--primary);color:#fff;">💾 حفظ المساهم</button>
+          <button class="btn" style="background:#e0e0e0;color:#333;" onclick="hideModal('shareholderModal')">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--primary);color:#fff;" onclick="submitShareholder()">💾 حفظ المساهم</button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- KPI Batch Modal -->
   <div class="modal-overlay batch-modal" id="kpiBatchModal">
     <div class="modal-box">
-      <div class="modal-header"><h3>📈 إدخال دفعة KPI</h3><button class="modal-close" onclick="hideModal('kpiBatchModal')">&times;</button></div>
+      <div class="modal-header"><h3><i class="fas fa-chart-line"></i> إدخال دفعة KPI</h3><button class="modal-close" onclick="hideModal('kpiBatchModal')">&times;</button></div>
       <div class="modal-body">
         <div class="form-group"><label>القسم *</label><select id="kpiBatchDept"><option value="">اختر القسم...</option></select></div>
         <div class="batch-header"><span>المؤشر</span><span>القيمة</span><span>الوحدة</span><span>✓</span></div>
         <div id="kpiBatchItems"></div>
         <div class="batch-summary" id="batchSummary"></div>
-        <div class="batch-actions">
-          <button class="btn btn-secondary" onclick="hideModal('kpiBatchModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
-          <button class="btn btn-primary" onclick="submitKPIBatch()" style="background:var(--primary);color:#fff;">💾 حفظ الدفعة</button>
+        <div class="form-actions">
+          <button class="btn" style="background:#e0e0e0;color:#333;" onclick="hideModal('kpiBatchModal')">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--primary);color:#fff;" onclick="submitKPIBatch()">💾 حفظ الدفعة</button>
         </div>
       </div>
     </div>
@@ -629,6 +723,15 @@
     let appData = {};
     let currentMonthKey = new Date().toISOString().slice(0,7);
 
+    // ── XSS Protection ──
+    function escapeHtml(text){
+      if(text === null || text === undefined) return '';
+      var div = document.createElement('div');
+      div.textContent = String(text);
+      return div.innerHTML;
+    }
+
+    // ── Toast ──
     function showToast(msg, type){
       type = type || 'info';
       var t = document.getElementById('toast');
@@ -638,48 +741,50 @@
       setTimeout(function(){ t.classList.remove('show'); }, 3000);
     }
 
+    // ── Modal ──
     function showModal(id){
       var el = document.getElementById(id);
-      if(el) el.style.display = 'flex';
-      if(id === 'saleModal'){
-        var d = document.getElementById('sDate');
-        if(d) d.valueAsDate = new Date();
-      }
-      if(id === 'expenseModal'){
-        var e = document.getElementById('eDate');
-        if(e) e.valueAsDate = new Date();
-      }
+      if(!el) return;
+      el.style.display = 'flex';
+      setTimeout(function(){ el.classList.add('show'); }, 10);
+      if(id === 'saleModal'){ var d = document.getElementById('sDate'); if(d) d.valueAsDate = new Date(); }
+      if(id === 'expenseModal'){ var e = document.getElementById('eDate'); if(e) e.valueAsDate = new Date(); }
     }
 
     function hideModal(id){
       var el = document.getElementById(id);
-      if(el) el.style.display = 'none';
+      if(!el) return;
+      el.classList.remove('show');
+      setTimeout(function(){ el.style.display = 'none'; }, 300);
     }
 
+    // Close modal on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(function(overlay){
+      overlay.addEventListener('click', function(e){
+        if(e.target === this) hideModal(this.id);
+      });
+    });
+
+    // ── Navigation ──
     function switchTab(tab){
-      var sections = document.querySelectorAll('.tab-section');
-      for(var i=0;i<sections.length;i++) sections[i].classList.remove('active');
-      var buttons = document.querySelectorAll('.tab-btn');
-      for(var i=0;i<buttons.length;i++) buttons[i].classList.remove('active');
+      document.querySelectorAll('.tab-section').forEach(function(s){ s.classList.remove('active'); });
+      document.querySelectorAll('.nav-item').forEach(function(b){ b.classList.remove('active'); });
       var target = document.getElementById(tab);
       if(target) target.classList.add('active');
-      var btn = document.getElementById('tab-' + tab);
-      if(btn) btn.classList.add('active');
-
       if(tab === 'kpi') showKPISummary();
     }
 
-    function setNavActive(el){
-      var items = document.querySelectorAll('.nav-item');
-      for(var i=0;i<items.length;i++) items[i].classList.remove('active');
+    function setNav(el){
+      document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
       el.classList.add('active');
     }
 
     function toggleSidebar(){
-      document.getElementById('sidebarNav').classList.toggle('collapsed');
-      document.getElementById('mainContainer').classList.toggle('collapsed');
+      document.getElementById('sidebar').classList.toggle('collapsed');
+      document.getElementById('mainArea').classList.toggle('collapsed');
     }
 
+    // ── Dynamic Item Rows ──
     function addOrderItem(){
       var div = document.createElement('div');
       div.className = 'item-row';
@@ -700,12 +805,9 @@
       document.getElementById('saleItems').appendChild(div);
     }
 
+    // ── Helpers ──
     function getDeptArabicName(dept){
-      var map = {
-        'sales':'المبيعات','finance':'المالية','inventory':'المخزون',
-        'operations':'العمليات','hr':'الموارد البشرية','marketing':'التسويق',
-        'it':'تقنية المعلومات','ceo':'الإدارة التنفيذية'
-      };
+      var map = {sales:'المبيعات',finance:'المالية',inventory:'المخزون',operations:'العمليات',hr:'الموارد البشرية',marketing:'التسويق',it:'تقنية المعلومات',ceo:'الإدارة التنفيذية'};
       return map[dept] || dept;
     }
 
@@ -731,8 +833,8 @@
     }
 
     function growthBadge(v){
-      if(!v && v !== 0) return '<span class="growth-badge growth-neutral">-</span>';
-      return v >= 0 ? '<span class="growth-badge growth-up">+' + v + '%</span>' : '<span class="growth-badge growth-down">' + v + '%</span>';
+      if(!v && v !== 0) return '<span class="badge badge-gray">-</span>';
+      return v >= 0 ? '<span class="badge badge-green">+' + v + '%</span>' : '<span class="badge badge-red">' + v + '%</span>';
     }
 
     function gradeText(s){
@@ -741,38 +843,37 @@
 
     function gradeBadge(s){
       var t = gradeText(s);
-      var c = s >= 80 ? 'green' : s >= 60 ? 'blue' : s >= 40 ? 'yellow' : 'red';
+      var c = s >= 80 ? 'green' : s >= 60 ? 'purple' : s >= 40 ? 'yellow' : 'red';
       return '<span class="badge badge-' + c + '">' + t + '</span>';
     }
 
     function renderTable(containerId, headers, rows){
       var el = document.getElementById(containerId);
       if(!el) return;
-      if(!rows || !rows.length){ el.innerHTML = '<div class="no-data">لا توجد بيانات</div>'; return; }
-      var html = '<table><thead><tr>';
-      for(var i=0;i<headers.length;i++) html += '<th>' + headers[i] + '</th>';
+      if(!rows || !rows.length){ el.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><div>لا توجد بيانات</div></div>'; return; }
+      var html = '<div class="table-wrap"><table><thead><tr>';
+      for(var i=0;i<headers.length;i++) html += '<th>' + escapeHtml(headers[i]) + '</th>';
       html += '</tr></thead><tbody>';
       for(var r=0;r<rows.length;r++){
         html += '<tr>';
-        for(var c=0;c<rows[r].length;c++) html += '<td>' + rows[r][c] + '</td>';
+        for(var c=0;c<rows[r].length;c++){
+          var cell = rows[r][c];
+          html += '<td>' + (typeof cell === 'string' ? escapeHtml(cell) : escapeHtml(String(cell))) + '</td>';
+        }
         html += '</tr>';
       }
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
       el.innerHTML = html;
     }
 
+    // ── Refresh All ──
     async function refreshAll(){
       showToast('جاري التحديث...', 'info');
-      await loadOverview();
-      await loadCEO();
-      await loadFinance();
-      await loadInventory();
-      await loadOrders();
-      await loadKPI();
-      await loadSecurity();
-      showToast('تم التحديث', 'success');
+      await Promise.all([loadOverview(), loadCEO(), loadFinance(), loadInventory(), loadOrders(), loadKPI(), loadSecurity()]);
+      showToast('تم التحديث بنجاح', 'success');
     }
 
+    // ── Load Overview ──
     async function loadOverview(){
       var data = await api('getOverview');
       if(!data || !data.success) return;
@@ -784,7 +885,7 @@
           '<div class="card"><i class="fas fa-boxes card-icon"></i><h3>المنتجات</h3><div class="value">' + (data.products || 0) + '</div></div>' +
           '<div class="card success"><i class="fas fa-hand-holding-usd card-icon"></i><h3>المبيعات</h3><div class="value">' + fmt(data.sales || 0) + '</div></div>' +
           '<div class="card danger"><i class="fas fa-money-bill-wave card-icon"></i><h3>المصروفات</h3><div class="value">' + fmt(data.expenses || 0) + '</div></div>' +
-          '<div class="card" style="border-right-color:#1565C0;"><i class="fas fa-wallet card-icon"></i><h3>الرصيد</h3><div class="value">' + fmt((data.sales || 0) - (data.expenses || 0)) + '</div></div>';
+          '<div class="card" style="--info:#1565C0;"><i class="fas fa-wallet card-icon"></i><h3>الرصيد</h3><div class="value">' + fmt((data.sales || 0) - (data.expenses || 0)) + '</div></div>';
       }
       renderTable('topMembersArea', ['العضو','الدور','النقاط'], (data.topMembers || []).map(function(m){ return [m.name, m.role, m.points || 0]; }));
       renderTable('tasksArea', ['المهمة','الحالة','الأولوية'], (data.recentTasks || []).map(function(t){ return [t.title, t.status, t.priority]; }));
@@ -800,6 +901,7 @@
       if(pending.length) renderTable('pendingArea', ['المهمة','مسندة إلى','الموعد'], pending.map(function(p){ return [p.title, p.assigned, p.due]; }));
     }
 
+    // ── Load CEO ──
     async function loadCEO(){
       var data = await api('getCEO');
       if(!data || !data.success) return;
@@ -827,6 +929,7 @@
       renderTable('ceoRecentSalesArea', ['العميل','التاريخ','المبلغ'], (data.recentSales || []).map(function(s){ return [s.customer, s.date, fmt(s.total)]; }));
     }
 
+    // ── Load Finance ──
     async function loadFinance(){
       var data = await api('getFinance');
       if(!data || !data.success) return;
@@ -838,9 +941,9 @@
       renderTable('finCashFlowBody', ['الشهر','الإيرادات','المصروفات','الصافي'], (data.cashFlow || []).map(function(c){ return [c.month, fmt(c.income), fmt(c.expense), fmt(c.net)]; }));
       renderTable('finCategoriesArea', ['الفئة','المبلغ','النسبة'], (data.topCategories || []).map(function(c){ return [c.name, fmt(c.amount), c.percent + '%']; }));
       renderTable('finRecentArea', ['البيان','النوع','المبلغ','التاريخ'], (data.recent || []).map(function(r){ return [r.title, r.type, fmt(r.amount), r.date]; }));
-      renderTable('finBudgetArea', ['البيان','الميزانية','الفعلي','الفرق'], (data.budget || []).map(function(b){ return [b.name, fmt(b.budget), fmt(b.actual), fmt(b.diff)]; }));
     }
 
+    // ── Load Inventory ──
     async function loadInventory(){
       var data = await api('getInventory');
       if(!data || !data.success) return;
@@ -859,6 +962,7 @@
       renderTable('invMovementsArea', ['المنتج','النوع','الكمية','التاريخ'], (data.movements || []).map(function(m){ return [m.name, m.type, m.qty, m.date]; }));
     }
 
+    // ── Load Orders ──
     async function loadOrders(){
       var data = await api('getOrders');
       if(!data || !data.success) return;
@@ -872,11 +976,11 @@
       var bars = document.getElementById('ordStatusBars');
       if(bars){
         bars.innerHTML = (data.statusBreakdown || []).map(function(s){
-          return '<div style="flex:1;min-width:120px;background:#f8f9fa;border-radius:8px;padding:10px;text-align:center;">' +
-            '<div style="font-size:22px;font-weight:700;color:var(--primary);">' + s.count + '</div>' +
-            '<div style="font-size:12px;color:#666;">' + s.status + '</div>' +
-            '<div style="background:#e0e0e0;border-radius:4px;height:6px;margin-top:6px;overflow:hidden;">' +
-            '<div style="width:' + s.percent + '%;background:var(--primary);height:6px;"></div></div></div>';
+          return '<div style="flex:1;min-width:120px;background:#f8f9fc;border-radius:10px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.05);">' +
+            '<div style="font-size:24px;font-weight:800;color:var(--primary);">' + s.count + '</div>' +
+            '<div style="font-size:12px;color:#888;margin-top:4px;">' + s.status + '</div>' +
+            '<div style="background:#e8eaf6;border-radius:4px;height:6px;margin-top:10px;overflow:hidden;">' +
+            '<div style="width:' + s.percent + '%;background:linear-gradient(90deg,var(--primary),#7c4dff);height:6px;border-radius:4px;transition:width .6s;"></div></div></div>';
         }).join('');
       }
       renderTable('ordTopCustomersArea', ['العميل','الطلبات','الإجمالي'], (data.topCustomers || []).map(function(c){ return [c.name, c.orders, fmt(c.total)]; }));
@@ -884,6 +988,7 @@
       renderTable('ordRecentArea', ['العميل','الحالة','المبلغ','التاريخ'], (data.recent || []).map(function(o){ return [o.customer, o.status, fmt(o.total), o.date]; }));
     }
 
+    // ── Load KPI ──
     async function loadKPI(){
       var data = await api('getKPI');
       if(!data || !data.success){
@@ -913,11 +1018,11 @@
         var alerts = data.alerts || [];
         if(alerts.length){
           alertsArea.innerHTML = alerts.map(function(a){
-            return '<div class="approval-row ' + (a.severity === 'critical' ? 'critical' : '') + '"><strong>' + a.dept + '</strong>: ' + a.metric + ' = ' + a.value +
-              ' <span class="badge badge-' + (a.severity === 'critical' ? 'red' : 'yellow') + '">' + a.severity + '</span></div>';
+            return '<div class="approval-item ' + (a.severity === 'critical' ? 'critical' : '') + '"><strong>' + escapeHtml(a.dept) + '</strong>: ' + escapeHtml(a.metric) + ' = ' + escapeHtml(String(a.value)) +
+              ' <span class="badge badge-' + (a.severity === 'critical' ? 'red' : 'yellow') + '">' + escapeHtml(a.severity) + '</span></div>';
           }).join('');
         }else{
-          alertsArea.innerHTML = '<div class="no-data">لا توجد تنبيهات</div>';
+          alertsArea.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle"></i><div>لا توجد تنبيهات</div></div>';
         }
       }
 
@@ -926,10 +1031,10 @@
         var recs = data.recommendations || [];
         if(recs.length){
           recArea.innerHTML = recs.map(function(r){
-            return '<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:8px;border-right:3px solid #2E7D32;"><strong>' + r.dept + '</strong>: ' + r.text + '</div>';
+            return '<div style="background:#f8f9fc;border-radius:10px;padding:14px;margin-bottom:8px;border-right:3px solid var(--success);"><strong>' + escapeHtml(r.dept) + '</strong>: ' + escapeHtml(r.text) + '</div>';
           }).join('');
         }else{
-          recArea.innerHTML = '<div class="no-data">لا توجد توصيات</div>';
+          recArea.innerHTML = '<div class="empty-state"><i class="fas fa-lightbulb"></i><div>لا توجد توصيات</div></div>';
         }
       }
 
@@ -944,34 +1049,33 @@
       var depts = res && res.data ? res.data : [];
       var grid = document.getElementById('kpiDeptsGrid');
       if(!grid) return;
-      if(!depts.length){ grid.innerHTML = '<div class="no-data" style="grid-column:1/-1;">لا توجد أقسام</div>'; return; }
+      if(!depts.length){ grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><i class="fas fa-building"></i><div>لا توجد أقسام</div></div>'; return; }
       grid.innerHTML = depts.map(function(d){
         var color = d.score >= 80 ? '#2E7D32' : d.score >= 60 ? '#7B1FA2' : d.score >= 40 ? '#E65100' : '#C62828';
-        return '<div class="kpi-dept-card" onclick="showKPIDetail(' + "'" + d.id + "'" + ')" style="border-right-color:' + color + '">' +
-          '<div class="kpi-dept-header"><span class="kpi-dept-name">' + d.name + '</span><span class="kpi-dept-score" style="color:' + color + '">' + d.score + '</span></div>' +
-          '<span class="kpi-grade-badge" style="background:' + color + '">' + gradeText(d.score) + '</span>' +
-          '<div class="kpi-progress-bg"><div class="kpi-progress-fill" style="width:' + d.score + '%;background:' + color + '"></div></div></div>';
+        return '<div class="kpi-card" onclick="showKPIDetail(' + "'" + escapeHtml(d.id) + "'" + ')" style="border-right-color:' + color + '">' +
+          '<div class="kpi-card-header"><span class="kpi-card-name">' + escapeHtml(d.name) + '</span><span class="kpi-card-score" style="color:' + color + '">' + d.score + '</span></div>' +
+          '<span class="kpi-grade" style="background:' + color + '">' + gradeText(d.score) + '</span>' +
+          '<div class="kpi-bar-bg"><div class="kpi-bar-fill" style="width:' + d.score + '%;background:' + color + '"></div></div></div>';
       }).join('');
 
       var batchSelect = document.getElementById('kpiBatchDept');
       if(batchSelect){
         batchSelect.innerHTML = '<option value="">اختر القسم...</option>' + depts.map(function(d){
-          return '<option value="' + d.id + '">' + d.name + '</option>';
+          return '<option value="' + escapeHtml(d.id) + '">' + escapeHtml(d.name) + '</option>';
         }).join('');
       }
     }
 
-    function renderKPIsNeedingInput(res){
-      // Placeholder - can be extended to show inputs needed
-    }
+    function renderKPIsNeedingInput(res){ /* placeholder */ }
 
     function showKPILoadError(msg){
       var grid = document.getElementById('kpiDeptsGrid');
-      if(grid) grid.innerHTML = '<div class="error-box" style="grid-column:1/-1;">فشل تحميل KPI: ' + msg + '</div>';
+      if(grid) grid.innerHTML = '<div class="error-box" style="grid-column:1/-1;">فشل تحميل KPI: ' + escapeHtml(msg) + '</div>';
       var exec = document.getElementById('kpiExecCards');
-      if(exec) exec.innerHTML = '<div class="card" style="grid-column:1/-1;"><div class="error-box">فشل تحميل الملخص التنفيذي: ' + msg + '</div></div>';
+      if(exec) exec.innerHTML = '<div class="card" style="grid-column:1/-1;"><div class="error-box">فشل تحميل الملخص التنفيذي: ' + escapeHtml(msg) + '</div></div>';
     }
 
+    // ── Load Security ──
     async function loadSecurity(){
       var data = await api('getSecurity');
       if(!data || !data.success) return;
@@ -990,14 +1094,14 @@
             var statusClass = a.status === 'approved' ? 'approved' : a.status === 'rejected' ? 'rejected' : '';
             var badgeClass = a.status === 'approved' ? 'green' : a.status === 'rejected' ? 'red' : 'yellow';
             var actions = a.status === 'pending' ? '<div class="approval-actions">' +
-              '<button class="btn-approve" onclick="approveItem(' + "'" + a.id + "'" + ',true)">✓ موافقة</button>' +
-              '<button class="btn-reject" onclick="approveItem(' + "'" + a.id + "'" + ',false)">✕ رفض</button></div>' : '';
-            return '<div class="approval-item ' + statusClass + '"><div><strong>' + a.type + '</strong> - ' + a.title +
-              ' <span class="badge badge-' + badgeClass + '">' + a.status + '</span></div>' +
-              '<div class="archive-meta">بواسطة: ' + a.by + ' | ' + a.date + '</div>' + actions + '</div>';
+              '<button class="btn-approve" onclick="approveItem(' + "'" + escapeHtml(a.id) + "'" + ',true)">✓ موافقة</button>' +
+              '<button class="btn-reject" onclick="approveItem(' + "'" + escapeHtml(a.id) + "'" + ',false)">✕ رفض</button></div>' : '';
+            return '<div class="approval-item ' + statusClass + '"><div><strong>' + escapeHtml(a.type) + '</strong> - ' + escapeHtml(a.title) +
+              ' <span class="badge badge-' + badgeClass + '">' + escapeHtml(a.status) + '</span></div>' +
+              '<div class="archive-meta">بواسطة: ' + escapeHtml(a.by) + ' | ' + escapeHtml(a.date) + '</div>' + actions + '</div>';
           }).join('');
         }else{
-          appArea.innerHTML = '<div class="no-data">لا توجد طلبات معلقة</div>';
+          appArea.innerHTML = '<div class="empty-state"><i class="fas fa-clipboard-check"></i><div>لا توجد طلبات معلقة</div></div>';
         }
       }
 
@@ -1006,27 +1110,28 @@
         var archive = data.archive || [];
         if(archive.length){
           arcArea.innerHTML = archive.map(function(a){
-            return '<div class="archive-item"><div><strong>' + a.type + '</strong>: ' + a.title +
-              '<div class="archive-meta">حذف بواسطة: ' + a.deletedBy + ' | ' + a.deletedAt + '</div></div>' +
-              '<button class="btn-sm btn-success" onclick="restoreItem(' + "'" + a.id + "'" + ')">استرجاع</button></div>';
+            return '<div class="archive-item"><div><strong>' + escapeHtml(a.type) + '</strong>: ' + escapeHtml(a.title) +
+              '<div class="archive-meta">حذف بواسطة: ' + escapeHtml(a.deletedBy) + ' | ' + escapeHtml(a.deletedAt) + '</div></div>' +
+              '<button class="btn-sm btn-success" onclick="restoreItem(' + "'" + escapeHtml(a.id) + "'" + ')">استرجاع</button></div>';
           }).join('');
         }else{
-          arcArea.innerHTML = '<div class="no-data">السلة فارغة</div>';
+          arcArea.innerHTML = '<div class="empty-state"><i class="fas fa-trash"></i><div>السلة فارغة</div></div>';
         }
       }
     }
 
+    // ── Submit Functions ──
     async function submitTask(){
       var payload = {
         title: document.getElementById('tTitle').value,
         category: document.getElementById('tCategory').value,
-        assigned: document.getElementById('tAssigned').value,
+        assignedTo: document.getElementById('tAssigned').value,
         priority: document.getElementById('tPriority').value,
         difficulty: document.getElementById('tDifficulty').value,
-        start: document.getElementById('tStart').value,
-        due: document.getElementById('tDue').value
+        startDate: document.getElementById('tStart').value,
+        dueDate: document.getElementById('tDue').value
       };
-      if(!payload.title || !payload.assigned){ showToast('يرجى ملء الحقول المطلوبة','error'); return; }
+      if(!payload.title || !payload.assignedTo){ showToast('يرجى ملء الحقول المطلوبة','error'); return; }
       var res = await api('addTask', payload);
       if(res && res.success){ hideModal('taskModal'); showToast('تم إضافة المهمة','success'); refreshAll(); }
     }
@@ -1050,8 +1155,8 @@
         variant: document.getElementById('pVariant').value,
         color: document.getElementById('pColor').value,
         size: document.getElementById('pSize').value,
-        qty: +document.getElementById('pQty').value,
-        min: +document.getElementById('pMin').value,
+        quantity: +document.getElementById('pQty').value,
+        minStock: +document.getElementById('pMin').value,
         cost: +document.getElementById('pCost').value,
         price: +document.getElementById('pPrice').value,
         warehouse: document.getElementById('pWarehouse').value,
@@ -1075,11 +1180,11 @@
         customer: document.getElementById('oCustomer').value,
         phone: document.getElementById('oPhone').value,
         status: document.getElementById('oStatus').value,
-        payment: document.getElementById('oPayment').value,
+        paymentMethod: document.getElementById('oPayment').value,
         address: document.getElementById('oAddress').value,
         items: items,
         discount: +document.getElementById('oDiscount').value,
-        shipping: +document.getElementById('oShipping').value,
+        shippingCost: +document.getElementById('oShipping').value,
         notes: document.getElementById('oNotes').value
       };
       if(!payload.customer || !items.length){ showToast('يرجى ملء بيانات العميل والمنتجات','error'); return; }
@@ -1115,7 +1220,7 @@
         amount: +document.getElementById('eAmount').value,
         category: document.getElementById('eCategory').value,
         date: document.getElementById('eDate').value,
-        desc: document.getElementById('eDesc').value,
+        description: document.getElementById('eDesc').value,
         attachment: document.getElementById('eAttachment').value
       };
       if(!payload.title || !payload.amount){ showToast('يرجى ملء الحقول المطلوبة','error'); return; }
@@ -1157,22 +1262,17 @@
       if(res && res.success){ showToast('تم تفعيل النسخ التلقائي','success'); loadSecurity(); }
     }
 
+    // ── KPI Navigation ──
     function showKPIExecSummary(){
-      var exec = document.getElementById('kpiExecSummary');
-      var sum = document.getElementById('kpiSummaryArea');
-      var det = document.getElementById('kpiDetailArea');
-      if(exec) exec.style.display = 'block';
-      if(sum) sum.style.display = 'none';
-      if(det) det.style.display = 'none';
+      document.getElementById('kpiExecSummary').style.display = 'block';
+      document.getElementById('kpiSummaryArea').style.display = 'none';
+      document.getElementById('kpiDetailArea').style.display = 'none';
     }
 
     function showKPISummary(){
-      var exec = document.getElementById('kpiExecSummary');
-      var sum = document.getElementById('kpiSummaryArea');
-      var det = document.getElementById('kpiDetailArea');
-      if(exec) exec.style.display = 'block';
-      if(sum) sum.style.display = 'block';
-      if(det) det.style.display = 'none';
+      document.getElementById('kpiExecSummary').style.display = 'block';
+      document.getElementById('kpiSummaryArea').style.display = 'block';
+      document.getElementById('kpiDetailArea').style.display = 'none';
     }
 
     function showKPIDetail(deptId){
@@ -1181,15 +1281,12 @@
       for(var i=0;i<depts.length;i++){ if(depts[i].id === deptId){ dept = depts[i]; break; } }
       if(!dept) return;
 
-      var exec = document.getElementById('kpiExecSummary');
-      var sum = document.getElementById('kpiSummaryArea');
-      var det = document.getElementById('kpiDetailArea');
-      if(exec) exec.style.display = 'none';
-      if(sum) sum.style.display = 'none';
-      if(det) det.style.display = 'block';
+      document.getElementById('kpiExecSummary').style.display = 'none';
+      document.getElementById('kpiSummaryArea').style.display = 'none';
+      document.getElementById('kpiDetailArea').style.display = 'block';
 
       var title = document.getElementById('kpiDetailTitle');
-      if(title) title.innerHTML = '<i class="fas fa-chart-bar"></i> ' + dept.name;
+      if(title) title.innerHTML = '<i class="fas fa-chart-bar"></i> ' + escapeHtml(dept.name);
 
       var color = dept.score >= 80 ? '#2E7D32' : dept.score >= 60 ? '#7B1FA2' : dept.score >= 40 ? '#E65100' : '#C62828';
       var badge = document.getElementById('kpiDetailBadge');
@@ -1199,14 +1296,14 @@
       if(content){
         var metrics = dept.metrics || [];
         content.innerHTML = metrics.map(function(m){
-          var trend = m.trend > 0 ? '<span class="kpi-trend trend-up">▲</span>' : m.trend < 0 ? '<span class="kpi-trend trend-down">▼</span>' : '<span class="kpi-trend trend-stable">●</span>';
-          var src = m.source === 'auto' ? '<span class="kpi-source-badge source-auto">تلقائي</span>' : m.source === 'manual' ? '<span class="kpi-source-badge source-manual">يدوي</span>' : '<span class="kpi-source-badge source-nodata">لا يوجد</span>';
+          var trend = m.trend > 0 ? '<span class="kpi-trend" style="color:#2E7D32">▲</span>' : m.trend < 0 ? '<span class="kpi-trend" style="color:#C62828">▼</span>' : '<span class="kpi-trend" style="color:#757575">●</span>';
+          var src = m.source === 'auto' ? '<span class="badge badge-green" style="font-size:10px;">تلقائي</span>' : m.source === 'manual' ? '<span class="badge badge-yellow" style="font-size:10px;">يدوي</span>' : '<span class="badge badge-gray" style="font-size:10px;">لا يوجد</span>';
           var pct = m.target ? Math.min((m.value / m.target) * 100, 100) : 0;
           var barColor = m.value >= m.target ? '#2E7D32' : '#E65100';
           return '<div class="kpi-detail-card">' +
-            '<div class="kpi-metric-row"><span><strong>' + m.name + '</strong> ' + src + '</span><span>' + trend + ' <strong>' + m.value + ' ' + (m.unit || '') + '</strong></span></div>' +
-            '<div style="font-size:12px;color:#666;margin-top:4px;">الهدف: ' + (m.target || 0) + ' | الوزن: ' + (m.weight || 0) + '%</div>' +
-            '<div class="kpi-progress-bg" style="height:6px;margin-top:6px;"><div class="kpi-progress-fill" style="width:' + pct + '%;background:' + barColor + ';height:6px;"></div></div></div>';
+            '<div class="kpi-metric"><span><strong>' + escapeHtml(m.name) + '</strong> ' + src + '</span><span>' + trend + ' <strong>' + escapeHtml(String(m.value)) + ' ' + escapeHtml(m.unit || '') + '</strong></span></div>' +
+            '<div style="font-size:12px;color:#888;margin-top:4px;">الهدف: ' + escapeHtml(String(m.target || 0)) + ' | الوزن: ' + escapeHtml(String(m.weight || 0)) + '%</div>' +
+            '<div class="kpi-bar-bg" style="height:6px;margin-top:8px;"><div class="kpi-bar-fill" style="width:' + pct + '%;background:' + barColor + ';height:6px;"></div></div></div>';
         }).join('');
       }
     }
@@ -1220,16 +1317,16 @@
     function renderKPIBatchItems(deptId){
       var container = document.getElementById('kpiBatchItems');
       if(!container) return;
-      if(!deptId){ container.innerHTML = '<div class="no-data">اختر قسم أولاً</div>'; return; }
+      if(!deptId){ container.innerHTML = '<div class="empty-state"><i class="fas fa-hand-pointer"></i><div>اختر قسم أولاً</div></div>'; return; }
       var depts = (appData.kpi && appData.kpi.departments) ? appData.kpi.departments : [];
       var dept = null;
       for(var i=0;i<depts.length;i++){ if(depts[i].id === deptId){ dept = depts[i]; break; } }
-      if(!dept){ container.innerHTML = '<div class="no-data">لا توجد مؤشرات</div>'; return; }
+      if(!dept){ container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><div>لا توجد مؤشرات</div></div>'; return; }
       var metrics = dept.metrics || [];
       container.innerHTML = metrics.map(function(m, i){
-        return '<div class="batch-item"><label>' + m.name + '</label>' +
+        return '<div class="batch-item"><label>' + escapeHtml(m.name) + '</label>' +
           '<input type="number" step="0.01" id="batch_' + i + '" value="' + (m.value || '') + '" placeholder="القيمة">' +
-          '<span class="batch-unit">' + (m.unit || '') + '</span>' +
+          '<span class="batch-unit">' + escapeHtml(m.unit || '') + '</span>' +
           '<div class="batch-check"><input type="checkbox" id="batch_chk_' + i + '" checked></div></div>';
       }).join('');
     }
@@ -1255,6 +1352,7 @@
       if(res && res.success){ hideModal('kpiBatchModal'); showToast('تم تحديث المؤشرات','success'); loadKPI(); }
     }
 
+    // ── Init ──
     document.addEventListener('DOMContentLoaded', function(){
       refreshAll();
       setInterval(function(){ if(document.visibilityState === 'visible') refreshAll(); }, 300000);
