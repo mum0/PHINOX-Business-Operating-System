@@ -561,3 +561,57 @@ function submitKPIBatch(inputs){
       details: results
     };
   }
+  /**
+ * ملخص تنفيذي للـ KPI
+ */
+function getKPIExecutiveSummary(){
+    try{
+      var month = getCurrentMonthKey();
+      var depts = Object.keys(KPI_LIBRARY || {});
+      var scores = [];
+      var alerts = [];
+      var recommendations = [];
+      
+      depts.forEach(function(d){
+        try{
+          var k = getDepartmentKPIs_v4(d, month);
+          scores.push(k.score);
+          
+          // تنبيهات
+          if(k.score < 60){
+            alerts.push({dept:d, score:k.score, type:'critical', message:'أداء حرج — يتطلب تدخل فوري'});
+          } else if(k.score < 80){
+            alerts.push({dept:d, score:k.score, type:'warning', message:'أداء متوسط — يحتاج خطة تحسين'});
+          }
+          
+          // توصيات
+          k.kpis.forEach(function(kpi){
+            if(kpi.achievement < 60){
+              recommendations.push({priority:'P1', icon:'🚨', text:d + ' — ' + kpi.name + ': ' + kpi.achievement + '%'});
+            } else if(kpi.achievement < 80){
+              recommendations.push({priority:'P2', icon:'⚠️', text:d + ' — ' + kpi.name + ': ' + kpi.achievement + '%'});
+            }
+          });
+        }catch(e){ Logger.log('KPI Summary error for '+d+': '+e); }
+      });
+      
+      var avg = scores.length > 0 ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
+      var excellent = scores.filter(function(s){return s>=100;}).length;
+      var good = scores.filter(function(s){return s>=80 && s<100;}).length;
+      var atRisk = scores.filter(function(s){return s>=60 && s<80;}).length;
+      var critical = scores.filter(function(s){return s<60;}).length;
+      
+      return {
+        overallScore: avg,
+        overallColor: avg>=100?'#2E7D32':(avg>=80?'#7B1FA2':(avg>=60?'#F9A825':'#C62828')),
+        excellent: excellent, good: good, atRisk: atRisk, critical: critical,
+        totalDepartments: depts.length,
+        lastUpdated: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'),
+        alerts: alerts.slice(0,5),
+        recommendations: recommendations.slice(0,8)
+      };
+    }catch(e){
+      Logger.log('getKPIExecutiveSummary error: '+e);
+      return {overallScore:0, overallColor:'#999', excellent:0, good:0, atRisk:0, critical:0, totalDepartments:0, lastUpdated:'-', alerts:[], recommendations:[]};
+    }
+  }
