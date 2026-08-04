@@ -16,7 +16,13 @@ function buildDashboard(){
     row = createMemberSection(sheet, row);
     row = createTaskSection(sheet, row);
     row = createKPISection(sheet, row);
-    return row;
+  // Mini ERP Sections
+  row = createSalesSection(sheet, row);
+  row = createExpensesSection(sheet, row);
+  row = createShareholdersSection(sheet, row);
+  
+  return row;    
+    
 }
 
 function createDashboardHeader(sheet, startRow){
@@ -138,3 +144,138 @@ function openDashboard(){
     const ss = SpreadsheetApp.getActive();
     ss.setActiveSheet(getSheet(APP.SHEETS.DASHBOARD));
 }
+/**
+ * Mini ERP: Sales Section
+ */
+function createSalesSection(sheet, startRow){
+    sheet.getRange(startRow, 1).setValue("💰 المبيعات (Mini ERP)");
+    sheet.getRange(startRow, 1, 1, 2).setFontSize(14).setFontWeight("bold").setBackground(APP.COLORS.PRIMARY_DARK).setFontColor("#FFFFFF");
+    
+    const data = refreshSalesDashboard();
+    data.forEach(function(r, i){
+      sheet.getRange(startRow + 1 + i, 1, 1, 2).setValues([r]);
+    });
+    
+    // آخر 5 فواتير
+    const sales = getSales().slice(-5);
+    if(sales.length > 0){
+      sheet.getRange(startRow + data.length + 1, 1).setValue("آخر الفواتير");
+      sheet.getRange(startRow + data.length + 1, 1, 1, 7).setFontWeight("bold").setBackground(APP.COLORS.GRAY_LIGHT);
+      sheet.getRange(startRow + data.length + 1, 1, 1, 7).setValues([["الفاتورة", "التاريخ", "العميل", "الوصف", "المبلغ", "الدفع", ""]]);
+      
+      sales.forEach(function(s, i){
+        sheet.getRange(startRow + data.length + 2 + i, 1, 1, 7).setValues([[s[0], formatDateStr(s[1]), s[2], s[3], s[4], s[5], ""]]);
+      });
+      return startRow + data.length + 2 + sales.length + 1;
+    }
+    
+    return startRow + data.length + 2;
+  }
+  
+  /**
+   * Mini ERP: Expenses Section
+   */
+  function createExpensesSection(sheet, startRow){
+    sheet.getRange(startRow, 1).setValue("💸 المصروفات (Mini ERP)");
+    sheet.getRange(startRow, 1, 1, 2).setFontSize(14).setFontWeight("bold").setBackground(APP.COLORS.PRIMARY_DARK).setFontColor("#FFFFFF");
+    
+    const data = refreshExpensesDashboard();
+    data.forEach(function(r, i){
+      sheet.getRange(startRow + 1 + i, 1, 1, 2).setValues([r]);
+    });
+    
+    return startRow + data.length + 2;
+  }
+  
+  /**
+   * Mini ERP: Shareholders Section
+   */
+  function createShareholdersSection(sheet, startRow){
+    sheet.getRange(startRow, 1).setValue("🏛️ المساهمون (Mini ERP)");
+    sheet.getRange(startRow, 1, 1, 2).setFontSize(14).setFontWeight("bold").setBackground(APP.COLORS.PRIMARY_DARK).setFontColor("#FFFFFF");
+    
+    const data = refreshShareholdersDashboard();
+    data.forEach(function(r, i){
+      sheet.getRange(startRow + 1 + i, 1, 1, 2).setValues([r]);
+    });
+    
+    const holders = getShareholders();
+    if(holders.length > 0){
+      sheet.getRange(startRow + data.length + 1, 1).setValue("تفاصيل المساهمين");
+      sheet.getRange(startRow + data.length + 1, 1, 1, 8).setFontWeight("bold").setBackground(APP.COLORS.GRAY_LIGHT);
+      sheet.getRange(startRow + data.length + 1, 1, 1, 8).setValues([["الاسم", "البريد", "الأسهم", "الملكية", "قيمة الاستثمار", "القيمة الحالية", "الربح", "الخسارة"]]);
+      
+      holders.forEach(function(h, i){
+        sheet.getRange(startRow + data.length + 2 + i, 1, 1, 8).setValues([[h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]]]);
+      });
+      return startRow + data.length + 2 + holders.length + 1;
+    }
+    
+    return startRow + data.length + 2;
+  }
+  /**
+ * Mini ERP: Sales Section
+ */
+function createSalesSection(sheet, startRow){
+    sheet.getRange(startRow, 1).setValue("💰 المبيعات (Mini ERP)");
+    sheet.getRange(startRow, 1, 1, 2).setFontSize(14).setFontWeight("bold").setBackground(APP.COLORS.PRIMARY_DARK).setFontColor("#FFFFFF");
+    
+    const data = refreshSalesDashboard();
+    data.forEach(function(r, i){
+      sheet.getRange(startRow + 1 + i, 1, 1, 2).setValues([r]);
+    });
+    
+    const sales = getSales().slice(-5);
+    if(sales.length > 0){
+      sheet.getRange(startRow + data.length + 1, 1).setValue("آخر الفواتير");
+      sheet.getRange(startRow + data.length + 1, 1, 1, 7).setFontWeight("bold").setBackground(APP.COLORS.GRAY_LIGHT);
+      sheet.getRange(startRow + data.length + 1, 1, 1, 7).setValues([["الفاتورة", "التاريخ", "العميل", "الوصف", "المبلغ", "الدفع", ""]]);
+      
+      sales.forEach(function(s, i){
+        sheet.getRange(startRow + data.length + 2 + i, 1, 1, 7).setValues([[s[0], formatDateStr(s[1]), s[2], s[3], s[4], s[5], ""]]);
+      });
+      return startRow + data.length + 2 + sales.length + 1;
+    }
+    return startRow + data.length + 2;
+  }
+  
+  /**
+   * Mini ERP: Expenses Section
+   */
+  function createExpensesSection(sheet, startRow){
+    sheet.getRange(startRow, 1).setValue("💸 المصروفات (Mini ERP)");
+    sheet.getRange(startRow, 1, 1, 2).setFontSize(14).setFontWeight("bold").setBackground(APP.COLORS.PRIMARY_DARK).setFontColor("#FFFFFF");
+    
+    const data = refreshExpensesDashboard();
+    data.forEach(function(r, i){
+      sheet.getRange(startRow + 1 + i, 1, 1, 2).setValues([r]);
+    });
+    
+    return startRow + data.length + 2;
+  }
+  
+  /**
+   * Mini ERP: Shareholders Section
+   */
+  function createShareholdersSection(sheet, startRow){
+    sheet.getRange(startRow, 1).setValue("🏛️ المساهمون (Mini ERP)");
+    sheet.getRange(startRow, 1, 1, 2).setFontSize(14).setFontWeight("bold").setBackground(APP.COLORS.PRIMARY_DARK).setFontColor("#FFFFFF");
+    
+    const data = refreshShareholdersDashboard();
+    data.forEach(function(r, i){
+      sheet.getRange(startRow + 1 + i, 1, 1, 2).setValues([r]);
+    });
+    
+    const holders = getShareholders();
+    if(holders.length > 0){
+      sheet.getRange(startRow + data.length + 1, 1).setValue("تفاصيل المساهمين");
+      sheet.getRange(startRow + data.length + 1, 1, 1, 8).setFontWeight("bold").setBackground(APP.COLORS.GRAY_LIGHT);
+      sheet.getRange(startRow + data.length + 1, 1, 1, 8).setValues([["الاسم", "البريد", "الأسهم", "الملكية", "قيمة الاستثمار", "القيمة الحالية", "الربح", "الخسارة"]]);
+      
+      holders.forEach(function(h, i){
+        sheet.getRange(startRow + data.length + 2 + i, 1, 1, 8).setValues([[h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]]]);
+      });
+      return startRow + data.length + 2 + holders.length + 1;
+    }
+    return startRow + data.length + 2;
+  }

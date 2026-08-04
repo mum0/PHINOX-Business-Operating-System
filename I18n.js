@@ -156,6 +156,30 @@ const I18N = {
     fin_budget_alert: "تنبيه تجاوز الميزانية",
     fin_over_budget: "تجاوزت الميزانية بمقدار",
 
+    fin_kpi_title: "المؤشرات المالية",
+    fin_current_balance: "الرصيد الحالي",
+    fin_monthly_income: "إيرادات الشهر",
+    fin_monthly_expense: "مصروفات الشهر",
+    fin_monthly_profit: "ربح الشهر",
+    fin_profit_margin: "هامش الربح",
+    fin_total_income: "إجمالي الإيرادات",
+    fin_total_expense: "إجمالي المصروفات",
+    fin_net_profit: "صافي الربح",
+    fin_expense_ratio: "نسبة المصروفات",
+    fin_burn_rate: "معدل الاستنزاف الشهري",
+
+    sale_add: "فاتورة مبيعات",
+    sale_customer: "العميل",
+    sale_amount: "المبلغ",
+    sale_payment: "طريقة الدفع",
+    exp_add: "مصروف جديد",
+    exp_type: "نوع المصروف",
+    exp_supplier: "المورد",
+    sh_add: "مساهم جديد",
+    sh_name: "الاسم",
+    sh_shares: "عدد الأسهم",
+    sh_price: "سعر السهم",
+
     lang_ar: "العربية",
     lang_en: "English",
     direction: "rtl"
@@ -163,6 +187,32 @@ const I18N = {
   },
   
   en: {
+
+    
+    sale_add: "Sales Invoice",
+    sale_customer: "Customer",
+    sale_amount: "Amount",
+    sale_payment: "Payment Method",
+    exp_add: "New Expense",
+    exp_type: "Expense Type",
+    exp_supplier: "Supplier",
+    sh_add: "New Shareholder",
+    sh_name: "Name",
+    sh_shares: "Shares",
+    sh_price: "Share Price",
+    
+    fin_kpi_title: "Financial KPIs",
+    fin_current_balance: "Current Balance",
+    fin_monthly_income: "Monthly Income",
+    fin_monthly_expense: "Monthly Expense",
+    fin_monthly_profit: "Monthly Profit",
+    fin_profit_margin: "Profit Margin",
+    fin_total_income: "Total Income",
+    fin_total_expense: "Total Expense",
+    fin_net_profit: "Net Profit",
+    fin_expense_ratio: "Expense Ratio",
+    fin_burn_rate: "Monthly Burn Rate",
+    
     fin_invalid_category: "Invalid category",
     fin_txn: "Financial Transaction",
     fin_txn_update: "Update Transaction",

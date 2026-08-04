@@ -5,332 +5,236 @@
   <meta charset="UTF-8">
   <title>PHINOX Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    :root{--primary:#111;--secondary:#fff;--success:#34A853;--warning:#FBBC05;--danger:#EA4335;--info:#4285F4;--header:#202124;--border:#DADCE0;}
+    :root{--primary:#1a237e;--primary-light:#e8eaf6;--success:#2E7D32;--warning:#E65100;--danger:#C62828;--info:#1565C0;--header:#37474f;--bg:#f5f5f5;--card:#fff;--text:#212121;}
     *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
-    body{background:#f5f5f5;color:var(--primary);}
-    .sidebar{width:260px;height:100vh;background:var(--header);position:fixed;right:0;top:0;color:#fff;padding:20px 0;}
-    .sidebar h2{text-align:center;margin-bottom:30px;font-size:20px;border-bottom:1px solid #444;padding-bottom:15px;}
-    .nav-item{display:block;padding:12px 25px;color:#fff;text-decoration:none;transition:.2s;cursor:pointer;border-right:4px solid transparent;background:none;border:none;width:100%;text-align:right;font-size:15px;}
-    .nav-item:hover,.nav-item.active{background:#2d2d2d;border-right-color:var(--info);}
-    .main{margin-right:260px;padding:30px;}
-    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;}
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:30px;}
-    .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid var(--info);}
-    .card.success{border-top-color:var(--success);} .card.warning{border-top-color:var(--warning);} .card.danger{border-top-color:var(--danger);}
-    .card h3{font-size:14px;color:#666;margin-bottom:8px;}
-    .card .value{font-size:28px;font-weight:700;}
-    .section{background:#fff;border-radius:12px;padding:25px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:25px;}
-    .section h2{font-size:18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;}
-    table{width:100%;border-collapse:collapse;font-size:14px;}
-    th{background:var(--header);color:#fff;padding:12px;text-align:right;}
-    td{padding:12px;border-bottom:1px solid var(--border);}
-    tr:hover{background:#f8f9fa;}
-    .btn{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s;}
-    .btn-primary{background:var(--info);color:#fff;} .btn-success{background:var(--success);color:#fff;}
-    .btn-danger{background:var(--danger);color:#fff;} .btn-warning{background:var(--warning);color:#000;}
+    body{background:var(--bg);color:var(--text);}
+    .header{background:var(--primary);color:#fff;padding:15px 25px;display:flex;justify-content:space-between;align-items:center;}
+    .header h1{font-size:20px;}
+    .header-actions{display:flex;gap:10px;}
+    .btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;transition:.2s;}
     .btn:hover{opacity:.85;transform:translateY(-1px);}
-    .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+    .btn-primary{background:#fff;color:var(--primary);}
+    .btn-success{background:var(--success);color:#fff;}
+    .btn-info{background:var(--info);color:#fff;}
+    .btn-warning{background:var(--warning);color:#fff;}
+    .btn-danger{background:var(--danger);color:#fff;}
+    
+    .container{padding:20px;}
+    .toolbar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+    
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:25px;}
+    .card{background:var(--card);border-radius:10px;padding:18px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-right:4px solid var(--info);position:relative;}
+    .card.success{border-right-color:var(--success);} .card.warning{border-right-color:var(--warning);} .card.danger{border-right-color:var(--danger);}
+    .card-icon{position:absolute;left:15px;top:15px;font-size:28px;opacity:.15;}
+    .card h3{font-size:12px;color:#666;margin-bottom:6px;}
+    .card .value{font-size:26px;font-weight:700;}
+    
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+    @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+    
+    .section{background:var(--card);border-radius:10px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);margin-bottom:20px;}
+    .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;}
+    .section h2{font-size:16px;color:var(--primary);}
+    
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{background:var(--header);color:#fff;padding:10px;text-align:right;}
+    td{padding:10px;border-bottom:1px solid #e0e0e0;}
+    tr:hover{background:#f8f9fa;}
+    
+    .badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
     .badge-green{background:#e6f4ea;color:var(--success);} .badge-red{background:#fce8e6;color:var(--danger);}
     .badge-yellow{background:#fef3e8;color:#b06000;} .badge-blue{background:#e8f0fe;color:var(--info);}
-    .loading{text-align:center;padding:40px;color:#666;}
-    .hidden{display:none !important;}
-    .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:none;justify-content:center;align-items:center;z-index:1000;}
-    .modal.active{display:flex;}
-    .modal-content{background:#fff;border-radius:12px;padding:30px;width:500px;max-height:90vh;overflow-y:auto;}
-    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
-    .modal-header h2{font-size:20px;}
-    .close-btn{background:none;border:none;font-size:24px;cursor:pointer;color:#666;}
-    .form-group{margin-bottom:15px;}
-    .form-group label{display:block;margin-bottom:6px;font-weight:600;font-size:14px;}
-    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;}
-    .form-group textarea{resize:vertical;height:80px;}
-    .modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+    
+    .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--header);color:#fff;padding:12px 24px;border-radius:8px;font-size:13px;z-index:9999;display:none;box-shadow:0 4px 12px rgba(0,0,0,.2);}
+    .toast.show{display:block;animation:fadeIn .3s;}
+    @keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+    
+    .loading{text-align:center;padding:30px;color:#999;}
+    .spinner{display:inline-block;width:20px;height:20px;border:3px solid #f3f3f3;border-top:3px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite;}
+    @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
   </style>
 </head>
 <body>
 
-<div class="sidebar">
-  <h2>⚡ PHINOX BOS</h2>
-  <button class="nav-item active" onclick="showTab('dashboard')">📊 لوحة التحكم</button>
-  <button class="nav-item" onclick="showTab('tasks')">✅ المهام</button>
-  <button class="nav-item" onclick="showTab('members')">👥 الفريق</button>
-  <button class="nav-item" onclick="showTab('inventory')">📦 المخزون</button>
-  <button class="nav-item" onclick="showTab('orders')">🛒 الطلبات</button>
-  <button class="nav-item" onclick="showTab('finance')">💰 المالية</button>
-  <button class="nav-item" onclick="refreshSystem()">🔄 تحديث النظام</button>
+<div class="header">
+  <h1><i class="fas fa-bolt"></i> PHINOX <span style="font-size:14px;opacity:.8">لوحة التحكم</span></h1>
+  <div class="header-actions">
+    <button class="btn btn-primary" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> تحديث</button>
+    <button class="btn btn-success" onclick="openTaskDialog()"><i class="fas fa-plus"></i> مهمة</button>
+    <button class="btn btn-info" onclick="openMemberDialog()"><i class="fas fa-user-plus"></i> عضو</button>
+    <button class="btn btn-warning" onclick="openProductDialog()"><i class="fas fa-box"></i> منتج</button>
+    <button class="btn btn-success" onclick="openOrderDialog()"><i class="fas fa-shopping-cart"></i> طلب</button>
+  </div>
 </div>
 
-<div class="main">
-  <div class="header">
-    <h1 id="pageTitle">لوحة التحكم الرئيسية</h1>
-    <button class="btn btn-primary" onclick="refreshSystem()">تحديث البيانات</button>
+<div class="container">
+  
+  <!-- Cards -->
+  <div class="cards" id="cardsArea">
+    <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
   </div>
-
-  <!-- Dashboard -->
-  <div id="dashboard" class="tab-content">
-    <div class="cards" id="dashboardCards"><div class="loading">جاري التحميل...</div></div>
+  
+  <div class="grid-2">
+    <!-- Top Members -->
     <div class="section">
-      <h2>🏆 أفضل الأعضاء</h2>
-      <div id="topMembers"><div class="loading">جاري التحميل...</div></div>
+      <div class="section-header"><h2><i class="fas fa-trophy"></i> أفضل الأعضاء</h2></div>
+      <div id="topMembersArea"><div class="loading">جاري التحميل...</div></div>
     </div>
+    
+    <!-- Tasks Summary -->
     <div class="section">
-      <h2>📋 ملخص المهام</h2>
-      <div id="tasksSummary"><div class="loading">جاري التحميل...</div></div>
-    </div>
-  </div>
-
-  <!-- Tasks -->
-  <div id="tasks" class="tab-content hidden">
-    <div class="section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <h2>قائمة المهام</h2>
-        <button class="btn btn-success" onclick="openModal('taskModal')">+ مهمة جديدة</button>
-      </div>
-      <div id="tasksTable"><div class="loading">جاري التحميل...</div></div>
+      <div class="section-header"><h2><i class="fas fa-tasks"></i> ملخص المهام</h2></div>
+      <div id="tasksArea"><div class="loading">جاري التحميل...</div></div>
     </div>
   </div>
-
-  <!-- Members -->
-  <div id="members" class="tab-content hidden">
+  
+  <div class="grid-2">
+    <!-- Inventory -->
     <div class="section">
-      <h2>أعضاء الفريق</h2>
-      <div id="membersTable"><div class="loading">جاري التحميل...</div></div>
+      <div class="section-header"><h2><i class="fas fa-warehouse"></i> المخزون</h2></div>
+      <div id="inventoryArea"><div class="loading">جاري التحميل...</div></div>
+    </div>
+    
+    <!-- Finance -->
+    <div class="section">
+      <div class="section-header"><h2><i class="fas fa-chart-line"></i> المالية</h2></div>
+      <div id="financeArea"><div class="loading">جاري التحميل...</div></div>
     </div>
   </div>
-
-  <!-- Inventory -->
-  <div id="inventory" class="tab-content hidden">
-    <div class="section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <h2>المنتجات</h2>
-        <button class="btn btn-success" onclick="openModal('productModal')">+ منتج جديد</button>
-      </div>
-      <div id="inventoryTable"><div class="loading">جاري التحميل...</div></div>
-    </div>
-  </div>
-
+  
   <!-- Orders -->
-  <div id="orders" class="tab-content hidden">
-    <div class="section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <h2>طلبات العملاء</h2>
-        <button class="btn btn-success" onclick="openModal('orderModal')">+ طلب جديد</button>
-      </div>
-      <div id="ordersTable"><div class="loading">جاري التحميل...</div></div>
-    </div>
+  <div class="section">
+    <div class="section-header"><h2><i class="fas fa-shopping-bag"></i> طلبات العملاء</h2></div>
+    <div id="ordersArea"><div class="loading">جاري التحميل...</div></div>
   </div>
-
-  <!-- Finance -->
-  <div id="finance" class="tab-content hidden">
-    <div class="cards" id="financeCards"><div class="loading">جاري التحميل...</div></div>
-    <div class="section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <h2>المعاملات المالية</h2>
-        <button class="btn btn-success" onclick="openModal('financeModal')">+ معاملة جديدة</button>
-      </div>
-      <div id="financeTable"><div class="loading">جاري التحميل...</div></div>
-    </div>
-  </div>
+  
 </div>
 
-<!-- Task Modal -->
-<div class="modal" id="taskModal">
-  <div class="modal-content">
-    <div class="modal-header"><h2>مهمة جديدة</h2><button class="close-btn" onclick="closeModal('taskModal')">&times;</button></div>
-    <div class="form-group"><label>العنوان</label><input type="text" id="tTitle"></div>
-    <div class="form-group"><label>الفئة</label><select id="tCategory"><option>Design</option><option>Marketing</option><option>Operations</option><option>Supply</option><option>Finance</option><option>Sales</option></select></div>
-    <div class="form-group"><label>مسندة إلى</label><input type="text" id="tAssigned" placeholder="اسم العضو"></div>
-    <div class="form-group"><label>الأولوية</label><select id="tPriority"><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select></div>
-    <div class="form-group"><label>الصعوبة</label><select id="tDifficulty"><option>Easy</option><option>Medium</option><option>Hard</option><option>Critical</option></select></div>
-    <div class="form-group"><label>تاريخ البدء</label><input type="date" id="tStart"></div>
-    <div class="form-group"><label>تاريخ الاستحقاق</label><input type="date" id="tDue"></div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="submitTask()">حفظ</button>
-      <button class="btn" onclick="closeModal('taskModal')" style="background:#eee;">إلغاء</button>
-    </div>
-  </div>
-</div>
-
-<!-- Product Modal -->
-<div class="modal" id="productModal">
-  <div class="modal-content">
-    <div class="modal-header"><h2>منتج جديد</h2><button class="close-btn" onclick="closeModal('productModal')">&times;</button></div>
-    <div class="form-group"><label>اسم المنتج</label><input type="text" id="pName"></div>
-    <div class="form-group"><label>الفئة</label><input type="text" id="pCategory"></div>
-    <div class="form-group"><label>المتغير (Variant)</label><input type="text" id="pVariant"></div>
-    <div class="form-group"><label>اللون</label><input type="text" id="pColor"></div>
-    <div class="form-group"><label>المقاس</label><input type="text" id="pSize"></div>
-    <div class="form-group"><label>الكمية</label><input type="number" id="pQty" value="0"></div>
-    <div class="form-group"><label>الحد الأدنى</label><input type="number" id="pMin" value="5"></div>
-    <div class="form-group"><label>المستودع</label><input type="text" id="pWarehouse" value="Main"></div>
-    <div class="form-group"><label>التكلفة</label><input type="number" id="pCost" value="0"></div>
-    <div class="form-group"><label>السعر</label><input type="number" id="pPrice" value="0"></div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="submitProduct()">حفظ</button>
-      <button class="btn" onclick="closeModal('productModal')" style="background:#eee;">إلغاء</button>
-    </div>
-  </div>
-</div>
-
-<!-- Order Modal -->
-<div class="modal" id="orderModal">
-  <div class="modal-content">
-    <div class="modal-header"><h2>طلب جديد</h2><button class="close-btn" onclick="closeModal('orderModal')">&times;</button></div>
-    <div class="form-group"><label>العميل</label><input type="text" id="oCustomer"></div>
-    <div class="form-group"><label>الهاتف</label><input type="text" id="oPhone"></div>
-    <div class="form-group"><label>البريد</label><input type="email" id="oEmail"></div>
-    <div class="form-group"><label>العنوان</label><textarea id="oAddress"></textarea></div>
-    <div class="form-group"><label>طريقة الدفع</label><input type="text" id="oPaymentMethod"></div>
-    <div class="form-group"><label>الملاحظات</label><textarea id="oNotes"></textarea></div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="submitOrder()">حفظ</button>
-      <button class="btn" onclick="closeModal('orderModal')" style="background:#eee;">إلغاء</button>
-    </div>
-  </div>
-</div>
-
-<!-- Finance Modal -->
-<div class="modal" id="financeModal">
-  <div class="modal-content">
-    <div class="modal-header"><h2>معاملة مالية</h2><button class="close-btn" onclick="closeModal('financeModal')">&times;</button></div>
-    <div class="form-group"><label>النوع</label><select id="fType"><option value="Income">إيراد</option><option value="Expense">مصروف</option></select></div>
-    <div class="form-group"><label>الفئة</label><select id="fCategory"><option>Sales</option><option>Inventory</option><option>Salaries</option><option>Marketing</option><option>Operations</option><option>Other</option></select></div>
-    <div class="form-group"><label>الوصف</label><input type="text" id="fDesc"></div>
-    <div class="form-group"><label>المبلغ</label><input type="number" id="fAmount" value="0"></div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="submitFinance()">حفظ</button>
-      <button class="btn" onclick="closeModal('financeModal')" style="background:#eee;">إلغاء</button>
-    </div>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
-// Navigation
-function showTab(tab){
-  document.querySelectorAll('.tab-content').forEach(el=>el.classList.add('hidden'));
-  document.getElementById(tab).classList.remove('hidden');
-  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-  event.target.classList.add('active');
-  const titles={dashboard:'لوحة التحكم الرئيسية',tasks:'إدارة المهام',members:'الفريق',inventory:'المخزون',orders:'الطلبات',finance:'المالية'};
-  document.getElementById('pageTitle').textContent=titles[tab];
-  if(tab==='tasks') loadTasks();
-  if(tab==='members') loadMembers();
-  if(tab==='inventory') loadInventory();
-  if(tab==='orders') loadOrders();
-  if(tab==='finance') loadFinance();
-  if(tab==='dashboard') loadDashboard();
+// ── Toast ──
+function showToast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type==='error' ? 'var(--danger)' : 'var(--header)';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3000);
 }
 
-// Modals
-function openModal(id){document.getElementById(id).classList.add('active');}
-function closeModal(id){document.getElementById(id).classList.remove('active');}
-
-// Dashboard
+// ── Load Dashboard ──
 function loadDashboard(){
-  google.script.run.withSuccessHandler(function(d){
-    const cards=document.getElementById('dashboardCards');
-    cards.innerHTML=`
-      <div class="card"><h3>الأعضاء</h3><div class="value">${d.members}</div></div>
-      <div class="card success"><h3>المهام المكتملة</h3><div class="value">${d.completed}</div></div>
-      <div class="card warning"><h3>المهام المتأخرة</h3><div class="value">${d.late}</div></div>
-      <div class="card"><h3>متوسط KPI</h3><div class="value">${d.kpi}</div></div>
-      <div class="card success"><h3>الإيرادات</h3><div class="value">${d.revenue} ج.م</div></div>
-      <div class="card danger"><h3>المصروفات</h3><div class="value">${d.expense} ج.م</div></div>`;
-    
-    const tm=document.getElementById('topMembers');
-    tm.innerHTML='<table><tr><th>العضو</th><th>KPI</th><th>الإنتاجية</th><th>التقدير</th></tr>'+
-      d.topMembers.map(m=>'<tr><td>'+m.member+'</td><td>'+m.kpi+'</td><td>'+m.productivity+'%</td><td>'+m.grade+'</td></tr>').join('')+'</table>';
-    
-    const ts=document.getElementById('tasksSummary');
-    ts.innerHTML='<table><tr><th>الحالة</th><th>العدد</th></tr>'+
-      '<tr><td>معلقة</td><td>'+d.pending+'</td></tr>'+
-      '<tr><td>قيد التنفيذ</td><td>'+d.active+'</td></tr>'+
-      '<tr><td>بانتظار المراجعة</td><td>'+d.waiting+'</td></tr>'+
-      '<tr><td>مكتملة</td><td>'+d.completed+'</td></tr>'+
-      '<tr><td>ملغاة</td><td>'+d.cancelled+'</td></tr></table>';
-  }).getDashboardData();
+  google.script.run
+    .withSuccessHandler(renderDashboard)
+    .withFailureHandler(err => { showToast('خطأ: ' + err.message, 'error'); })
+    .getDashboardData();
 }
 
-// Tasks
-function loadTasks(){
-  google.script.run.withSuccessHandler(function(data){
-    const html='<table><tr><th>المعرف</th><th>العنوان</th><th>الفئة</th><th>مسندة إلى</th><th>الأولوية</th><th>الحالة</th><th>الإنجاز</th></tr>'+
-      data.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td>'+statusBadge(r[6])+'</td><td>'+r[9]+'%</td></tr>').join('')+'</table>';
-    document.getElementById('tasksTable').innerHTML=html;
-  }).getTasks();
-}
-function statusBadge(s){
-  const map={'Not Started':'badge-blue','In Progress':'badge-yellow','Waiting Review':'badge-yellow','Approved':'badge-green','Rejected':'badge-red','Cancelled':'badge-red','Blocked':'badge-red'};
-  return '<span class="badge '+(map[s]||'badge-blue')+'">'+s+'</span>';
-}
-function submitTask(){
-  const task={title:document.getElementById('tTitle').value,category:document.getElementById('tCategory').value,assignedTo:document.getElementById('tAssigned').value,priority:document.getElementById('tPriority').value,difficulty:document.getElementById('tDifficulty').value,startDate:document.getElementById('tStart').value,dueDate:document.getElementById('tDue').value};
-  google.script.run.withSuccessHandler(function(){closeModal('taskModal');loadTasks();}).createTask(task);
-}
-
-// Members
-function loadMembers(){
-  google.script.run.withSuccessHandler(function(data){
-    const html='<table><tr><th>المعرف</th><th>الاسم</th><th>الدور</th><th>البريد</th><th>KPI</th><th>مكتملة</th><th>متأخرة</th></tr>'+
-      data.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+(r[7]||0)+'</td><td>'+(r[8]||0)+'</td><td>'+(r[9]||0)+'</td></tr>').join('')+'</table>';
-    document.getElementById('membersTable').innerHTML=html;
-  }).getMembers();
-}
-
-// Inventory
-function loadInventory(){
-  google.script.run.withSuccessHandler(function(data){
-    const html='<table><tr><th>المعرف</th><th>الاسم</th><th>الفئة</th><th>الكمية</th><th>المستودع</th><th>التكلفة</th><th>السعر</th></tr>'+
-      data.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[7]+'</td><td>'+r[10]+'</td><td>'+r[12]+'</td><td>'+r[13]+'</td></tr>').join('')+'</table>';
-    document.getElementById('inventoryTable').innerHTML=html;
-  }).getProducts();
-}
-function submitProduct(){
-  const p={name:document.getElementById('pName').value,category:document.getElementById('pCategory').value,variant:document.getElementById('pVariant').value,color:document.getElementById('pColor').value,size:document.getElementById('pSize').value,quantity:document.getElementById('pQty').value,minStock:document.getElementById('pMin').value,warehouse:document.getElementById('pWarehouse').value,cost:document.getElementById('pCost').value,price:document.getElementById('pPrice').value};
-  google.script.run.withSuccessHandler(function(){closeModal('productModal');loadInventory();}).addProduct(p);
-}
-
-// Orders
-function loadOrders(){
-  google.script.run.withSuccessHandler(function(data){
-    const html='<table><tr><th>المعرف</th><th>العميل</th><th>التاريخ</th><th>الحالة</th><th>المبلغ</th><th>الدفع</th></tr>'+
-      data.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+formatDate(r[4])+'</td><td>'+r[5]+'</td><td>'+r[7]+'</td><td>'+r[8]+'</td></tr>').join('')+'</table>';
-    document.getElementById('ordersTable').innerHTML=html;
-  }).getOrders();
-}
-function submitOrder(){
-  const o={customer:document.getElementById('oCustomer').value,phone:document.getElementById('oPhone').value,email:document.getElementById('oEmail').value,shippingAddress:document.getElementById('oAddress').value,paymentMethod:document.getElementById('oPaymentMethod').value,notes:document.getElementById('oNotes').value};
-  google.script.run.withSuccessHandler(function(){closeModal('orderModal');loadOrders();}).addOrder(o);
-}
-
-// Finance
-function loadFinance(){
-  google.script.run.withSuccessHandler(function(d){
-    const cards=document.getElementById('financeCards');
-    cards.innerHTML=`
-      <div class="card success"><h3>الرصيد الحالي</h3><div class="value">${d.balance} ج.م</div></div>
-      <div class="card"><h3>إيرادات الشهر</h3><div class="value">${d.income} ج.م</div></div>
-      <div class="card danger"><h3>مصروفات الشهر</h3><div class="value">${d.expense} ج.م</div></div>
-      <div class="card warning"><h3>صافي الربح</h3><div class="value">${d.profit} ج.م</div></div>`;
-    const html='<table><tr><th>المعرف</th><th>التاريخ</th><th>النوع</th><th>الفئة</th><th>الوصف</th><th>المبلغ</th><th>الرصيد</th></tr>'+
-      d.transactions.map(r=>'<tr><td>'+r[0]+'</td><td>'+formatDate(r[1])+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+r[6]+'</td></tr>').join('')+'</table>';
-    document.getElementById('financeTable').innerHTML=html;
-  }).getFinanceData();
-}
-function submitFinance(){
-  const t={type:document.getElementById('fType').value,category:document.getElementById('fCategory').value,description:document.getElementById('fDesc').value,amount:document.getElementById('fAmount').value};
-  google.script.run.withSuccessHandler(function(){closeModal('financeModal');loadFinance();}).addTransaction(t);
+function renderDashboard(data){
+  // Cards
+  const cardsHtml = `
+    <div class="card"><i class="fas fa-users card-icon"></i><h3>الأعضاء</h3><div class="value">${data.cards.members}</div></div>
+    <div class="card"><i class="fas fa-tasks card-icon"></i><h3>المهام</h3><div class="value">${data.cards.tasks}</div></div>
+    <div class="card success"><i class="fas fa-check-circle card-icon"></i><h3>المنجزة</h3><div class="value">${data.cards.completed}</div></div>
+    <div class="card danger"><i class="fas fa-exclamation-triangle card-icon"></i><h3>المتأخرة</h3><div class="value">${data.cards.late}</div></div>
+    <div class="card"><i class="fas fa-chart-pie card-icon"></i><h3>متوسط KPI</h3><div class="value">${data.cards.kpi}</div></div>
+    <div class="card success"><i class="fas fa-percentage card-icon"></i><h3>الإنتاجية</h3><div class="value">${data.cards.productivity}%</div></div>
+  `;
+  document.getElementById('cardsArea').innerHTML = cardsHtml;
+  
+  // Top Members
+  let tmHtml = '<table><tr><th>العضو</th><th>KPI</th><th>إنتاجية</th><th>التقدير</th></tr>';
+  data.topMembers.forEach(m => {
+    tmHtml += `<tr><td>${m.name}</td><td>${m.kpi}</td><td>${m.productivity}%</td><td><span class="badge badge-green">${m.grade}</span></td></tr>`;
+  });
+  document.getElementById('topMembersArea').innerHTML = tmHtml + '</table>';
+  
+  // Tasks
+  document.getElementById('tasksArea').innerHTML = `
+    <table>
+      <tr><th>المقياس</th><th>القيمة</th></tr>
+      <tr><td>بانتظار المراجعة</td><td>${data.tasksSummary.pending}</td></tr>
+      <tr><td>قيد التنفيذ</td><td>${data.tasksSummary.active}</td></tr>
+      <tr><td>المنجزة</td><td>${data.tasksSummary.completed}</td></tr>
+      <tr><td>المتأخرة</td><td><span class="badge badge-red">${data.tasksSummary.late}</span></td></tr>
+      <tr><td>متوسط الدرجة</td><td>${data.tasksSummary.avgScore}</td></tr>
+    </table>
+  `;
+  
+  // Inventory
+  document.getElementById('inventoryArea').innerHTML = `
+    <table>
+      <tr><th>المقياس</th><th>القيمة</th></tr>
+      <tr><td>إجمالي المنتجات</td><td>${data.inventory.totalProducts}</td></tr>
+      <tr><td>الكمية الإجمالية</td><td>${data.inventory.totalQuantity}</td></tr>
+      <tr><td>القيمة</td><td>${data.inventory.totalValue} ج.م</td></tr>
+      <tr><td>منخفض المخزون</td><td><span class="badge badge-yellow">${data.inventory.lowStock}</span></td></tr>
+      <tr><td>نفذ من المخزون</td><td><span class="badge badge-red">${data.inventory.outOfStock}</span></td></tr>
+    </table>
+  `;
+  
+  // Finance
+  document.getElementById('financeArea').innerHTML = `
+    <table>
+      <tr><th>المقياس</th><th>القيمة</th></tr>
+      <tr><td>الرصيد الحالي</td><td><strong>${data.finance.currentBalance} ج.م</strong></td></tr>
+      <tr><td>إيرادات الشهر</td><td class="text-success">${data.finance.monthlyIncome} ج.م</td></tr>
+      <tr><td>مصروفات الشهر</td><td class="text-danger">${data.finance.monthlyExpense} ج.م</td></tr>
+      <tr><td>ربح الشهر</td><td><span class="badge ${data.finance.monthlyProfit>=0?'badge-green':'badge-red'}">${data.finance.monthlyProfit} ج.م</span></td></tr>
+    </table>
+  `;
+  
+  // Orders
+  document.getElementById('ordersArea').innerHTML = `
+    <table>
+      <tr><th>المقياس</th><th>القيمة</th></tr>
+      <tr><td>إجمالي الطلبات</td><td>${data.orders.totalOrders}</td></tr>
+      <tr><td>الإيرادات</td><td>${data.orders.revenue} ج.م</td></tr>
+      <tr><td>متوسط قيمة الطلب</td><td>${data.orders.averageValue} ج.م</td></tr>
+      <tr><td>نسبة التحويل</td><td>${data.orders.conversionRate}%</td></tr>
+      <tr><td>نسبة الإرجاع</td><td><span class="badge badge-yellow">${data.orders.returnRate}%</span></td></tr>
+    </table>
+  `;
 }
 
-// Helpers
-function formatDate(d){if(!d)return'-';const x=new Date(d);return x.toLocaleDateString('ar-EG');}
-function refreshSystem(){
-  google.script.run.withSuccessHandler(function(){loadDashboard();alert('تم تحديث النظام');}).refreshSystem();
+// ── Refresh ──
+function refreshAll(){
+  const btn = event.target;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحديث...';
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث';
+      if(res.success){
+        showToast(res.message);
+        loadDashboard();
+      }else{
+        showToast(res.error, 'error');
+      }
+    })
+    .withFailureHandler(err => {
+      btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث';
+      showToast(err.message, 'error');
+    })
+    .refreshSystemFromUI();
 }
 
-// Init
-window.onload=function(){loadDashboard();};
+// ── Open Dialogs (Functional) ──
+function openTaskDialog(){
+  google.script.run.openTaskDialogServer();
+}
+function openMemberDialog(){
+  google.script.run.openMemberDialogServer();
+}
+function openProductDialog(){
+  google.script.run.openProductDialogServer();
+}
+function openOrderDialog(){
+  google.script.run.openOrderDialogServer();
+}
+// ── Init ──
+loadDashboard();
 </script>
 </body>
 </html>
