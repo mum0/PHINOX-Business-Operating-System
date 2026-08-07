@@ -1,0 +1,85 @@
+/**
+ * Core Configuration
+ * Single source of truth. Environment-aware. Immutable.
+ */
+
+var CONFIG = (function() {
+    'use strict';
+    
+    const ENV = PropertiesService.getScriptProperties().getProperty('BOS_ENV') || 'production';
+    
+    const BASE = {
+      APP: {
+        NAME: 'PHINOX BOS',
+        VERSION: '5.0.0-enterprise',
+        ENV: ENV
+      },
+      
+      SPREADSHEET: {
+        // ضع ID هنا للـ Web App، أو اتركه null يستخدم Active Spreadsheet
+        ID: PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID') || null
+      },
+      
+      SHEETS: {
+        TASKS: 'Tasks',
+        MEMBERS: 'Members',
+        INVENTORY: 'Inventory',
+        FINANCE: 'Finance',
+        SALES: 'Sales',
+        LOGS: 'Logs',
+        SETTINGS: 'Settings',
+        KPI_RESULTS: 'KPI Results'
+      },
+      
+      COLUMNS: {
+        ID: 1,
+        CREATED_AT: 2,
+        UPDATED_AT: 3,
+        CREATED_BY: 4,
+        STATUS: 5
+      },
+      
+      PAGINATION: {
+        DEFAULT_LIMIT: 100,
+        MAX_LIMIT: 1000
+      },
+      
+      SECURITY: {
+        MAX_LOGIN_ATTEMPTS: 5,
+        LOCKOUT_MINUTES: 30,
+        SESSION_HOURS: 8
+      },
+      
+      PERFORMANCE: {
+        BATCH_SIZE: 500,
+        CACHE_TTL_SECONDS: 300,
+        MAX_EXECUTION_TIME_MS: 280000
+      }
+    };
+    
+    const OVERRIDES = {
+      development: {
+        PERFORMANCE: {
+          BATCH_SIZE: 50,
+          CACHE_TTL_SECONDS: 60
+        }
+      }
+    };
+    
+    const config = JSON.parse(JSON.stringify(BASE));
+    if (OVERRIDES[ENV]) {
+      Object.keys(OVERRIDES[ENV]).forEach(key => {
+        config[key] = Object.assign({}, config[key], OVERRIDES[ENV][key]);
+      });
+    }
+    
+    Object.freeze(config.APP);
+    Object.freeze(config.SHEETS);
+    Object.freeze(config.COLUMNS);
+    Object.freeze(config.PAGINATION);
+    Object.freeze(config.SECURITY);
+    Object.freeze(config.PERFORMANCE);
+    Object.freeze(config);
+    
+    return config;
+  })();
