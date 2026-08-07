@@ -1,78 +1,37 @@
 /**
  * Task Schema
- * Single source of truth for Tasks column mapping, enums, validation, and defaults.
- * Extracted from legacy Tasks.js and aligned with v5 architecture.
+ * Aligned EXACTLY with legacy 17_Tasks.js
  */
 
 const TaskSchema = (function() {
   'use strict';
 
-  // ─── COLUMN MAPPING (21 fields) ───
   const SCHEMA = Object.freeze({
-    id: 1,
-    title: 2,
-    category: 3,
-    assignedTo: 4,
-    priority: 5,
-    difficulty: 6,
-    status: 7,
-    startDate: 8,
-    dueDate: 9,
-    completion: 10,
-    quality: 11,
-    impact: 12,
-    evidence: 13,
-    reviewer: 14,
-    notes: 15,
-    score: 16,
-    weight: 17,
-    weightedScore: 18,
-    daysLate: 19,
-    createdAt: 20,
-    updatedAt: 21
+    id: 1, title: 2, category: 3, assignedTo: 4, priority: 5, difficulty: 6,
+    status: 7, startDate: 8, dueDate: 9, completion: 10, quality: 11, impact: 12,
+    evidence: 13, reviewer: 14, notes: 15, taskScore: 16, taskWeight: 17,
+    weightedScore: 18, daysLate: 19, createdAt: 20, updatedAt: 21
   });
 
-  // ─── ENUMS ───
   const STATUS = Object.freeze({
-    NOT_STARTED: 'Not Started',
-    IN_PROGRESS: 'In Progress',
-    WAITING_REVIEW: 'Waiting Review',
-    APPROVED: 'Approved',
-    REJECTED: 'Rejected',
-    CANCELLED: 'Cancelled'
+    NOT_STARTED: 'Not Started', IN_PROGRESS: 'In Progress',
+    WAITING_REVIEW: 'Waiting Review', APPROVED: 'Approved',
+    REJECTED: 'Rejected', CANCELLED: 'Cancelled'
   });
 
   const PRIORITY = Object.freeze({
-    LOW: 'Low',
-    MEDIUM: 'Medium',
-    HIGH: 'High',
-    URGENT: 'Urgent'
+    LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical'
   });
 
   const DIFFICULTY = Object.freeze({
-    EASY: 'Easy',
-    MEDIUM: 'Medium',
-    HARD: 'Hard',
-    CRITICAL: 'Critical'
+    EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard', EXPERT: 'Expert'
   });
 
-  // ─── WEIGHT MAPS ───
   const WEIGHT = Object.freeze({
-    PRIORITY: {
-      'Low': 0.8,
-      'Medium': 1.0,
-      'High': 1.2,
-      'Urgent': 1.5
-    },
-    DIFFICULTY: {
-      'Easy': 0.8,
-      'Medium': 1.0,
-      'Hard': 1.3,
-      'Critical': 1.6
-    }
+    PRIORITY: { 'Low': 0.8, 'Medium': 1.0, 'High': 1.3, 'Critical': 1.8 },
+    DIFFICULTY: { 'Easy': 0.8, 'Medium': 1.0, 'Hard': 1.5, 'Expert': 2.0 }
   });
 
-  // ─── STATUS TRANSITIONS ───
   const ALLOWED_TRANSITIONS = Object.freeze({
     'Not Started': ['In Progress', 'Cancelled'],
     'In Progress': ['Waiting Review', 'Cancelled', 'Not Started'],
@@ -89,7 +48,6 @@ const TaskSchema = (function() {
     return allowed ? allowed.indexOf(next) > -1 : false;
   }
 
-  // ─── VALIDATION SCHEMA ───
   const VALIDATION = Object.freeze({
     title: { required: true, type: 'string', minLength: 1, maxLength: 200 },
     assignedTo: { required: true, type: 'string', minLength: 1, maxLength: 100 },
@@ -107,35 +65,19 @@ const TaskSchema = (function() {
     dueDate: { type: 'date' }
   });
 
-  // ─── DEFAULTS ───
   function getDefaultTask() {
     return {
-      status: STATUS.NOT_STARTED,
-      completion: 0,
-      quality: 0,
-      impact: 0,
-      evidence: 0,
-      score: 0,
-      weight: 0,
-      weightedScore: 0,
-      daysLate: 0,
-      category: '',
-      reviewer: '',
-      notes: '',
-      startDate: '',
-      dueDate: ''
+      status: STATUS.NOT_STARTED, completion: 0, quality: 0, impact: 0,
+      evidence: 0, taskScore: 0, taskWeight: 0, weightedScore: 0,
+      daysLate: 0, category: '', reviewer: '', notes: '',
+      startDate: '', dueDate: ''
     };
   }
 
   return {
-    SCHEMA: SCHEMA,
-    STATUS: STATUS,
-    PRIORITY: PRIORITY,
-    DIFFICULTY: DIFFICULTY,
-    WEIGHT: WEIGHT,
-    ALLOWED_TRANSITIONS: ALLOWED_TRANSITIONS,
+    SCHEMA: SCHEMA, STATUS: STATUS, PRIORITY: PRIORITY, DIFFICULTY: DIFFICULTY,
+    WEIGHT: WEIGHT, ALLOWED_TRANSITIONS: ALLOWED_TRANSITIONS,
     isValidStatusTransition: isValidStatusTransition,
-    VALIDATION: VALIDATION,
-    getDefaultTask: getDefaultTask
+    VALIDATION: VALIDATION, getDefaultTask: getDefaultTask
   };
 })();
