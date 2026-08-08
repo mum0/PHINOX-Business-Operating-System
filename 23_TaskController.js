@@ -1,38 +1,48 @@
 /**
  * Task Controller
- * Presentation / routing layer. NO business logic.
+ * Presentation / routing layer for Tasks.
+ * NO business logic. NO direct sheet access.
+ * Routes: Menu clicks, onEdit events, API actions.
  */
 
 const TaskController = (function() {
   'use strict';
 
-  function _alert(title, msg) {
-    try { SpreadsheetApp.getUi().alert(title, msg, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
+  function _showAlert(title, msg) {
+    try { SpreadsheetApp.getUi().alert(title, msg, SpreadsheetApp.getUi().ButtonSet.OK); }
+    catch (e) { Logger.warn('TaskController', 'Cannot show alert', { error: e.message }); }
   }
 
   function onEdit(payload) {
     if (!payload || payload.sheet !== CONFIG.SHEETS.TASKS) return;
-    Logger.debug('TaskController', 'Tasks sheet edited', { row: payload.range ? payload.range.getRow() : null, user: payload.user });
+    Logger.debug('TaskController', 'Tasks sheet edited', {
+      row: payload.range ? payload.range.getRow() : null,
+      col: payload.range ? payload.range.getColumn() : null,
+      user: payload.user
+    });
   }
 
   function showTaskStats() {
     const stats = {
-      total: TaskService.totalTasks(), completed: TaskService.completedTasks(),
-      active: TaskService.activeTasks(), pending: TaskService.pendingTasks(),
+      total: TaskService.totalTasks(),
+      completed: TaskService.completedTasks(),
+      active: TaskService.activeTasks(),
+      pending: TaskService.pendingTasks(),
       waitingReview: TaskService.getTasksByStatus(TaskSchema.STATUS.WAITING_REVIEW).data.length,
-      late: TaskService.getLateTasks().data.length, averageScore: TaskService.averageTaskScore()
+      late: TaskService.getLateTasks().data.length,
+      averageScore: TaskService.averageTaskScore()
     };
     const html = HtmlService.createHtmlOutput(
       '<div style="font-family:Arial;padding:12px;"><h2 style="color:#1a237e;margin-top:0;">📊 Task Statistics</h2>' +
       '<table style="width:100%;border-collapse:collapse;">' +
       '<tr><td style="padding:6px;border-bottom:1px solid #ddd;"><b>Total Tasks</b></td><td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + stats.total + '</td></tr>' +
       '<tr><td style="padding:6px;border-bottom:1px solid #ddd;"><b>Completed</b></td><td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + stats.completed + '</td></tr>' +
-      '<tr><td style="padding:6px;border-bottom:1px solid #ddd;"><b>Active</b></td><td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + stats.active + '</td></tr>' +
+      '<tr><td style="padding:6px;border-bottom:1px solid #ddd;"><b>Active (In Progress)</b></td><td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + stats.active + '</td></tr>' +
       '<tr><td style="padding:6px;border-bottom:1px solid #ddd;"><b>Waiting Review</b></td><td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + stats.waitingReview + '</td></tr>' +
-      '<tr><td style="padding:6px;border-bottom:1px solid #ddd;"><b>Pending</b></td><td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + stats.pending + '</td></tr>' +
+      '<tr><td style="padding:6px;border-bottom:1px solid #ddd;"><b>Pending (Not Started)</b></td><td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + stats.pending + '</td></tr>' +
       '<tr><td style="padding:6px;border-bottom:1px solid #ddd;color:#c62828;"><b>Late Tasks</b></td><td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;color:#c62828;">' + stats.late + '</td></tr>' +
       '<tr><td style="padding:6px;"><b>Average Score</b></td><td style="padding:6px;text-align:right;">' + stats.averageScore + '</td></tr>' +
-      '</table></div>'
+      '</table><p style="margin-top:12px;font-size:12px;color:#666;text-align:center;">PHINOX BOS v5.0</p></div>'
     ).setWidth(360).setHeight(340);
     SpreadsheetApp.getUi().showModalDialog(html, 'Task Statistics');
     return stats;
@@ -63,22 +73,64 @@ const TaskController = (function() {
     }
   }
 
-  function menuShowStats() { try { showTaskStats(); } catch (e) { _alert('Error', e.message); throw e; } }
-  function menuRefreshTasks() { try { TaskService.refreshSystem(); _alert('Success', 'System refreshed.'); } catch (e) { _alert('Error', e.message); throw e; } }
+  function menuShowStats() {
+    try { showTaskStats(); }
+    catch (e) { _showAlert('Error', e.message); throw e; }
+  }
+
+  function menuRefreshTasks() {
+    try {
+      const result = TaskService.refreshSystem();
+      _showAlert('Success', 'System refreshed. Check logs for details.');
+      return result;
+    } catch (e) { _showAlert('Error', e.message); throw e; }
+  }
+
   function menuCreateTask() {
     const ui = SpreadsheetApp.getUi();
-    const r = ui.prompt('Create Task', 'Enter task title:', ui.ButtonSet.OK_CANCEL);
-    if (r.getSelectedButton() === ui.Button.OK) {
-      const title = r.getResponseText().trim();
-      if (!title) { _alert('Error', 'Title is required'); return; }
-      try { const id = TaskService.createTask({ title: title, assignedTo: Security.currentUser(), priority: TaskSchema.PRIORITY.MEDIUM, difficulty: TaskSchema.DIFFICULTY.MEDIUM }); _alert('Success', 'Task created: ' + id); } catch (e) { _alert('Error', e.message); }
+    const response = ui.prompt('Create Task', 'Enter task title:', ui.ButtonSet.OK_CANCEL);
+    if (response.getSelectedButton() === ui.Button.OK) {
+      const title = response.getResponseText().trim();
+      if (!title) { _showAlert('Error', 'Title is required'); return; }
+      try {
+        const id = TaskService.createTask({
+          title: title,
+          assignedTo: Security.currentUser(),
+          priority: TaskSchema.PRIORITY.MEDIUM,
+          difficulty: TaskSchema.DIFFICULTY.MEDIUM
+        });
+        _showAlert('Success', 'Task created: ' + id);
+      } catch (e) { _showAlert('Error', e.message); }
     }
   }
 
   EventBus.on('sheet:edited', onEdit);
 
   return {
-    onEdit: onEdit, handleApiAction: handleApiAction, showTaskStats: showTaskStats,
-    menuShowStats: menuShowStats, menuRefreshTasks: menuRefreshTasks, menuCreateTask: menuCreateTask
+    onEdit: onEdit,
+    handleApiAction: handleApiAction,
+    showTaskStats: showTaskStats,
+    menuShowStats: menuShowStats,
+    menuRefreshTasks: menuRefreshTasks,
+    menuCreateTask: menuCreateTask
   };
 })();
+
+// ═══════════════════════════════════════════════════
+// Global Menu Wrappers (called by 11_Menu.js)
+// These must be global functions because Apps Script
+// menu items reference functions by name string.
+// ═══════════════════════════════════════════════════
+
+function menuTaskStats() { return TaskController.menuShowStats(); }
+function menuTaskRefresh() { return TaskController.menuRefreshTasks(); }
+function menuTaskCreate() { return TaskController.menuCreateTask(); }
+function menuRunTaskTests() {
+  try {
+    const result = testTasksE2E();
+    SpreadsheetApp.getUi().alert('✅ Task E2E Tests Passed', result, SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('❌ Task E2E Tests Failed', e.message, SpreadsheetApp.getUi().ButtonSet.OK);
+    throw e;
+  }
+}
