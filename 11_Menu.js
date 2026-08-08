@@ -1,6 +1,6 @@
 /**
  * Google Sheets custom menu.
- * Updated: Added Tasks + Inventory submenus (Phase 2 + 3)
+ * Updated: Added Tasks + Inventory + Orders + Sales submenus (Phase 2-5)
  */
 
 function onOpen(e) {
@@ -23,6 +23,20 @@ function onOpen(e) {
       .addItem('📊 Show Stats', 'menuInventoryStats')
       .addItem('➕ Add Item', 'menuInventoryCreate')
       .addItem('🧪 Run Inventory E2E Tests', 'menuRunInventoryTests')
+    )
+    .addSubMenu(
+      SpreadsheetApp.getUi()
+      .createMenu('📋 Orders')
+      .addItem('📊 Show Stats', 'menuOrderStats')
+      .addItem('➕ Create Order', 'menuOrderCreate')
+      .addItem('🧪 Run Order E2E Tests', 'menuRunOrderTests')
+    )
+    .addSubMenu(
+      SpreadsheetApp.getUi()
+      .createMenu('💰 Sales')
+      .addItem('📊 Show Stats', 'menuSaleStats')
+      .addItem('➕ Create Sale', 'menuSaleCreate')
+      .addItem('🧪 Run Sale E2E Tests', 'menuRunSaleTests')
     )
     .addSubMenu(
       SpreadsheetApp.getUi()
@@ -95,6 +109,7 @@ function menuBuildIndex() {
     'Tasks': { id: 1 },
     'Members': { id: 1 },
     'Inventory': { id: 1 },
+    'Orders': { id: 1 },
     'Sales': { id: 1 },
     'Finance': { id: 1 }
   };
