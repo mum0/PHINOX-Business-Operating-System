@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KPI Repository
  * Data access for KPI Results sheet
@@ -17,24 +18,44 @@ const KpiRepository = (function() {
     { eventName: 'kpi:result' }
   );
 
+  // ─── NORMALIZE PERIOD VALUE ───
+  // Google Sheets auto-converts date-like strings to Date objects.
+  // This helper ensures consistent string comparison.
+  function _normalizePeriod(periodValue) {
+    if (!periodValue) return '';
+    if (typeof periodValue === 'string') return periodValue;
+    // If it's a Date object, format as yyyy-mm-dd
+    var d = new Date(periodValue);
+    if (!isNaN(d.getTime())) {
+      var y = d.getFullYear();
+      var m = d.getMonth() + 1;
+      var day = d.getDate();
+      return y + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
+    }
+    return String(periodValue);
+  }
+
+  // ─── FIND BY KPI ID AND PERIOD ───
   function findByKpiIdAndPeriod(kpiId, periodKey) {
     if (!kpiId || !periodKey) return null;
     return repo.findOne(function(entry) {
-      return entry.kpiId === kpiId && entry.period === periodKey;
+      return entry.kpiId === kpiId && _normalizePeriod(entry.period) === String(periodKey);
     });
   }
 
   function findByKpiId(kpiId, options) {
     if (!kpiId) return { data: [], total: 0 };
     var opts = options || {};
+    var targetPeriod = opts.period ? String(opts.period) : null;
     opts.where = function(entry) {
       if (entry.kpiId !== kpiId) return false;
-      if (opts.period && entry.period !== opts.period) return false;
+      if (targetPeriod && _normalizePeriod(entry.period) !== targetPeriod) return false;
       return true;
     };
     return repo.findAll(opts);
   }
 
+  // ─── HISTORY ───
   function getHistory(kpiId, limit) {
     if (!kpiId) return [];
     var result = repo.findAll({
@@ -45,6 +66,7 @@ const KpiRepository = (function() {
     return result.data;
   }
 
+  // ─── UPSERT ───
   function upsert(kpiId, periodKey, data) {
     if (!kpiId || !periodKey) throw new Error('kpiId and periodKey required for upsert');
     var existing = findByKpiIdAndPeriod(kpiId, periodKey);
@@ -62,6 +84,7 @@ const KpiRepository = (function() {
     }
   }
 
+  // ─── DELETE BY KPI ID (for cleanup/testing) ───
   function deleteByKpiId(kpiId) {
     if (!kpiId) return 0;
     var result = repo.findAll({
