@@ -1,11 +1,12 @@
 /**
  * Initialize sheets, headers, and properties.
  * Run once per spreadsheet.
+ * UPDATED v7C: Added Marketing Spend and Social Media Performance sheets
  */
 
 const Setup = (function() {
   'use strict';
-  
+
   const SHEET_CONFIGS = {
     'Tasks': {
       headers: ['id','title','assignee','priority','status','dueDate','createdAt','updatedAt','createdBy'],
@@ -42,48 +43,54 @@ const Setup = (function() {
     'Finance Ledger': {
       headers: ['id','date','type','category','description','amount','account','relatedId','relatedType','status','idempotencyKey','approvedBy','notes','createdAt','updatedAt','createdBy'],
       widths: [22, 15, 12, 15, 35, 12, 12, 22, 12, 10, 30, 25, 25, 20, 20, 25]
-      },
+    },
     'Finance Expenses': {
       headers: ['id','title','category','amount','description','status','requestedBy','approvedBy','rejectionReason','createdAt','updatedAt'],
       widths: [22, 25, 15, 12, 35, 12, 25, 25, 25, 20, 20]
-      }
-    
-      
+    },
+    'Marketing Spend': {
+      headers: ['id','date','platform','channel','campaignId','campaignName','currency','spend','impressions','reach','clicks','leads','conversions','attributedRevenue','creativeCost','agencyCost','otherCost','notes','createdAt','createdBy'],
+      widths: [22, 15, 12, 12, 20, 25, 8, 12, 12, 12, 12, 10, 10, 15, 12, 12, 12, 25, 20, 25]
+    },
+    'Social Media Performance': {
+      headers: ['id','date','platform','followers','followerGrowth','reach','impressions','engagements','likes','comments','shares','saves','videoViews','watchTime','profileVisits','linkClicks','leads','purchases','attributedRevenue','notes','createdAt','createdBy'],
+      widths: [22, 15, 12, 12, 12, 12, 12, 12, 10, 10, 10, 10, 12, 12, 12, 12, 10, 10, 15, 25, 20, 25]
+    }
   };
-  
+
   function createSheet(ss, name, cfg) {
     let sheet = ss.getSheetByName(name);
     if (sheet) {
       Logger.info('Setup', 'Sheet exists', { name: name });
       return sheet;
     }
-    
+
     sheet = ss.insertSheet(name);
     sheet.appendRow(cfg.headers);
-    
+
     const headerRange = sheet.getRange(1, 1, 1, cfg.headers.length);
     headerRange.setFontWeight('bold')
       .setBackground('#1a237e')
       .setFontColor('#ffffff')
       .setHorizontalAlignment('center');
-    
+
     cfg.widths.forEach(function(w, i) {
       sheet.setColumnWidth(i + 1, w);
     });
-    
+
     sheet.setFrozenRows(1);
     Logger.info('Setup', 'Sheet created', { name: name });
     return sheet;
   }
-  
+
   return {
     run: function() {
       const ss = SpreadsheetApp.getActiveSpreadsheet();
-      
+
       Object.keys(SHEET_CONFIGS).forEach(function(name) {
         createSheet(ss, name, SHEET_CONFIGS[name]);
       });
-      
+
       // Default settings
       const settingsSheet = ss.getSheetByName('Settings');
       const defaults = [
@@ -91,7 +98,7 @@ const Setup = (function() {
         ['app.initialized', 'true', 'boolean', 'System initialized flag', new Date().toISOString(), Security.currentUser()],
         ['security.defaultRole', 'viewer', 'string', 'Default role for new users', new Date().toISOString(), Security.currentUser()]
       ];
-      
+
       defaults.forEach(function(row) {
         // Check if key exists
         const data = settingsSheet.getDataRange().getValues();
@@ -101,11 +108,11 @@ const Setup = (function() {
         }
         if (!exists) settingsSheet.appendRow(row);
       });
-      
+
       Logger.info('Setup', 'Initialization complete');
       return 'System initialized. Sheets created: ' + Object.keys(SHEET_CONFIGS).join(', ');
     },
-    
+
     reset: function() {
       // Dangerous: deletes all data. Use with caution.
       const ss = SpreadsheetApp.getActiveSpreadsheet();

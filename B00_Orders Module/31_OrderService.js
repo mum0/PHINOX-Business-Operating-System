@@ -269,10 +269,13 @@ const OrderService = (function() {
   }
   function totalOrders() { return OrderRepository.count(); }
 
+
+  
   return {
     createOrder: createOrder, getOrder: getOrder, getOrders: getOrders, updateOrder: updateOrder, deleteOrder: deleteOrder,
     confirmOrder: confirmOrder, cancelOrder: cancelOrder, shipOrder: shipOrder, deliverOrder: deliverOrder,
     getOrdersByCustomer: getOrdersByCustomer, getOrdersByStatus: getOrdersByStatus, getPendingOrders: getPendingOrders,
     getTotalSales: getTotalSales, totalOrders: totalOrders
-  };
+  }
+  
 })();
