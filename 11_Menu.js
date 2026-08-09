@@ -51,6 +51,17 @@ function onOpen(e) {
       .addItem('🗑️ Clear Cache', 'menuClearCache')
       .addItem('📈 Build Index', 'menuBuildIndex')
     )
+    .addSubMenu(
+      SpreadsheetApp.getUi()
+      .createMenu('💰 Finance')
+      .addItem('📊 Dashboard', 'menuFinanceStats')
+      .addItem('📒 View Ledger', 'menuFinanceLedger')
+      .addItem('➕ Create Expense', 'menuFinanceCreateExpense')
+      .addItem('✅ Approve Expense', 'menuFinanceApproveExpense')
+      .addItem('📤 Post Expense', 'menuFinancePostExpense')
+      .addItem('🧪 Run Finance Tests', 'menuRunFinanceTests')
+    )
+
     .addToUi();
 
   Logger.info('Menu', 'Menu loaded for ' + Security.currentUser());
@@ -102,6 +113,16 @@ function menuFlushLogger() {
 function menuClearCache() {
   CacheService.getScriptCache().removeAll();
   SpreadsheetApp.getUi().alert('Cache cleared.');
+}
+
+function menuFinanceStats() { try { FinanceController.showFinanceStats(); } catch(e) { SpreadsheetApp.getUi().alert('Error: ' + e.message); } }
+function menuFinanceLedger() { try { FinanceController.showLedger(); } catch(e) { SpreadsheetApp.getUi().alert('Error: ' + e.message); } }
+function menuFinanceCreateExpense() { FinanceController.showCreateExpenseForm(); }
+function menuFinanceApproveExpense() { FinanceController.showApproveExpense(); }
+function menuFinancePostExpense() { FinanceController.showPostExpense(); }
+function menuRunFinanceTests() {
+  try { testFinanceLayer(); SpreadsheetApp.getUi().alert('Finance tests passed.'); }
+  catch(e) { SpreadsheetApp.getUi().alert('Finance test failed: ' + e.message); }
 }
 
 function menuBuildIndex() {

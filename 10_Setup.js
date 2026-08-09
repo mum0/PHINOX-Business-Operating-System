@@ -38,7 +38,17 @@ const Setup = (function() {
     'KPI Results': {
       headers: ['id','kpiId','name','value','period','date','sheet','createdAt'],
       widths: [22, 20, 20, 15, 10, 15, 15, 20]
-    }
+    },
+    'Finance Ledger': {
+      headers: ['id','date','type','category','description','amount','account','relatedId','relatedType','status','idempotencyKey','approvedBy','notes','createdAt','updatedAt','createdBy'],
+      widths: [22, 15, 12, 15, 35, 12, 12, 22, 12, 10, 30, 25, 25, 20, 20, 25]
+      },
+    'Finance Expenses': {
+      headers: ['id','title','category','amount','description','status','requestedBy','approvedBy','rejectionReason','createdAt','updatedAt'],
+      widths: [22, 25, 15, 12, 35, 12, 25, 25, 25, 20, 20]
+      }
+    
+      
   };
   
   function createSheet(ss, name, cfg) {

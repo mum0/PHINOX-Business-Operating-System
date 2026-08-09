@@ -28,7 +28,10 @@ var CONFIG = (function() {
         SALES: 'Sales',
         LOGS: 'Logs',
         SETTINGS: 'Settings',
-        KPI_RESULTS: 'KPI Results'
+        KPI_RESULTS: 'KPI Results',
+        FINANCE_LEDGER: 'Finance Ledger',
+        FINANCE_EXPENSES: 'Finance Expenses'
+ 
       },
       
       COLUMNS: {
@@ -54,7 +57,14 @@ var CONFIG = (function() {
         BATCH_SIZE: 500,
         CACHE_TTL_SECONDS: 300,
         MAX_EXECUTION_TIME_MS: 280000
+      },
+
+      EXPENSE_APPROVAL_THRESHOLDS: {
+        manager: 100,
+        finance: 500,
+        ceo: 2000
       }
+
     };
     
     const OVERRIDES = {
@@ -65,6 +75,7 @@ var CONFIG = (function() {
         }
       }
     };
+    
     
     const config = JSON.parse(JSON.stringify(BASE));
     if (OVERRIDES[ENV]) {
@@ -83,3 +94,4 @@ var CONFIG = (function() {
     
     return config;
   })();
+
