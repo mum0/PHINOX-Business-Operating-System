@@ -55,6 +55,18 @@ const Setup = (function() {
     'Social Media Performance': {
       headers: ['id','date','platform','followers','followerGrowth','reach','impressions','engagements','likes','comments','shares','saves','videoViews','watchTime','profileVisits','linkClicks','leads','purchases','attributedRevenue','notes','createdAt','createdBy'],
       widths: [22, 15, 12, 12, 12, 12, 12, 12, 10, 10, 10, 10, 12, 12, 12, 12, 10, 10, 15, 25, 20, 25]
+    },
+    'Customers': {
+      headers: ['id','name','email','phone','status','segment','joinDate','lastOrderDate','totalOrders','totalAmount','averageOrderValue','notes','createdAt','updatedAt'],
+      widths: [22, 20, 25, 15, 10, 12, 15, 15, 12, 12, 12, 25, 20, 20]
+    },
+    'Satisfaction': {
+      headers: ['id','customerEmail','orderId','score','feedback','createdAt','updatedAt'],
+      widths: [22, 25, 22, 8, 40, 20, 20]
+    },
+    'NPS': {
+      headers: ['id','customerEmail','orderId','score','feedback','createdAt','updatedAt'],
+      widths: [22, 25, 22, 8, 40, 20, 20]
     }
   };
 

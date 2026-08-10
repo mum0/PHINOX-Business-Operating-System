@@ -365,6 +365,41 @@ const FinanceService = (function() {
       }
     });
   
+
+  // ============ PHASE 0 FIX: Missing KPI dependencies ============
+
+  function getRefunds(startDate, endDate) {
+    return _round(_sumByType(T.REFUND, startDate, endDate), 2);
+  }
+
+  function getRevenueGrowth(startDate, endDate) {
+    var current = getRevenue(startDate, endDate);
+    var s = new Date(startDate);
+    var e = new Date(endDate);
+    var duration = e - s;
+    if (duration <= 0) return 0;
+    var prevStart = new Date(s.getTime() - duration);
+    var prevEnd = new Date(e.getTime() - duration);
+    var previous = getRevenue(prevStart, prevEnd);
+    if (previous === 0) return 0;
+    return _round(((current - previous) / Math.abs(previous)) * 100, 2);
+  }
+
+  function getProfitGrowth(startDate, endDate) {
+    var currentPnl = getProfitAndLoss(startDate, endDate);
+    var current = currentPnl.netProfit;
+    var s = new Date(startDate);
+    var e = new Date(endDate);
+    var duration = e - s;
+    if (duration <= 0) return 0;
+    var prevStart = new Date(s.getTime() - duration);
+    var prevEnd = new Date(e.getTime() - duration);
+    var prevPnl = getProfitAndLoss(prevStart, prevEnd);
+    var previous = prevPnl.netProfit;
+    if (previous === 0) return 0;
+    return _round(((current - previous) / Math.abs(previous)) * 100, 2);
+  }
+
     return {
       postRevenue: postRevenue,
       postCOGS: postCOGS,
@@ -386,6 +421,9 @@ const FinanceService = (function() {
       getOutstanding: getOutstanding,
       getProfitAndLoss: getProfitAndLoss,
       getCashFlow: getCashFlow,
-      getLedger: getLedger
+      getLedger: getLedger,
+      getRefunds: getRefunds,
+      getRevenueGrowth: getRevenueGrowth,
+      getProfitGrowth: getProfitGrowth
     };
   })();

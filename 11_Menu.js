@@ -39,6 +39,13 @@ function onOpen(e) {
         .addItem('➕ Create Sale', 'menuSaleCreate')
         .addItem('🧪 Run Sale E2E Tests', 'menuRunSaleTests')
     )
+
+        .addSubMenu(
+      SpreadsheetApp.getUi()
+        .createMenu('👥 Customers')
+        .addItem('📊 Customer Stats', 'menuCustomerStats')
+        .addItem('🔄 Sync from Orders', 'menuCustomerSync')
+    )
     .addSubMenu(
       SpreadsheetApp.getUi()
         .createMenu('💰 Finance')
@@ -56,6 +63,7 @@ function onOpen(e) {
         .addItem('🔁 Recalculate All KPIs', 'menuKpiRecalculateAll')
         .addItem('📋 View KPI History', 'menuKpiHistory')
         .addItem('🧪 Run KPI Tests', 'menuRunKpiTests')
+        .addItem('🧪 Run Mkt/Soc Tests', 'menuRunMktSocTests')
     )
     .addSubMenu(
       SpreadsheetApp.getUi()
@@ -271,7 +279,10 @@ function menuBuildIndex() {
     'Sales': { id: 1 },
     'Finance Ledger': { id: 1 },
     'Finance Expenses': { id: 1 },
-    'KPI Results': { id: 1 }
+    'KPI Results': { id: 1 },
+    'Customers': { id: 1 },
+    'Satisfaction': { id: 1 },
+    'NPS': { id: 1 }
   };
   Object.keys(schemas).forEach(function(sheetName) {
     try {
@@ -296,3 +307,36 @@ function menuSocEnter() { MktSocController.showSocialForm(); }
 function menuSocImport() { MktSocController.showSocialCsvImport(); }
 function menuSocDashboard() { MktSocController.showSocialDashboard(); }
 
+// ─── CUSTOMER MENU HANDLERS (Phase 8G) ───
+function menuCustomerStats() {
+  try {
+    var stats = CustomerService.getCustomerStats();
+    var msg = 'Total Customers: ' + stats.total + '\n' +
+              'Active: ' + stats.active + '\n' +
+              'New (this month): ' + stats.newThisMonth + '\n' +
+              'Returning: ' + stats.returning + '\n' +
+              'Churned: ' + stats.churned;
+    SpreadsheetApp.getUi().alert(msg);
+  } catch(e) {
+    SpreadsheetApp.getUi().alert('Error: ' + e.message);
+  }
+}
+
+function menuCustomerSync() {
+  try {
+    var count = CustomerService.syncFromOrders();
+    SpreadsheetApp.getUi().alert('Synced ' + count + ' customers from orders.');
+  } catch(e) {
+    SpreadsheetApp.getUi().alert('Error: ' + e.message);
+  }
+}
+
+// ─── MKT/SOC TEST HANDLER (Phase 8G) ───
+function menuRunMktSocTests() {
+  try {
+    testMktSocLayer();
+    SpreadsheetApp.getUi().alert('Marketing/Social tests passed.');
+  } catch(e) {
+    SpreadsheetApp.getUi().alert('Mkt/Soc test failed: ' + e.message);
+  }
+}
