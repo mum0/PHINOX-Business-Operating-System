@@ -1,0 +1,1235 @@
+<script>
+    // ============================================
+    // PHINOX BOS — Frontend Application
+    // ============================================
+    
+    // ─── STATE ───
+    const AppState = {
+      currentPage: 'dashboard',
+      dateRange: 'month',
+      startDate: '',
+      endDate: '',
+      charts: {},
+      dataCache: {},
+      isLoading: false
+    };
+    
+    // ─── DATE UTILITIES ───
+    function getDateRange(range) {
+      const now = new Date();
+      let start, end;
+      switch(range) {
+        case 'today':
+          start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+          break;
+        case 'yesterday':
+          start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+          end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+          break;
+        case 'week':
+          const day = now.getDay();
+          start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+          end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (6 - day), 23, 59, 59);
+          break;
+        case 'month':
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+          break;
+        case 'last-month':
+          start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+          break;
+        case 'quarter':
+          const q = Math.floor(now.getMonth() / 3);
+          start = new Date(now.getFullYear(), q * 3, 1);
+          end = new Date(now.getFullYear(), q * 3 + 3, 0, 23, 59, 59);
+          break;
+        case 'year':
+          start = new Date(now.getFullYear(), 0, 1);
+          end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+          break;
+        default:
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      }
+      return {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0]
+      };
+    }
+    
+    // ─── NAVIGATION ───
+    function navigateTo(page) {
+      AppState.currentPage = page;
+      
+      // Update sidebar
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const activeNav = document.querySelector(`.nav-item[data-page="${page}"]`);
+      if (activeNav) activeNav.classList.add('active');
+      
+      // Update page title
+      const titles = {
+        'dashboard': 'Executive Dashboard',
+        'finance': 'Finance Dashboard',
+        'sales': 'Sales Dashboard',
+        'inventory': 'Inventory Dashboard',
+        'operations': 'Operations Dashboard',
+        'marketing': 'Marketing Dashboard',
+        'social': 'Social Media Dashboard',
+        'customers': 'Customer Management',
+        'satisfaction': 'Customer Satisfaction',
+        'nps': 'Net Promoter Score',
+        'performance': 'Performance Dashboard',
+        'members': 'Team Members',
+        'tasks': 'Tasks',
+        'add-sale': 'Add Sale',
+        'add-order': 'Add Order',
+        'add-customer': 'Add Customer',
+        'add-task': 'Add Task',
+        'add-marketing': 'Add Marketing Data',
+        'add-social': 'Add Social Media Data',
+        'add-satisfaction': 'Add Satisfaction',
+        'add-nps': 'Add NPS'
+      };
+      document.getElementById('pageTitle').textContent = titles[page] || page;
+      
+      // Show page
+      document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+      const targetPage = document.getElementById('page-' + page);
+      if (targetPage) targetPage.classList.add('active');
+      
+      // Close sidebar on mobile
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+      
+      // Load data
+      loadPageData(page);
+    }
+    
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+    
+    // ─── DATE FILTER ───
+    function setDateRange(range) {
+      AppState.dateRange = range;
+      document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`.date-btn[data-range="${range}"]`)?.classList.add('active');
+      
+      const dates = getDateRange(range);
+      AppState.startDate = dates.start;
+      AppState.endDate = dates.end;
+      
+      loadPageData(AppState.currentPage);
+    }
+    
+    function refreshCurrentPage() {
+      loadPageData(AppState.currentPage);
+    }
+    
+    // ─── TOASTS ───
+    function showToast(title, message, type) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type || 'info'}`;
+      toast.innerHTML = `
+        <div>
+          <div class="toast-title">${title}</div>
+          <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    }
+    
+    // ─── MODAL ───
+    function openModal(title, bodyHtml, footerHtml) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalBody').innerHTML = bodyHtml;
+      document.getElementById('modalFooter').innerHTML = footerHtml || '';
+      document.getElementById('modalOverlay').classList.add('open');
+    }
+    
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
+    }
+    
+    // ─── LOADING ───
+    function showLoading(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'loading-overlay';
+      overlay.id = containerId + '-loading';
+      overlay.innerHTML = '<div class="spinner"></div>';
+      container.style.position = 'relative';
+      container.appendChild(overlay);
+    }
+    
+    function hideLoading(containerId) {
+      const overlay = document.getElementById(containerId + '-loading');
+      if (overlay) overlay.remove();
+    }
+    
+    // ─── SERVER CALLS ───
+    function callServer(fnName, ...args) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(result => {
+            if (result && result.success) resolve(result);
+            else reject(result && result.error ? new Error(result.error) : new Error('Unknown error'));
+          })
+          .withFailureHandler(err => reject(err))
+          [fnName](...args);
+      });
+    }
+    
+    // ─── FORMATTERS ───
+    function formatNumber(num, decimals = 2) {
+      if (num === null || num === undefined || isNaN(num)) return '—';
+      return Number(num).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+    
+    function formatCurrency(num) {
+      if (num === null || num === undefined || isNaN(num)) return '—';
+      return 'EGP ' + formatNumber(num);
+    }
+    
+    function formatPercent(num) {
+      if (num === null || num === undefined || isNaN(num)) return '—';
+      return formatNumber(num) + '%';
+    }
+    
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-GB');
+    }
+    
+    // ─── KPI CARD BUILDER ───
+    function buildKpiCard(label, value, change, period, unit) {
+      const changeClass = change > 0 ? 'up' : change < 0 ? 'down' : 'neutral';
+      const changeIcon = change > 0 ? '↑' : change < 0 ? '↓' : '→';
+      const changeText = change !== 0 ? formatNumber(Math.abs(change)) + '%' : '0%';
+      
+      let displayValue = value;
+      if (unit === 'EGP') displayValue = formatCurrency(value);
+      else if (unit === '%') displayValue = formatPercent(value);
+      else if (unit === 'x') displayValue = formatNumber(value) + 'x';
+      else if (unit === 'months') displayValue = formatNumber(value) + ' mo';
+      else displayValue = formatNumber(value, 0);
+      
+      return `
+        <div class="kpi-card">
+          <div class="kpi-label">${label}</div>
+          <div class="kpi-value">${displayValue}</div>
+          <div class="kpi-change ${changeClass}">${changeIcon} ${changeText}</div>
+          <div class="kpi-period">vs ${period || 'previous period'}</div>
+        </div>
+      `;
+    }
+    
+    // ─── CHART HELPERS ───
+    function createChart(canvasId, type, data, options) {
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return null;
+      
+      // Destroy existing
+      if (AppState.charts[canvasId]) {
+        AppState.charts[canvasId].destroy();
+      }
+      
+      // Create canvas if needed
+      if (ctx.tagName !== 'CANVAS') {
+        ctx.innerHTML = '<canvas id="' + canvasId + '-canvas"></canvas>';
+      }
+      
+      const chart = new Chart(ctx.tagName === 'CANVAS' ? ctx : document.getElementById(canvasId + '-canvas'), {
+        type: type,
+        data: data,
+        options: Object.assign({
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, usePointStyle: true, padding: 16 } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+            y: { grid: { color: '#F3F4F6' }, ticks: { font: { size: 11 } } }
+          }
+        }, options || {})
+      });
+      
+      AppState.charts[canvasId] = chart;
+      return chart;
+    }
+    
+    // ─── EMPTY STATE ───
+    function emptyState(icon, title, desc) {
+      return `
+        <div class="empty-state">
+          <div class="empty-state-icon">${icon}</div>
+          <div class="empty-state-title">${title}</div>
+          <div class="empty-state-desc">${desc}</div>
+        </div>
+      `;
+    }
+    
+    // ─── PAGE DATA LOADERS ───
+    async function loadPageData(page) {
+      const dates = getDateRange(AppState.dateRange);
+      
+      try {
+        switch(page) {
+          case 'dashboard':
+            await loadDashboard(dates);
+            break;
+          case 'finance':
+            await loadFinance(dates);
+            break;
+          case 'sales':
+            await loadSales(dates);
+            break;
+          case 'inventory':
+            await loadInventory();
+            break;
+          case 'operations':
+            await loadOperations(dates);
+            break;
+          case 'marketing':
+            await loadMarketing(dates);
+            break;
+          case 'social':
+            await loadSocial(dates);
+            break;
+          case 'customers':
+            await loadCustomers(dates);
+            break;
+          case 'satisfaction':
+            await loadSatisfaction(dates);
+            break;
+          case 'nps':
+            await loadNps(dates);
+            break;
+          case 'performance':
+            await loadPerformance(dates);
+            break;
+          case 'members':
+            await loadMembers();
+            break;
+          case 'tasks':
+            await loadTasks(dates);
+            break;
+        }
+      } catch (e) {
+        console.error('Load page error:', e);
+        showToast('Error', 'Failed to load data: ' + e.message, 'error');
+      }
+    }
+    
+    // ─── DASHBOARD ───
+    async function loadDashboard(dates) {
+      showLoading('executiveKpiCards');
+      
+      try {
+        const kpiResult = await callServer('uiGetDashboardKpis');
+        const kpis = kpiResult.data || {};
+        
+        // Executive KPIs
+        const executiveIds = ['FIN-01','FIN-04','FIN-05','SALE-01','CUST-01','CUST-07','CUST-05','MKT-13','CUST-08','CUST-09'];
+        const executiveNames = {
+          'FIN-01': 'Revenue', 'FIN-04': 'Net Profit', 'FIN-05': 'Profit Margin',
+          'SALE-01': 'Orders', 'CUST-01': 'Customers', 'CUST-07': 'CAC',
+          'CUST-05': 'LTV', 'MKT-13': 'ROAS', 'CUST-08': 'Satisfaction', 'CUST-09': 'NPS'
+        };
+        
+        let cardsHtml = '';
+        executiveIds.forEach(id => {
+          const kpi = kpis[id];
+          if (kpi) {
+            cardsHtml += buildKpiCard(executiveNames[id], kpi.value, 0, 'previous period', kpi.unit);
+          }
+        });
+        
+        document.getElementById('executiveKpiCards').innerHTML = cardsHtml || emptyState('📊', 'No Data', 'KPI data will appear here');
+        
+        // Charts - simplified with mock data structure for demo
+        // In production, these would call history APIs
+        
+      } catch (e) {
+        document.getElementById('executiveKpiCards').innerHTML = emptyState('⚠️', 'Error Loading Data', e.message);
+      } finally {
+        hideLoading('executiveKpiCards');
+      }
+    }
+    
+    // ─── FINANCE ───
+    async function loadFinance(dates) {
+      const container = document.getElementById('financeKpiCards');
+      showLoading('financeKpiCards');
+      
+      try {
+        const result = await callServer('uiGetFinanceStats', dates.start, dates.end);
+        const stats = result.data || {};
+        const pnl = stats.pnl || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Revenue', pnl.revenue, 0, 'period', 'EGP');
+        cardsHtml += buildKpiCard('Net Profit', pnl.netProfit, 0, 'period', 'EGP');
+        cardsHtml += buildKpiCard('Gross Margin', pnl.grossProfit && pnl.revenue ? (pnl.grossProfit/pnl.revenue*100) : 0, 0, 'period', '%');
+        cardsHtml += buildKpiCard('Cash Balance', stats.cashBalance, 0, 'period', 'EGP');
+        
+        container.innerHTML = cardsHtml;
+        
+        // Load ledger
+        const ledgerResult = await callServer('uiGetLedger', { limit: 50 });
+        const ledger = ledgerResult.data && ledgerResult.data.data ? ledgerResult.data.data : [];
+        renderTable('financeLedgerTable', ledger, [
+          { key: 'date', fmt: formatDate },
+          { key: 'type' },
+          { key: 'category' },
+          { key: 'description' },
+          { key: 'amount', fmt: v => formatCurrency(v) },
+          { key: 'status', fmt: v => `<span class="badge badge-${v==='Posted'?'success':'warning'}">${v}</span>` }
+        ]);
+        
+      } catch (e) {
+        container.innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('financeKpiCards');
+      }
+    }
+    
+    // ─── SALES ───
+    async function loadSales(dates) {
+      showLoading('salesKpiCards');
+      
+      try {
+        const result = await callServer('uiGetSalesByDateRange', dates.start, dates.end);
+        const sales = result.data && result.data.data ? result.data.data : [];
+        
+        const totalRevenue = sales.reduce((a, s) => a + (Number(s.totalAmount) || 0), 0);
+        const totalOrders = sales.length;
+        const delivered = sales.filter(s => s.status === 'Delivered').length;
+        const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Total Orders', totalOrders, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('Revenue', totalRevenue, 0, 'period', 'EGP');
+        cardsHtml += buildKpiCard('Delivered', delivered, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('Avg Order Value', avgOrder, 0, 'period', 'EGP');
+        
+        document.getElementById('salesKpiCards').innerHTML = cardsHtml;
+        
+        renderTable('salesTable', sales.slice(0, 20), [
+          { key: 'id' },
+          { key: 'customerEmail' },
+          { key: 'totalAmount', fmt: formatCurrency },
+          { key: 'status', fmt: v => `<span class="badge badge-${v==='Delivered'?'success':v==='Pending'?'warning':'neutral'}">${v}</span>` },
+          { key: 'createdAt', fmt: formatDate }
+        ]);
+        
+      } catch (e) {
+        document.getElementById('salesKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('salesKpiCards');
+      }
+    }
+    
+    // ─── INVENTORY ───
+    async function loadInventory() {
+      showLoading('inventoryKpiCards');
+      
+      try {
+        const result = await callServer('uiGetInventoryStats');
+        const stats = result.data || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Total Items', stats.total, 0, '', 'count');
+        cardsHtml += buildKpiCard('Low Stock', stats.lowStock, 0, '', 'count');
+        cardsHtml += buildKpiCard('Out of Stock', stats.outOfStock, 0, '', 'count');
+        cardsHtml += buildKpiCard('Inventory Value', stats.value, 0, '', 'EGP');
+        
+        document.getElementById('inventoryKpiCards').innerHTML = cardsHtml;
+        
+        const itemsResult = await callServer('uiGetInventory');
+        const items = itemsResult.data && itemsResult.data.data ? itemsResult.data.data : [];
+        
+        renderTable('inventoryTable', items, [
+          { key: 'sku' },
+          { key: 'name' },
+          { key: 'category' },
+          { key: 'quantity', fmt: v => formatNumber(v, 0) },
+          { key: 'reserved', fmt: v => formatNumber(v, 0) },
+          { key: 'available', fmt: v => formatNumber(v, 0) },
+          { key: 'cost', fmt: v => formatCurrency(v) },
+          { key: 'price', fmt: v => formatCurrency(v) },
+          { key: 'status', fmt: v => `<span class="badge badge-${v==='Active'?'success':v==='Out of Stock'?'danger':'warning'}">${v}</span>` }
+        ]);
+        
+        AppState.inventoryData = items;
+        
+      } catch (e) {
+        document.getElementById('inventoryKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('inventoryKpiCards');
+      }
+    }
+    
+    function filterInventory() {
+      const term = document.getElementById('inventorySearch').value.toLowerCase();
+      if (!AppState.inventoryData) return;
+      const filtered = AppState.inventoryData.filter(i => 
+        (i.name && i.name.toLowerCase().includes(term)) || 
+        (i.sku && i.sku.toLowerCase().includes(term))
+      );
+      renderTable('inventoryTable', filtered, [
+        { key: 'sku' }, { key: 'name' }, { key: 'category' },
+        { key: 'quantity', fmt: v => formatNumber(v, 0) },
+        { key: 'reserved', fmt: v => formatNumber(v, 0) },
+        { key: 'available', fmt: v => formatNumber(v, 0) },
+        { key: 'cost', fmt: v => formatCurrency(v) },
+        { key: 'price', fmt: v => formatCurrency(v) },
+        { key: 'status', fmt: v => `<span class="badge badge-${v==='Active'?'success':v==='Out of Stock'?'danger':'warning'}">${v}</span>` }
+      ]);
+    }
+    
+    // ─── OPERATIONS ───
+    async function loadOperations(dates) {
+      showLoading('operationsKpiCards');
+      
+      try {
+        const memberStats = await callServer('uiGetMemberStats');
+        const taskStats = await callServer('uiGetTaskStats', dates.start, dates.end);
+        
+        const ms = memberStats.data || {};
+        const ts = taskStats.data || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Active Members', ms.active, 0, '', 'count');
+        cardsHtml += buildKpiCard('Total Members', ms.total, 0, '', 'count');
+        cardsHtml += buildKpiCard('Tasks Completed', ts.completed, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('Overdue Tasks', ts.overdue, 0, 'period', 'count');
+        
+        document.getElementById('operationsKpiCards').innerHTML = cardsHtml;
+        
+      } catch (e) {
+        document.getElementById('operationsKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('operationsKpiCards');
+      }
+    }
+    
+    // ─── MARKETING ───
+    async function loadMarketing(dates) {
+      showLoading('marketingKpiCards');
+      
+      try {
+        const result = await callServer('uiGetMarketingStats', dates.start, dates.end);
+        const stats = result.data || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Ad Spend', stats.spend, 0, 'period', 'EGP');
+        cardsHtml += buildKpiCard('ROAS', stats.roas, 0, 'period', 'x');
+        cardsHtml += buildKpiCard('Conversions', stats.conversions, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('Revenue', stats.revenue, 0, 'period', 'EGP');
+        
+        document.getElementById('marketingKpiCards').innerHTML = cardsHtml;
+        
+        const recordsResult = await callServer('uiGetMarketingRecords', { limit: 50 });
+        const records = recordsResult.data && recordsResult.data.data ? recordsResult.data.data : [];
+        
+        renderTable('marketingTable', records, [
+          { key: 'date', fmt: formatDate },
+          { key: 'platform' },
+          { key: 'campaignName', fmt: v => v || '-' },
+          { key: 'spend', fmt: formatCurrency },
+          { key: 'impressions', fmt: v => formatNumber(v, 0) },
+          { key: 'clicks', fmt: v => formatNumber(v, 0) },
+          { key: 'conversions', fmt: v => formatNumber(v, 0) },
+          { key: 'attributedRevenue', fmt: formatCurrency }
+        ]);
+        
+      } catch (e) {
+        document.getElementById('marketingKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('marketingKpiCards');
+      }
+    }
+    
+    // ─── SOCIAL ───
+    async function loadSocial(dates) {
+      showLoading('socialKpiCards');
+      
+      try {
+        const result = await callServer('uiGetSocialStats', dates.start, dates.end);
+        const stats = result.data || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Followers', stats.followers, 0, '', 'count');
+        cardsHtml += buildKpiCard('Engagement Rate', stats.engagementRate, 0, 'period', '%');
+        cardsHtml += buildKpiCard('Social Revenue', stats.revenue, 0, 'period', 'EGP');
+        cardsHtml += buildKpiCard('Purchases', stats.purchases, 0, 'period', 'count');
+        
+        document.getElementById('socialKpiCards').innerHTML = cardsHtml;
+        
+        const recordsResult = await callServer('uiGetSocialRecords', { limit: 50 });
+        const records = recordsResult.data && recordsResult.data.data ? recordsResult.data.data : [];
+        
+        renderTable('socialTable', records, [
+          { key: 'date', fmt: formatDate },
+          { key: 'platform' },
+          { key: 'followers', fmt: v => formatNumber(v, 0) },
+          { key: 'reach', fmt: v => formatNumber(v, 0) },
+          { key: 'engagements', fmt: v => formatNumber(v, 0) },
+          { key: 'likes', fmt: v => formatNumber(v, 0) },
+          { key: 'attributedRevenue', fmt: formatCurrency }
+        ]);
+        
+      } catch (e) {
+        document.getElementById('socialKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('socialKpiCards');
+      }
+    }
+    
+    // ─── CUSTOMERS ───
+    async function loadCustomers(dates) {
+      showLoading('customerKpiCards');
+      
+      try {
+        const statsResult = await callServer('uiGetCustomerStats');
+        const stats = statsResult.data || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Total Customers', stats.total, 0, '', 'count');
+        cardsHtml += buildKpiCard('Active', stats.active, 0, '', 'count');
+        cardsHtml += buildKpiCard('New This Month', stats.newThisMonth, 0, '', 'count');
+        cardsHtml += buildKpiCard('Returning', stats.returning, 0, '', 'count');
+        
+        document.getElementById('customerKpiCards').innerHTML = cardsHtml;
+        
+        const result = await callServer('uiGetCustomers', { limit: 1000 });
+        const customers = result.data && result.data.data ? result.data.data : [];
+        
+        renderTable('customersTable', customers, [
+          { key: 'name' },
+          { key: 'email' },
+          { key: 'phone', fmt: v => v || '-' },
+          { key: 'status', fmt: v => `<span class="badge badge-${v==='Active'?'success':v==='Churned'?'danger':'warning'}">${v}</span>` },
+          { key: 'segment', fmt: v => `<span class="badge badge-neutral">${v}</span>` },
+          { key: 'totalOrders', fmt: v => formatNumber(v, 0) },
+          { key: 'totalAmount', fmt: formatCurrency },
+          { key: 'averageOrderValue', fmt: formatCurrency },
+          { key: 'id', fmt: v => `<button class="btn btn-sm btn-outline" onclick="viewCustomer('${v}')\">View</button>` }
+        ]);
+        
+        AppState.customersData = customers;
+        
+      } catch (e) {
+        document.getElementById('customerKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('customerKpiCards');
+      }
+    }
+    
+    function filterCustomers() {
+      const term = document.getElementById('customerSearch').value.toLowerCase();
+      if (!AppState.customersData) return;
+      const filtered = AppState.customersData.filter(c => 
+        (c.name && c.name.toLowerCase().includes(term)) || 
+        (c.email && c.email.toLowerCase().includes(term))
+      );
+      renderTable('customersTable', filtered, [
+        { key: 'name' }, { key: 'email' }, { key: 'phone', fmt: v => v || '-' },
+        { key: 'status', fmt: v => `<span class="badge badge-${v==='Active'?'success':v==='Churned'?'danger':'warning'}">${v}</span>` },
+        { key: 'segment', fmt: v => `<span class="badge badge-neutral">${v}</span>` },
+        { key: 'totalOrders', fmt: v => formatNumber(v, 0) },
+        { key: 'totalAmount', fmt: formatCurrency },
+        { key: 'averageOrderValue', fmt: formatCurrency },
+        { key: 'id', fmt: v => `<button class="btn btn-sm btn-outline" onclick="viewCustomer('${v}')">View</button>` }
+      ]);
+    }
+    
+    function viewCustomer(id) {
+      // Open customer profile modal
+      const customer = AppState.customersData.find(c => c.id === id);
+      if (!customer) return;
+      
+      openModal(customer.name || 'Customer Profile', `
+        <div style="display:grid;gap:16px;">
+          <div class="grid-2">
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Email</label><div style="font-weight:600;">${customer.email || '-'}</div></div>
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Phone</label><div style="font-weight:600;">${customer.phone || '-'}</div></div>
+          </div>
+          <div class="grid-2">
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Status</label><div>${customer.status || '-'}</div></div>
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Segment</label><div>${customer.segment || '-'}</div></div>
+          </div>
+          <div class="grid-3">
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Total Orders</label><div style="font-size:20px;font-weight:700;">${formatNumber(customer.totalOrders, 0)}</div></div>
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Total Spend</label><div style="font-size:20px;font-weight:700;">${formatCurrency(customer.totalAmount)}</div></div>
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">AOV</label><div style="font-size:20px;font-weight:700;">${formatCurrency(customer.averageOrderValue)}</div></div>
+          </div>
+          <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Notes</label><div>${customer.notes || '-'}</div></div>
+        </div>
+      `, `<button class="btn btn-outline" onclick="closeModal()">Close</button>`);
+    }
+    
+    // ─── SATISFACTION ───
+    async function loadSatisfaction(dates) {
+      showLoading('satisfactionKpiCards');
+      
+      try {
+        const result = await callServer('uiGetSatisfactionStats', dates.start, dates.end);
+        const stats = result.data || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Average Score', stats.average, 0, 'period', 'score');
+        cardsHtml += buildKpiCard('Total Responses', stats.count, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('Response Rate', stats.count > 0 ? 100 : 0, 0, 'period', '%');
+        
+        document.getElementById('satisfactionKpiCards').innerHTML = cardsHtml;
+        
+        const records = stats.records && stats.records.data ? stats.records.data : [];
+        renderTable('satisfactionTable', records, [
+          { key: 'customerEmail' },
+          { key: 'orderId', fmt: v => v || '-' },
+          { key: 'score', fmt: v => `<span class="badge badge-${v>=8?'success':v>=5?'warning':'danger'}">${v}/10</span>` },
+          { key: 'category', fmt: v => v || 'Overall' },
+          { key: 'notes', fmt: v => v || '-' },
+          { key: 'createdAt', fmt: formatDate }
+        ]);
+        
+      } catch (e) {
+        document.getElementById('satisfactionKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('satisfactionKpiCards');
+      }
+    }
+    
+    // ─── NPS ───
+    async function loadNps(dates) {
+      showLoading('npsKpiCards');
+      
+      try {
+        const result = await callServer('uiGetNPSStats', dates.start, dates.end);
+        const stats = result.data || {};
+        const breakdown = stats.breakdown || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('NPS Score', stats.nps, 0, 'period', 'score');
+        cardsHtml += buildKpiCard('Promoters', breakdown.pctPromoters, 0, 'period', '%');
+        cardsHtml += buildKpiCard('Detractors', breakdown.pctDetractors, 0, 'period', '%');
+        
+        document.getElementById('npsKpiCards').innerHTML = cardsHtml;
+        
+        // Update gauge
+        const nps = stats.nps || 0;
+        document.getElementById('npsGaugeValue').textContent = nps;
+        document.getElementById('npsPromoters').textContent = (breakdown.pctPromoters || 0) + '%';
+        document.getElementById('npsPassives').textContent = (breakdown.pctPassives || 0) + '%';
+        document.getElementById('npsDetractors').textContent = (breakdown.pctDetractors || 0) + '%';
+        
+        // Rotate needle (-90 to +90 degrees)
+        const angle = Math.max(-90, Math.min(90, (nps / 100) * 180 - 90));
+        document.getElementById('npsNeedle').style.transform = `translateX(-50%) rotate(${angle}deg)`;
+        
+        // Records
+        const recordsResult = await callServer('uiGetNPSRecords', { limit: 50 });
+        const records = recordsResult.data && recordsResult.data.data ? recordsResult.data.data : [];
+        
+        renderTable('npsTable', records, [
+          { key: 'customerEmail' },
+          { key: 'orderId', fmt: v => v || '-' },
+          { key: 'score', fmt: v => `<span class="badge badge-${v>=9?'success':v>=7?'warning':'danger'}">${v}</span>` },
+          { key: 'score', fmt: v => v >= 9 ? 'Promoter' : v >= 7 ? 'Passive' : 'Detractor' },
+          { key: 'notes', fmt: v => v || '-' },
+          { key: 'createdAt', fmt: formatDate }
+        ]);
+        
+      } catch (e) {
+        document.getElementById('npsKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('npsKpiCards');
+      }
+    }
+    
+    // ─── PERFORMANCE ───
+    async function loadPerformance(dates) {
+      showLoading('performanceKpiCards');
+      
+      try {
+        const taskStats = await callServer('uiGetTaskStats', dates.start, dates.end);
+        const ts = taskStats.data || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Tasks Completed', ts.completed, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('On-Time Rate', ts.onTimeRate, 0, 'period', '%');
+        cardsHtml += buildKpiCard('Avg Quality', ts.avgQuality, 0, 'period', 'score');
+        cardsHtml += buildKpiCard('Avg Completion', ts.avgCompletionTime, 0, 'period', 'days');
+        
+        document.getElementById('performanceKpiCards').innerHTML = cardsHtml;
+        
+      } catch (e) {
+        document.getElementById('performanceKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('performanceKpiCards');
+      }
+    }
+    
+    // ─── MEMBERS ───
+    async function loadMembers() {
+      showLoading('membersKpiCards');
+      
+      try {
+        const stats = await callServer('uiGetMemberStats');
+        const ms = stats.data || {};
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Total Members', ms.total, 0, '', 'count');
+        cardsHtml += buildKpiCard('Active Members', ms.active, 0, '', 'count');
+        cardsHtml += buildKpiCard('Inactive', ms.total - ms.active, 0, '', 'count');
+        
+        document.getElementById('membersKpiCards').innerHTML = cardsHtml;
+        
+        const result = await callServer('uiGetMembers');
+        const members = result.data || [];
+        
+        renderTable('membersTable', members.map(m => ({
+          id: m[0], name: m[1], role: m[2], email: m[3], department: m[12] || 'General',
+          status: m[5], kpiScore: m[7]
+        })), [
+          { key: 'name' },
+          { key: 'role' },
+          { key: 'email' },
+          { key: 'department' },
+          { key: 'status', fmt: v => `<span class="badge badge-${v==='Active'?'success':'warning'}">${v}</span>` },
+          { key: 'kpiScore', fmt: v => formatNumber(v, 1) },
+          { key: 'id', fmt: v => `<button class="btn btn-sm btn-outline" onclick="editMember('${v}')\">Edit</button>` }
+        ]);
+        
+      } catch (e) {
+        document.getElementById('membersKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('membersKpiCards');
+      }
+    }
+    
+    // ─── TASKS ───
+    async function loadTasks(dates) {
+      showLoading('tasksKpiCards');
+      
+      try {
+        const result = await callServer('uiGetTasksByDateRange', dates.start, dates.end);
+        const tasks = result.data && result.data.data ? result.data.data : [];
+        
+        const completed = tasks.filter(t => t.status === 'Approved').length;
+        const overdue = tasks.filter(t => t.daysLate > 0).length;
+        
+        let cardsHtml = '';
+        cardsHtml += buildKpiCard('Total Tasks', tasks.length, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('Completed', completed, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('Overdue', overdue, 0, 'period', 'count');
+        cardsHtml += buildKpiCard('Completion Rate', tasks.length > 0 ? (completed/tasks.length*100) : 0, 0, 'period', '%');
+        
+        document.getElementById('tasksKpiCards').innerHTML = cardsHtml;
+        
+        renderTable('tasksTable', tasks, [
+          { key: 'title' },
+          { key: 'assignedTo' },
+          { key: 'priority', fmt: v => `<span class="badge badge-${v==='Critical'?'danger':v==='High'?'warning':v==='Medium'?'info':'neutral'}">${v}</span>` },
+          { key: 'status', fmt: v => `<span class="badge badge-${v==='Approved'?'success':v==='In Progress'?'info':v==='Waiting Review'?'warning':'neutral'}">${v}</span>` },
+          { key: 'dueDate', fmt: formatDate },
+          { key: 'completion', fmt: v => `<div class="progress-bar" style="width:80px;display:inline-block;"><div class="progress-bar-fill" style="width:${v}%;background:var(--accent);"></div></div> ${v}%` },
+          { key: 'taskScore', fmt: v => formatNumber(v, 1) },
+          { key: 'id', fmt: v => `<button class="btn btn-sm btn-outline" onclick="editTask('${v}')">Edit</button>` }
+        ]);
+        
+        AppState.tasksData = tasks;
+        
+      } catch (e) {
+        document.getElementById('tasksKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      } finally {
+        hideLoading('tasksKpiCards');
+      }
+    }
+    
+    function filterTasks() {
+      const term = document.getElementById('taskSearch').value.toLowerCase();
+      if (!AppState.tasksData) return;
+      const filtered = AppState.tasksData.filter(t => 
+        (t.title && t.title.toLowerCase().includes(term)) || 
+        (t.assignedTo && t.assignedTo.toLowerCase().includes(term))
+      );
+      renderTable('tasksTable', filtered, [
+        { key: 'title' }, { key: 'assignedTo' },
+        { key: 'priority', fmt: v => `<span class="badge badge-${v==='Critical'?'danger':v==='High'?'warning':v==='Medium'?'info':'neutral'}">${v}</span>` },
+        { key: 'status', fmt: v => `<span class="badge badge-${v==='Approved'?'success':v==='In Progress'?'info':v==='Waiting Review'?'warning':'neutral'}">${v}</span>` },
+        { key: 'dueDate', fmt: formatDate },
+        { key: 'completion', fmt: v => `<div class="progress-bar" style="width:80px;display:inline-block;"><div class="progress-bar-fill" style="width:${v}%;background:var(--accent);"></div></div> ${v}%` },
+        { key: 'taskScore', fmt: v => formatNumber(v, 1) },
+        { key: 'id', fmt: v => `<button class="btn btn-sm btn-outline" onclick="editTask('${v}')">Edit</button>` }
+      ]);
+    }
+    
+    // ─── TABLE RENDERER ───
+    function renderTable(tableId, data, columns) {
+      const tbody = document.querySelector(`#${tableId} tbody`);
+      if (!tbody) return;
+      
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center;padding:32px;color:var(--text-secondary);">No data available for this period.</td></tr>`;
+        return;
+      }
+      
+      tbody.innerHTML = data.map(row => {
+        return `<tr>${columns.map(col => {
+          let val = row[col.key];
+          if (col.fmt) val = col.fmt(val, row);
+          return `<td data-label="${col.key}">${val !== undefined && val !== null ? val : '-'}</td>`;
+        }).join('')}</tr>`;
+      }).join('');
+    }
+    
+    // ─── FORM HANDLERS ───
+    function addSaleItem() {
+      const container = document.getElementById('saleItems');
+      const div = document.createElement('div');
+      div.className = 'form-row sale-item-row';
+      div.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">SKU <span class="required">*</span></label>
+          <input type="text" class="form-input" name="sku[]" required placeholder="Enter SKU">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity <span class="required">*</span></label>
+          <input type="number" class="form-input" name="qty[]" required min="1" value="1">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.sale-item-row').remove()" style="margin-bottom:0;">✕</button>
+        </div>
+      `;
+      container.appendChild(div);
+    }
+    
+    function addOrderItem() {
+      const container = document.getElementById('orderItems');
+      const div = document.createElement('div');
+      div.className = 'form-row order-item-row';
+      div.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">SKU <span class="required">*</span></label>
+          <input type="text" class="form-input" name="sku[]" required placeholder="Enter SKU">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity <span class="required">*</span></label>
+          <input type="number" class="form-input" name="qty[]" required min="1" value="1">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.order-item-row').remove()" style="margin-bottom:0;">✕</button>
+        </div>
+      `;
+      container.appendChild(div);
+    }
+    
+    function selectRating(btn, inputId) {
+      const container = btn.parentElement;
+      container.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      document.getElementById(inputId).value = btn.dataset.value;
+    }
+    
+    function clearForm(formId) {
+      document.getElementById(formId).reset();
+      // Clear rating selections
+      document.querySelectorAll('.rating-btn.selected').forEach(b => b.classList.remove('selected'));
+    }
+    
+    async function submitSale(e) {
+      e.preventDefault();
+      const btn = document.getElementById('saleSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      try {
+        const form = e.target;
+        const items = [];
+        const skus = form.querySelectorAll('input[name="sku[]"]');
+        const qtys = form.querySelectorAll('input[name="qty[]"]');
+        for (let i = 0; i < skus.length; i++) {
+          if (skus[i].value) {
+            items.push({ sku: skus[i].value, qty: Number(qtys[i].value) || 1 });
+          }
+        }
+        
+        const data = {
+          customerEmail: form.customerEmail.value,
+          orderId: form.orderId.value || undefined,
+          paymentMethod: form.paymentMethod.value,
+          shippingCost: Number(form.shippingCost.value) || 0,
+          items: items,
+          notes: form.notes.value
+        };
+        
+        const result = await callServer('uiCreateSale', data);
+        showToast('Success', 'Sale created successfully', 'success');
+        clearForm('addSaleForm');
+        navigateTo('sales');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Sale';
+      }
+    }
+    
+    async function submitOrder(e) {
+      e.preventDefault();
+      const btn = document.getElementById('orderSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      try {
+        const form = e.target;
+        const items = [];
+        const skus = form.querySelectorAll('input[name="sku[]"]');
+        const qtys = form.querySelectorAll('input[name="qty[]"]');
+        for (let i = 0; i < skus.length; i++) {
+          if (skus[i].value) {
+            items.push({ sku: skus[i].value, qty: Number(qtys[i].value) || 1 });
+          }
+        }
+        
+        const data = {
+          customerEmail: form.customerEmail.value,
+          shippingCost: Number(form.shippingCost.value) || 0,
+          shippingAddress: form.shippingAddress.value,
+          items: items,
+          notes: form.notes.value
+        };
+        
+        const result = await callServer('uiCreateOrder', data);
+        showToast('Success', 'Order created successfully', 'success');
+        clearForm('addOrderForm');
+        navigateTo('sales');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Order';
+      }
+    }
+    
+    async function submitCustomer(e) {
+      e.preventDefault();
+      const btn = document.getElementById('customerSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      try {
+        const form = e.target;
+        const data = {
+          name: form.name.value,
+          email: form.email.value,
+          phone: form.phone.value,
+          status: form.status.value,
+          segment: form.segment.value,
+          notes: form.notes.value
+        };
+        
+        const result = await callServer('uiCreateCustomer', data);
+        showToast('Success', 'Customer created successfully', 'success');
+        clearForm('addCustomerForm');
+        navigateTo('customers');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Customer';
+      }
+    }
+    
+    async function submitTask(e) {
+      e.preventDefault();
+      const btn = document.getElementById('taskSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      try {
+        const form = e.target;
+        const data = {
+          title: form.title.value,
+          assignedTo: form.assignedTo.value,
+          priority: form.priority.value,
+          difficulty: form.difficulty.value,
+          category: form.category.value,
+          reviewer: form.reviewer.value,
+          startDate: form.startDate.value,
+          dueDate: form.dueDate.value,
+          notes: form.notes.value
+        };
+        
+        const result = await callServer('uiCreateTask', data);
+        showToast('Success', 'Task created successfully', 'success');
+        clearForm('addTaskForm');
+        navigateTo('tasks');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Task';
+      }
+    }
+    
+    async function submitMarketing(e) {
+      e.preventDefault();
+      const btn = document.getElementById('marketingSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      try {
+        const form = e.target;
+        const data = {
+          date: form.date.value,
+          platform: form.platform.value,
+          channel: form.channel.value,
+          campaignId: form.campaignId.value,
+          campaignName: form.campaignName.value,
+          currency: form.currency.value,
+          spend: Number(form.spend.value) || 0,
+          impressions: Number(form.impressions.value) || 0,
+          reach: Number(form.reach.value) || 0,
+          clicks: Number(form.clicks.value) || 0,
+          leads: Number(form.leads.value) || 0,
+          conversions: Number(form.conversions.value) || 0,
+          attributedRevenue: Number(form.attributedRevenue.value) || 0,
+          creativeCost: Number(form.creativeCost.value) || 0,
+          agencyCost: Number(form.agencyCost.value) || 0,
+          otherCost: Number(form.otherCost.value) || 0,
+          notes: form.notes.value
+        };
+        
+        const result = await callServer('uiCreateMarketingRecord', data);
+        showToast('Success', 'Marketing data saved successfully', 'success');
+        clearForm('addMarketingForm');
+        navigateTo('marketing');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Marketing Data';
+      }
+    }
+    
+    async function submitSocial(e) {
+      e.preventDefault();
+      const btn = document.getElementById('socialSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      try {
+        const form = e.target;
+        const data = {
+          date: form.date.value,
+          platform: form.platform.value,
+          followers: Number(form.followers.value) || 0,
+          followerGrowth: Number(form.followerGrowth.value) || 0,
+          reach: Number(form.reach.value) || 0,
+          impressions: Number(form.impressions.value) || 0,
+          engagements: Number(form.engagements.value) || 0,
+          likes: Number(form.likes.value) || 0,
+          comments: Number(form.comments.value) || 0,
+          shares: Number(form.shares.value) || 0,
+          saves: Number(form.saves.value) || 0,
+          videoViews: Number(form.videoViews.value) || 0,
+          profileVisits: Number(form.profileVisits.value) || 0,
+          linkClicks: Number(form.linkClicks.value) || 0,
+          leads: Number(form.leads.value) || 0,
+          purchases: Number(form.purchases.value) || 0,
+          attributedRevenue: Number(form.attributedRevenue.value) || 0,
+          notes: form.notes.value
+        };
+        
+        const result = await callServer('uiCreateSocialRecord', data);
+        showToast('Success', 'Social media data saved successfully', 'success');
+        clearForm('addSocialForm');
+        navigateTo('social');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Social Data';
+      }
+    }
+    
+    async function submitSatisfaction(e) {
+      e.preventDefault();
+      const btn = document.getElementById('satisfactionSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      try {
+        const form = e.target;
+        const data = {
+          customerEmail: form.customerEmail.value,
+          orderId: form.orderId.value,
+          score: Number(form.score.value),
+          category: form.category.value,
+          notes: form.notes.value
+        };
+        
+        const result = await callServer('uiCreateSatisfaction', data);
+        showToast('Success', 'Satisfaction record saved', 'success');
+        clearForm('addSatisfactionForm');
+        navigateTo('satisfaction');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Satisfaction';
+      }
+    }
+    
+    async function submitNps(e) {
+      e.preventDefault();
+      const btn = document.getElementById('npsSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      try {
+        const form = e.target;
+        const data = {
+          customerEmail: form.customerEmail.value,
+          orderId: form.orderId.value,
+          score: Number(form.score.value),
+          notes: form.notes.value
+        };
+        
+        const result = await callServer('uiCreateNPS', data);
+        showToast('Success', 'NPS record saved', 'success');
+        clearForm('addNpsForm');
+        navigateTo('nps');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save NPS';
+      }
+    }
+    
+    // ─── INIT ───
+    document.addEventListener('DOMContentLoaded', function() {
+      setDateRange('month');
+      
+      // Handle hash navigation
+      const hash = window.location.hash.replace('#', '');
+      if (hash) navigateTo(hash);
+      else navigateTo('dashboard');
+    });
+    </script>
+    </body>
+    </html>

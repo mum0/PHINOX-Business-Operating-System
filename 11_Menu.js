@@ -20,6 +20,13 @@ function onOpen(e) {
     )
     .addSubMenu(
       SpreadsheetApp.getUi()
+        .createMenu('🖥️ Dashboard')
+        .addItem('📊 Open Dashboard', 'showPhinoxDashboard')
+        .addItem('📱 Sidebar Mode', 'showPhinoxDashboardSidebar')
+    )
+
+    .addSubMenu(
+      SpreadsheetApp.getUi()
         .createMenu('📦 Inventory')
         .addItem('📊 Show Stats', 'menuInventoryStats')
         .addItem('➕ Add Item', 'menuInventoryCreate')
