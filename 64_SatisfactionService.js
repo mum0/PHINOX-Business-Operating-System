@@ -4,7 +4,7 @@
  * Phase 8E — PHINOX BOS v5
  */
 
-const SatisfactionService = (function() {
+var SatisfactionService = (function() {
  'use strict';
 
  const C = SatisfactionSchema.CATEGORY;
@@ -47,6 +47,9 @@ const SatisfactionService = (function() {
  Logger.info('SatisfactionService', 'Record created', { id: created.id, email: created.customerEmail, score: created.score });
  return created.id;
  }
+
+ function createSatisfaction(data) { return createRecord(data); }
+
 
  function getRecord(id) { return id ? SatisfactionRepository.findById(id) : null; }
  function getRecords(options) { return SatisfactionRepository.findAll(options); }
@@ -122,6 +125,7 @@ const SatisfactionService = (function() {
 
  return {
  createRecord: createRecord,
+ createSatisfaction: createSatisfaction,
  getRecord: getRecord,
  getRecords: getRecords,
  updateRecord: updateRecord,

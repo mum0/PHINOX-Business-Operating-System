@@ -6,7 +6,7 @@
  * Phase 8B — PHINOX BOS v5
  */
 
-const CustomerService = (function() {
+var CustomerService = (function() {
  'use strict';
 
  const S = CustomerSchema.STATUS;
@@ -280,6 +280,25 @@ const CustomerService = (function() {
  return marked;
  }
 
+
+
+ // ============ STATS DASHBOARD ============
+
+ function getCustomerStats() {
+ var result = CustomerRepository.findAll({ limit: CONFIG.PAGINATION.MAX_LIMIT });
+ var customers = result && result.data ? result.data : [];
+ var active = 0, churned = 0, returning = 0, newThisMonth = 0;
+ var now = new Date();
+ customers.forEach(function(c) {
+ if (c.status === S.ACTIVE) active++;
+ if (c.status === S.CHURNED) churned++;
+ if (_toNumber(c.totalOrders) > 1) returning++;
+ var join = c.joinDate ? new Date(c.joinDate) : null;
+ if (join && join.getMonth() === now.getMonth() && join.getFullYear() === now.getFullYear()) newThisMonth++;
+ });
+ return { total: customers.length, active: active, churned: churned, returning: returning, newThisMonth: newThisMonth };
+ }
+
  return {
  // CRUD
  createCustomer: createCustomer,
@@ -306,6 +325,7 @@ const CustomerService = (function() {
  getAverageOrderFrequency: getAverageOrderFrequency,
  getCustomerLTV: getCustomerLTV,
  getCustomerOrderFrequency: getCustomerOrderFrequency,
- markChurned: markChurned
+ markChurned: markChurned,
+ getCustomerStats: getCustomerStats
  };
 })();

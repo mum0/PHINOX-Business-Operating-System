@@ -5,7 +5,7 @@
  * Phase 8E — PHINOX BOS v5
  */
 
-const NPSService = (function() {
+var NPSService = (function() {
  'use strict';
 
  const CL = NPSSchema.CLASSIFICATION;
@@ -48,6 +48,9 @@ const NPSService = (function() {
  Logger.info('NPSService', 'Record created', { id: created.id, email: created.customerEmail, score: created.score });
  return created.id;
  }
+
+ function createNPS(data) { return createRecord(data); }
+
 
  function getRecord(id) { return id ? NPSRepository.findById(id) : null; }
  function getRecords(options) { return NPSRepository.findAll(options); }
@@ -152,6 +155,7 @@ const NPSService = (function() {
 
  return {
  createRecord: createRecord,
+ createNPS: createNPS,
  getRecord: getRecord,
  getRecords: getRecords,
  updateRecord: updateRecord,

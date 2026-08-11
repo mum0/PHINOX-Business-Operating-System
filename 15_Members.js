@@ -305,3 +305,31 @@
  function refreshMembers() {
  refreshMembersDashboard();
  }
+
+// ─── GLOBAL EXPORT (Phase 8A) ───
+var Members = {
+    addMember: addMember,
+    getMembers: getMembers,
+    getMember: getMember,
+    getMemberById: getMemberById,
+    getMemberByEmail: getMemberByEmail,
+    updateMember: updateMember,
+    deleteMember: deleteMember,
+    activeMembers: activeMembers,
+    inactiveMembers: inactiveMembers,
+    totalMembers: totalMembers,
+    getMembersByDepartment: getMembersByDepartment,
+    getMemberTaskStats: getMemberTaskStats,
+    topProductiveMembers: topProductiveMembers,
+    mostLateMembers: mostLateMembers,
+    lowestQualityMembers: lowestQualityMembers,
+    getAvailableMember: getAvailableMember,
+    memberWorkload: memberWorkload,
+    isMemberAvailable: isMemberAvailable,
+    autoAssignTask: autoAssignTask,
+    refreshMembers: refreshMembers,
+    refreshMembersDashboard: refreshMembersDashboard,
+    memberTaskCount: memberTaskCount,
+    memberActiveTasks: memberActiveTasks,
+    SCHEMA: MEMBER_SCHEMA
+  };
