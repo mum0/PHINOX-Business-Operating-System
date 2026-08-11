@@ -3861,6 +3861,46 @@ function submitNps(e) {
 }
 
 
+
+function openAddMemberModal() {
+  openModal('Add Member',
+    '<div class="form-group"><label class="form-label">Name <span class="required">*</span></label><input type="text" class="form-input" id="addMemberName" required placeholder="Full name"></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Role <span class="required">*</span></label><input type="text" class="form-input" id="addMemberRole" required placeholder="e.g. Developer"></div>' +
+    '<div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" class="form-input" id="addMemberEmail" required placeholder="email@example.com"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="addMemberPhone" placeholder="Phone number"></div>' +
+    '<div class="form-group"><label class="form-label">Department</label><input type="text" class="form-input" id="addMemberDept" placeholder="e.g. Engineering"></div></div>' +
+    '<div class="form-group"><label class="form-label">Status</label><select class="form-select" id="addMemberStatus"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>',
+    '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="submitAddMember()">Save Member</button>'
+  );
+}
+
+function submitAddMember() {
+  var data = {
+    name: document.getElementById('addMemberName').value,
+    role: document.getElementById('addMemberRole').value,
+    email: document.getElementById('addMemberEmail').value,
+    phone: document.getElementById('addMemberPhone').value,
+    department: document.getElementById('addMemberDept').value,
+    status: document.getElementById('addMemberStatus').value
+  };
+
+  if (!data.name || !data.role || !data.email) {
+    showToast('Error', 'Name, Role, and Email are required', 'error');
+    return;
+  }
+
+  callServer('uiAddMember', data)
+    .then(function() {
+      showToast('Success', 'Member added successfully', 'success');
+      closeModal();
+      loadMembers();
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
 // Event delegation for data-action buttons
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('[data-action]');

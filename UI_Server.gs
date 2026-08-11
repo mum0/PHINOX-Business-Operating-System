@@ -579,3 +579,24 @@ function showPhinoxDashboardSidebar() {
     .setWidth(350);
   SpreadsheetApp.getUi().showSidebar(html);
 }
+
+// ============================================================
+// WEB APP ENTRY POINT
+// ============================================================
+
+function doGet(e) {
+  try {
+    var html = HtmlService.createHtmlOutputFromFile('UI_Index')
+      .setTitle('PHINOX BOS v5')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    return html;
+  } catch (err) {
+    return HtmlService.createHtmlOutput(
+      '<h1>PHINOX BOS v5 — Error</h1>' +
+      '<p>Failed to load UI_Index.html</p>' +
+      '<p>Error: ' + err.message + '</p>' +
+      '<p>Please verify that UI_Index.html exists in the project.</p>'
+    ).setTitle('PHINOX BOS v5 — Error');
+  }
+}
+
