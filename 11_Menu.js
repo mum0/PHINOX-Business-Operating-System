@@ -9,6 +9,7 @@ function onOpen(e) {
     .createMenu('🚀 PHINOX BOS')
     .addItem('▶️ Initialize System', 'menuInitialize')
     .addItem('🧪 Run Core Tests', 'menuRunTests')
+    .addItem('📊 Open Dashboard', 'showPhinoxDashboard')
     .addSeparator()
     .addSubMenu(
       SpreadsheetApp.getUi()
@@ -347,3 +348,4 @@ function menuRunMktSocTests() {
     SpreadsheetApp.getUi().alert('Mkt/Soc test failed: ' + e.message);
   }
 }
+
