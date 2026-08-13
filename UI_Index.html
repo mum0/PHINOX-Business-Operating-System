@@ -2467,6 +2467,11 @@ function getDateRange(range) {
   const now = new Date();
   let start, end;
   switch(range) {
+    case 'custom':
+    start = AppState.startDate ? new Date(AppState.startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+    end = AppState.endDate ? new Date(AppState.endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    break;
+
     case 'today':
       start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -2737,6 +2742,29 @@ function navigateTo(page) {
   document.getElementById('sidebarOverlay').classList.remove('open');
 
   loadPageData(page);
+  function loadOrders(dates) {
+  showLoading('ordersTable');
+  callServer('uiGetOrdersByDateRange', dates.start, dates.end)
+    .then(function(result) {
+      var orders = result.data && result.data.data ? result.data.data : [];
+      AppState.ordersData = orders;
+      var tbody = document.querySelector('#ordersTable tbody');
+      if (!tbody) return;
+      if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">' + emptyState('📦', 'No Orders', 'Orders will appear here.') + '</td></tr>';
+        return;
+      }
+      tbody.innerHTML = orders.map(function(o) {
+        return '<tr><td>' + esc(o.id) + '</td><td>' + esc(o.customerEmail) + '</td><td>' + formatCurrency(o.totalAmount) + '</td><td>' + esc(o.status) + '</td><td>' + formatDate(o.createdAt) + '</td><td><div style="display:flex;gap:4px;"><button class="btn btn-sm btn-outline" data-action="view-order" data-id="' + o.id + '">View</button></div></td></tr>';
+      }).join('');
+    })
+    .catch(function(e) {
+      var tbody = document.querySelector('#ordersTable tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Error loading orders: ' + esc(e.message) + '</td></tr>';
+    })
+    .finally(function() { hideLoading('ordersTable'); });
+}
+
 }
 
 function toggleSidebar() {

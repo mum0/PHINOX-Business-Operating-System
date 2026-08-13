@@ -445,6 +445,34 @@ function uiCreateInventoryItem(data) {
   }
 }
 
+function openAddInventoryModal() {
+  openModal('Add Inventory Item',
+    '<div class="form-group"><label>SKU *</label><input type="text" class="form-input" id="addInvSku" placeholder="SKU-001"></div>' +
+    '<div class="form-group"><label>Name *</label><input type="text" class="form-input" id="addInvName" placeholder="Product name"></div>' +
+    '<div class="form-group"><label>Category</label><input type="text" class="form-input" id="addInvCategory" placeholder="e.g. Electronics"></div>' +
+    '<div class="form-group"><label>Quantity *</label><input type="number" class="form-input" id="addInvQty" placeholder="0"></div>' +
+    '<div class="form-group"><label>Cost</label><input type="number" class="form-input" id="addInvCost" placeholder="0.00" step="0.01"></div>' +
+    '<div class="form-group"><label>Price</label><input type="number" class="form-input" id="addInvPrice" placeholder="0.00" step="0.01"></div>',
+    '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="submitAddInventory()">Create Item</button>'
+  );
+}
+
+function submitAddInventory() {
+  var data = {
+    sku: document.getElementById('addInvSku').value.trim(),
+    name: document.getElementById('addInvName').value.trim(),
+    category: document.getElementById('addInvCategory').value.trim(),
+    quantity: parseInt(document.getElementById('addInvQty').value) || 0,
+    cost: parseFloat(document.getElementById('addInvCost').value) || 0,
+    price: parseFloat(document.getElementById('addInvPrice').value) || 0
+  };
+  if (!data.sku || !data.name) { showToast('Error', 'SKU and Name are required', 'error'); return; }
+  callServer('uiCreateInventoryItem', data)
+    .then(function() { showToast('Success', 'Item created', 'success'); closeModal(); loadInventory(); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
 // ============================================================
 // MARKETING APIs
 // ============================================================
