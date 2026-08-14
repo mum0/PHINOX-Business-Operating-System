@@ -7,6 +7,8 @@ const Validator = (function() {
     'use strict';
     
     const RULES = {
+       array: function(value) { return Array.isArray(value); },  // ADD THIS LINE
+
       required: function(value) {
         return value !== undefined && value !== null && value !== '';
       },

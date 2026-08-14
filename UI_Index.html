@@ -1112,6 +1112,18 @@ tbody tr:hover td {
   border-bottom-color: var(--accent);
   font-weight: 600;
 }
+
+/* ─── Phase 2: Expense UI additions ─── */
+.badge-secondary { background: #6c757d; color: #fff; }
+.badge-warning { background: #f59e0b; color: #fff; }
+.badge-success { background: #16a34a; color: #fff; }
+.badge-primary { background: #1a237e; color: #fff; }
+.badge-danger { background: #dc2626; color: #fff; }
+.form-control { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--card); color: var(--text); }
+.form-control:focus { outline: none; border-color: var(--accent); }
+.form-step.hidden { display: none; }
+.review-box { background: var(--bg); padding: 16px; border-radius: 8px; margin: 12px 0; }
+.review-box p { margin: 8px 0; }
 </style>
 </head>
 <body>
@@ -1145,6 +1157,9 @@ tbody tr:hover td {
       <div class="nav-label">Business</div>
       <a href="#finance" class="nav-item" data-page="finance" onclick="navigateTo('finance')">
         <span class="nav-icon">💰</span> Finance
+      </a>
+      <a href="#expenses" class="nav-item" data-page="expenses" onclick="navigateTo('expenses')">
+        <span class="nav-icon">🧾</span> Expenses
       </a>
       <a href="#sales" class="nav-item" data-page="sales" onclick="navigateTo('sales')">
         <span class="nav-icon">📊</span> Sales
@@ -1377,6 +1392,44 @@ tbody tr:hover td {
         <div class="card-header"><div class="card-title">Finance Ledger</div></div>
         <div class="card-body no-padding">
           <div class="table-wrap"><table id="financeLedgerTable"><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+        <!-- ==================== EXPENSES ==================== -->
+    <div class="page" id="page-expenses">
+      <div class="section-header">
+        <div class="section-title">Expenses</div>
+        <div class="section-desc">Track and manage business expenses</div>
+      </div>
+      <div class="grid-4 mb-3" id="expenseKpiCards"></div>
+      <div class="card mb-3">
+        <div class="card-header flex-between">
+          <div class="card-title">Expense Records</div>
+          <div class="flex gap-2">
+            <select id="expenseStatusFilter" class="form-select" onchange="loadExpenses(getDateRange(AppState.dateRange))">
+              <option value="">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Posted">Posted</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <select id="expenseCategoryFilter" class="form-select" onchange="loadExpenses(getDateRange(AppState.dateRange))">
+              <option value="">All Categories</option>
+              <option value="Rent">Rent</option>
+              <option value="Salaries">Salaries</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Shipping">Shipping</option>
+              <option value="Supplies">Supplies</option>
+              <option value="Other">Other</option>
+            </select>
+            <button class="btn btn-primary" onclick="openAddExpenseModal()">+ Add Expense</button>
+          </div>
+        </div>
+        <div class="card-body no-padding">
+          <div class="table-wrap"><table id="expenseTable"><thead><tr><th>Date</th><th>Category</th><th>Title</th><th>Amount</th><th>Status</th><th>Requested By</th><th>Approved By</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
         </div>
       </div>
     </div>
@@ -2350,7 +2403,8 @@ const AppState = {
   customersData: null,
   inventoryData: null,
   tasksData: null,
-  membersData: null
+  membersData: null,
+  expensesData: null
 };
 
 // ─── KPI DEFINITIONS (from 44_KpiSchema.js) ───
@@ -2730,7 +2784,8 @@ function navigateTo(page) {
     'add-marketing': 'Add Marketing Data',
     'add-social': 'Add Social Media Data',
     'add-satisfaction': 'Add Satisfaction',
-    'add-nps': 'Add NPS'
+    'add-nps': 'Add NPS',
+    'expenses': 'Expenses'
   };
   document.getElementById('pageTitle').textContent = titles[page] || page;
 
@@ -2808,6 +2863,7 @@ function loadPageData(page) {
       case 'performance': loadPerformance(dates); break;
       case 'members': loadMembers(); break;
       case 'tasks': loadTasks(dates); break;
+      case 'expenses': loadExpenses(dates); break;
       default: break;
     }
   } catch (e) {
@@ -3036,6 +3092,251 @@ function loadFinance(dates) {
     })
     .finally(function() { hideLoading('financeKpiCards'); });
 }
+
+// ============================================================
+// EXPENSE FUNCTIONS — PHASE 2
+// ============================================================
+
+function loadExpenses(dates) {
+  showLoading('expenseKpiCards');
+  showLoading('expenseTable');
+
+  var statusFilter = document.getElementById('expenseStatusFilter') ? document.getElementById('expenseStatusFilter').value : '';
+  var categoryFilter = document.getElementById('expenseCategoryFilter') ? document.getElementById('expenseCategoryFilter').value : '';
+
+  var options = { limit: 1000 };
+  if (statusFilter) options.status = statusFilter;
+  if (categoryFilter) options.category = categoryFilter;
+
+  callServer('uiGetExpenses', options)
+    .then(function(result) {
+      var expenses = result.data && result.data.data ? result.data.data : [];
+      AppState.expensesData = expenses;
+
+      // KPI Cards
+      var total = 0, pending = 0, approved = 0, posted = 0;
+      expenses.forEach(function(e) {
+        var amt = Number(e.amount) || 0;
+        total += amt;
+        if (e.status === 'Pending') pending += amt;
+        if (e.status === 'Approved') approved += amt;
+        if (e.status === 'Posted') posted += amt;
+      });
+
+      var cardsHtml = '';
+      cardsHtml += buildKpiCard('Total Expenses', total, 0, 'period', 'EGP');
+      cardsHtml += buildKpiCard('Pending Approval', pending, 0, 'period', 'EGP');
+      cardsHtml += buildKpiCard('Approved', approved, 0, 'period', 'EGP');
+      cardsHtml += buildKpiCard('Posted', posted, 0, 'period', 'EGP');
+      document.getElementById('expenseKpiCards').innerHTML = cardsHtml;
+
+      // Table
+      renderTable('expenseTable', expenses, [
+        { key: 'createdAt', fmt: formatDate },
+        { key: 'category' },
+        { key: 'title' },
+        { key: 'amount', fmt: function(v) { return formatCurrency(v); } },
+        { key: 'status', fmt: formatExpenseStatus },
+        { key: 'requestedBy' },
+        { key: 'approvedBy', fmt: function(v) { return v || '—'; } },
+        { key: 'id', fmt: function(v, row) { return getExpenseActions(row.status, row); } }
+      ]);
+    })
+    .catch(function(e) {
+      document.getElementById('expenseKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      renderTable('expenseTable', [], [{key:'date'},{key:'category'},{key:'title'},{key:'amount'},{key:'status'},{key:'requestedBy'},{key:'approvedBy'},{key:'id'}]);
+    })
+    .finally(function() {
+      hideLoading('expenseKpiCards');
+      hideLoading('expenseTable');
+    });
+}
+
+function formatExpenseStatus(status) {
+  var badgeClass = 'badge-secondary';
+  if (status === 'Draft') badgeClass = 'badge-secondary';
+  else if (status === 'Pending') badgeClass = 'badge-warning';
+  else if (status === 'Approved') badgeClass = 'badge-success';
+  else if (status === 'Posted') badgeClass = 'badge-primary';
+  else if (status === 'Rejected') badgeClass = 'badge-danger';
+  return '<span class="badge ' + badgeClass + '">' + esc(status) + '</span>';
+}
+
+function getExpenseActions(status, expense) {
+  var actions = '';
+  if (status === 'Draft') {
+    actions += '<button class="btn btn-sm btn-primary" onclick="submitExpense(\'' + esc(expense.id) + '\')">Submit</button> ';
+    actions += '<button class="btn btn-sm btn-danger" onclick="deleteExpense(\'' + esc(expense.id) + '\')">Delete</button>';
+  } else if (status === 'Pending') {
+    actions += '<button class="btn btn-sm btn-success" onclick="approveExpense(\'' + esc(expense.id) + '\')">Approve</button> ';
+    actions += '<button class="btn btn-sm btn-danger" onclick="openRejectModal(\'' + esc(expense.id) + '\')">Reject</button>';
+  } else if (status === 'Approved') {
+    actions += '<button class="btn btn-sm btn-primary" onclick="postExpense(\'' + esc(expense.id) + '\')">Post to Ledger</button>';
+  } else if (status === 'Rejected') {
+    actions += '<span class="text-muted">—</span>';
+  } else if (status === 'Posted') {
+    actions += '<span class="text-muted">Posted</span>';
+  }
+  return actions;
+}
+
+function openAddExpenseModal() {
+  openModal('Add Expense',
+    '<div class="form-step" id="expenseStep1">' +
+    '  <h4>Step 1: Basic Information</h4>' +
+    '  <div class="form-group"><label>Category *</label><select id="expCategory" class="form-control">' +
+    '    <option value="">Select category</option>' +
+    '    <option value="Rent">Rent</option>' +
+    '    <option value="Salaries">Salaries</option>' +
+    '    <option value="Utilities">Utilities</option>' +
+    '    <option value="Marketing">Marketing</option>' +
+    '    <option value="Shipping">Shipping</option>' +
+    '    <option value="Supplies">Supplies</option>' +
+    '    <option value="Other">Other</option>' +
+    '  </select></div>' +
+    '  <div class="form-group"><label>Amount (EGP) *</label><input type="number" id="expAmount" class="form-control" step="0.01" min="0" /></div>' +
+    '  <div class="form-group"><label>Title *</label><input type="text" id="expTitle" class="form-control" placeholder="e.g. Office Rent Q3" /></div>' +
+    '  <div class="form-group"><label>Description</label><textarea id="expDescription" class="form-control" rows="2" placeholder="Optional details"></textarea></div>' +
+    '</div>' +
+    '<div class="form-step hidden" id="expenseStep2">' +
+    '  <h4>Step 2: Review</h4>' +
+    '  <div class="review-box">' +
+    '    <p><strong>Category:</strong> <span id="reviewCategory"></span></p>' +
+    '    <p><strong>Amount:</strong> <span id="reviewAmount"></span></p>' +
+    '    <p><strong>Title:</strong> <span id="reviewTitle"></span></p>' +
+    '    <p><strong>Description:</strong> <span id="reviewDescription"></span></p>' +
+    '  </div>' +
+    '</div>',
+    '<button class="btn btn-secondary" id="expenseBackBtn" onclick="expensePrevStep()" disabled>Back</button>' +
+    '<button class="btn btn-primary" id="expenseNextBtn" onclick="expenseNextStep()">Next</button>' +
+    '<button class="btn btn-success hidden" id="expenseSubmitBtn" onclick="submitExpenseForm()">Submit Expense</button>' +
+    '<button class="btn btn-light" onclick="closeModal()">Cancel</button>'
+  );
+  window._expenseStep = 1;
+}
+
+function expenseNextStep() {
+  if (window._expenseStep === 1) {
+    var category = document.getElementById('expCategory').value;
+    var amount = document.getElementById('expAmount').value;
+    var title = document.getElementById('expTitle').value.trim();
+    if (!category) { showToast('Error', 'Category is required', 'error'); return; }
+    if (!amount || Number(amount) <= 0) { showToast('Error', 'Valid amount is required', 'error'); return; }
+    if (!title) { showToast('Error', 'Title is required', 'error'); return; }
+
+    document.getElementById('reviewCategory').textContent = category;
+    document.getElementById('reviewAmount').textContent = formatCurrency(Number(amount));
+    document.getElementById('reviewTitle').textContent = title;
+    document.getElementById('reviewDescription').textContent = document.getElementById('expDescription').value || '—';
+
+    document.getElementById('expenseStep1').classList.add('hidden');
+    document.getElementById('expenseStep2').classList.remove('hidden');
+    document.getElementById('expenseBackBtn').disabled = false;
+    document.getElementById('expenseNextBtn').classList.add('hidden');
+    document.getElementById('expenseSubmitBtn').classList.remove('hidden');
+    window._expenseStep = 2;
+  }
+}
+
+function expensePrevStep() {
+  if (window._expenseStep === 2) {
+    document.getElementById('expenseStep2').classList.add('hidden');
+    document.getElementById('expenseStep1').classList.remove('hidden');
+    document.getElementById('expenseBackBtn').disabled = true;
+    document.getElementById('expenseNextBtn').classList.remove('hidden');
+    document.getElementById('expenseSubmitBtn').classList.add('hidden');
+    window._expenseStep = 1;
+  }
+}
+
+function submitExpenseForm() {
+  var data = {
+    category: document.getElementById('expCategory').value,
+    amount: Number(document.getElementById('expAmount').value),
+    title: document.getElementById('expTitle').value.trim(),
+    description: document.getElementById('expDescription').value.trim()
+  };
+  callServer('uiCreateExpense', data)
+    .then(function(res) {
+      showToast('Success', 'Expense created: ' + res.id, 'success');
+      closeModal();
+      loadExpenses(getDateRange(AppState.dateRange));
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
+function submitExpense(id) {
+  if (!confirm('Submit this expense for approval?')) return;
+  callServer('uiSubmitExpense', id)
+    .then(function() {
+      showToast('Success', 'Expense submitted for approval', 'success');
+      loadExpenses(getDateRange(AppState.dateRange));
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
+function approveExpense(id) {
+  if (!confirm('Approve this expense?')) return;
+  callServer('uiApproveExpense', id)
+    .then(function() {
+      showToast('Success', 'Expense approved', 'success');
+      loadExpenses(getDateRange(AppState.dateRange));
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
+function openRejectModal(id) {
+  openModal('Reject Expense',
+    '<div class="form-group"><label>Rejection Reason *</label><textarea id="rejectReason" class="form-control" rows="3" placeholder="Why is this expense being rejected?"></textarea></div>',
+    '<button class="btn btn-danger" onclick="rejectExpense(\'' + id + '\')">Reject</button>' +
+    '<button class="btn btn-light" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function rejectExpense(id) {
+  var reason = document.getElementById('rejectReason').value.trim();
+  if (!reason) { showToast('Error', 'Rejection reason is required', 'error'); return; }
+  callServer('uiRejectExpense', id, reason)
+    .then(function() {
+      showToast('Success', 'Expense rejected', 'success');
+      closeModal();
+      loadExpenses(getDateRange(AppState.dateRange));
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
+function postExpense(id) {
+  if (!confirm('Post this approved expense to the ledger? This action is irreversible.')) return;
+  callServer('uiPostExpense', id)
+    .then(function() {
+      showToast('Success', 'Expense posted to ledger', 'success');
+      loadExpenses(getDateRange(AppState.dateRange));
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
+function deleteExpense(id) {
+  if (!confirm('Delete this draft expense? This cannot be undone.')) return;
+  callServer('uiDeleteExpense', id)
+    .then(function() {
+      showToast('Success', 'Expense deleted', 'success');
+      loadExpenses(getDateRange(AppState.dateRange));
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
 
 function loadSales(dates) {
   showLoading('salesKpiCards');

@@ -1,7 +1,12 @@
 /**
+ * ============================================================
+ * PHINOX BOS — Setup Module
  * Initialize sheets, headers, and properties.
  * Run once per spreadsheet.
  * UPDATED v7C: Added Marketing Spend and Social Media Performance sheets
+ * PHASE 3A.1: Inventory headers now obtained from canonical InventorySchema
+ * PHASE 3B: Added StockMovement sheet with canonical StockMovementSchema
+ * ============================================================
  */
 
 const Setup = (function() {
@@ -15,10 +20,6 @@ const Setup = (function() {
     'Members': {
       headers: ['id','name','email','role','department','kpiScore','status','createdAt','updatedAt'],
       widths: [22, 20, 25, 12, 15, 10, 10, 20, 20]
-    },
-    'Inventory': {
-      headers: ['id','sku','name','category','quantity','minStock','unitCost','location','status','createdAt','updatedAt'],
-      widths: [22, 15, 25, 15, 10, 10, 12, 15, 10, 20, 20]
     },
     'Finance': {
       headers: ['id','type','category','amount','currency','date','description','reference','status','createdAt','updatedAt'],
@@ -70,6 +71,43 @@ const Setup = (function() {
     }
   };
 
+  /**
+   * PHASE 3A.1: Obtain Inventory configuration from canonical InventorySchema.
+   * This ensures Setup.js never drifts from the schema again.
+   * Fallback hardcodes the correct 20-column headers if schema is unavailable.
+   */
+  function _getInventoryConfig() {
+    if (typeof InventorySchema !== 'undefined' && typeof InventorySchema.getSheetHeaders === 'function') {
+      return {
+        headers: InventorySchema.getSheetHeaders(),
+        widths: [22, 15, 25, 15, 10, 10, 10, 10, 10, 12, 12, 15, 10, 15, 10, 30, 20, 20, 25, 12]
+      };
+    }
+    // Fallback: canonical 20-column headers (must match InventorySchema exactly)
+    return {
+      headers: ['id','sku','name','category','size','color','quantity','reserved','available','cost','price','location','reorderLevel','supplierId','status','notes','createdAt','updatedAt','createdBy','type'],
+      widths: [22, 15, 25, 15, 10, 10, 10, 10, 10, 12, 12, 15, 10, 15, 10, 30, 20, 20, 25, 12]
+    };
+  }
+
+  /**
+   * PHASE 3B: Obtain StockMovement configuration from canonical StockMovementSchema.
+   * Fallback hardcodes the correct 13-column headers if schema is unavailable.
+   */
+  function _getStockMovementConfig() {
+    if (typeof StockMovementSchema !== 'undefined' && typeof StockMovementSchema.getSheetHeaders === 'function') {
+      return {
+        headers: StockMovementSchema.getSheetHeaders(),
+        widths: [22, 22, 15, 12, 10, 10, 10, 20, 15, 22, 30, 20, 25]
+      };
+    }
+    // Fallback: canonical 13-column headers (must match StockMovementSchema exactly)
+    return {
+      headers: ['id','inventoryId','sku','movementType','quantity','quantityBefore','quantityAfter','reason','referenceType','referenceId','notes','createdAt','createdBy'],
+      widths: [22, 22, 15, 12, 10, 10, 10, 20, 15, 22, 30, 20, 25]
+    };
+  }
+
   function createSheet(ss, name, cfg) {
     let sheet = ss.getSheetByName(name);
     if (sheet) {
@@ -99,9 +137,16 @@ const Setup = (function() {
     run: function() {
       const ss = SpreadsheetApp.getActiveSpreadsheet();
 
+      // Create all standard sheets from SHEET_CONFIGS
       Object.keys(SHEET_CONFIGS).forEach(function(name) {
         createSheet(ss, name, SHEET_CONFIGS[name]);
       });
+
+      // PHASE 3A.1: Create Inventory sheet from canonical schema
+      createSheet(ss, 'Inventory', _getInventoryConfig());
+
+      // PHASE 3B: Create StockMovement sheet from canonical schema
+      createSheet(ss, 'StockMovement', _getStockMovementConfig());
 
       // Default settings
       const settingsSheet = ss.getSheetByName('Settings');
@@ -122,12 +167,14 @@ const Setup = (function() {
       });
 
       Logger.info('Setup', 'Initialization complete');
-      return 'System initialized. Sheets created: ' + Object.keys(SHEET_CONFIGS).join(', ');
+      return 'System initialized. Sheets created: ' + Object.keys(SHEET_CONFIGS).join(', ') + ', Inventory, StockMovement';
     },
 
     reset: function() {
       // Dangerous: deletes all data. Use with caution.
       const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      // Reset standard sheets
       Object.keys(SHEET_CONFIGS).forEach(function(name) {
         const sheet = ss.getSheetByName(name);
         if (sheet) {
@@ -135,6 +182,21 @@ const Setup = (function() {
           sheet.appendRow(SHEET_CONFIGS[name].headers);
         }
       });
+
+      // PHASE 3A.1: Reset Inventory sheet from canonical schema
+      const invSheet = ss.getSheetByName('Inventory');
+      if (invSheet) {
+        invSheet.clearContents();
+        invSheet.appendRow(_getInventoryConfig().headers);
+      }
+
+      // PHASE 3B: Reset StockMovement sheet from canonical schema
+      const smSheet = ss.getSheetByName('StockMovement');
+      if (smSheet) {
+        smSheet.clearContents();
+        smSheet.appendRow(_getStockMovementConfig().headers);
+      }
+
       Logger.warn('Setup', 'System reset performed');
       return 'System reset complete.';
     }

@@ -3,7 +3,46 @@
  * Phase: FINAL HTML / UI / UX DASHBOARD
  * These functions wrap existing backend services for frontend consumption.
  * DO NOT MODIFY BACKEND LOGIC.
+ * ============================================================
+ * PHASE 1 SECURITY FIXES (2026-08-14):
+ * 1. Added _requireAuth(permission) centralized authorization helper
+ * 2. All business functions now enforce RBAC before executing service calls
+ * 3. DELETE endpoints protected first (highest risk)
+ * 4. CREATE endpoints protected second
+ * 5. UPDATE endpoints protected third
+ * 6. READ endpoints protected fourth
+ * 7. UI launch functions (doGet, showPhinoxDashboard) remain unprotected by design
+ * 8. No function signatures, arguments, or return structures changed
+ * ============================================================
  */
+
+// ============================================================
+// AUTHORIZATION HELPER
+// ============================================================
+
+/**
+ * Centralized authorization check for all UI business functions.
+ *
+ * @param {string} permission - The PERMISSIONS constant to check
+ * @returns {Array} The authenticated member array (for audit/logging if needed)
+ * @throws {Error} If no active member or insufficient permission
+ */
+function _requireAuth(permission) {
+  var member = getCurrentMember();
+  if (!member) {
+    throw new Error('Authentication required. Please ensure you are registered as an active member in the system.');
+  }
+  if (!hasPermission(member, permission)) {
+    // Log authorization failure for audit trail
+    try {
+      logActivity(member, 'Access Denied', 'UI_Server', permission, '', 'Unauthorized attempt');
+    } catch (e) {
+      // If audit logging fails, continue — security check is more important
+    }
+    throw new Error('Access denied: ' + permission);
+  }
+  return member;
+}
 
 // ============================================================
 // KPI APIs
@@ -11,6 +50,7 @@
 
 function uiGetDashboardKpis() {
   try {
+    _requireAuth(PERMISSIONS.KPI_READ);
     var dashboard = KpiService.getDashboardKpis();
     return { success: true, data: dashboard };
   } catch (e) {
@@ -20,6 +60,7 @@ function uiGetDashboardKpis() {
 
 function uiGetKpiHistory(kpiId, limit) {
   try {
+    _requireAuth(PERMISSIONS.KPI_READ);
     var history = KpiService.getKpiHistory(kpiId, limit || 12);
     return { success: true, data: history };
   } catch (e) {
@@ -29,6 +70,7 @@ function uiGetKpiHistory(kpiId, limit) {
 
 function uiCalculateCategory(category, periodType, refDate) {
   try {
+    _requireAuth(PERMISSIONS.KPI_READ);
     var results = KpiService.calculateCategory(category, periodType, refDate);
     return { success: true, data: results };
   } catch (e) {
@@ -38,6 +80,7 @@ function uiCalculateCategory(category, periodType, refDate) {
 
 function uiCalculateAll(periodType, refDate) {
   try {
+    _requireAuth(PERMISSIONS.KPI_READ);
     var results = KpiService.calculateAll(periodType, refDate);
     return { success: true, data: results };
   } catch (e) {
@@ -51,6 +94,7 @@ function uiCalculateAll(periodType, refDate) {
 
 function uiGetCustomers(options) {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_READ);
     var result = CustomerService.getCustomers(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -60,6 +104,7 @@ function uiGetCustomers(options) {
 
 function uiGetCustomer(id) {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_READ);
     var customer = CustomerService.getCustomer(id);
     return { success: true, data: customer };
   } catch (e) {
@@ -69,6 +114,7 @@ function uiGetCustomer(id) {
 
 function uiGetCustomerStats() {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_READ);
     var stats = CustomerService.getCustomerStats();
     return { success: true, data: stats };
   } catch (e) {
@@ -78,6 +124,7 @@ function uiGetCustomerStats() {
 
 function uiCreateCustomer(data) {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_WRITE);
     var id = CustomerService.createCustomer(data);
     return { success: true, id: id };
   } catch (e) {
@@ -87,6 +134,7 @@ function uiCreateCustomer(data) {
 
 function uiUpdateCustomer(id, data) {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_WRITE);
     var updated = CustomerService.updateCustomer(id, data);
     return { success: true, data: updated };
   } catch (e) {
@@ -96,6 +144,7 @@ function uiUpdateCustomer(id, data) {
 
 function uiDeleteCustomer(id) {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_DELETE);
     CustomerService.deleteCustomer(id);
     return { success: true };
   } catch (e) {
@@ -105,6 +154,7 @@ function uiDeleteCustomer(id) {
 
 function uiSyncCustomers() {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_WRITE);
     var result = CustomerService.syncFromOrders();
     return { success: true, data: result };
   } catch (e) {
@@ -118,6 +168,7 @@ function uiSyncCustomers() {
 
 function uiGetSatisfactionRecords(options) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_READ);
     var result = SatisfactionService.getRecords(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -127,6 +178,7 @@ function uiGetSatisfactionRecords(options) {
 
 function uiGetSatisfactionStats(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_READ);
     var avg = SatisfactionService.getAverageScore(startDate, endDate);
     var count = SatisfactionService.getCount(startDate, endDate);
     var records = SatisfactionService.getByDateRange(startDate, endDate);
@@ -138,6 +190,7 @@ function uiGetSatisfactionStats(startDate, endDate) {
 
 function uiCreateSatisfaction(data) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_WRITE);
     var id = SatisfactionService.createSatisfaction(data);
     return { success: true, id: id };
   } catch (e) {
@@ -151,6 +204,7 @@ function uiCreateSatisfaction(data) {
 
 function uiGetNPSRecords(options) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_READ);
     var result = NPSService.getRecords(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -160,6 +214,7 @@ function uiGetNPSRecords(options) {
 
 function uiGetNPSStats(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_READ);
     var nps = NPSService.getNPS(startDate, endDate);
     var breakdown = NPSService.getBreakdown(startDate, endDate);
     var count = NPSService.getCount(startDate, endDate);
@@ -171,6 +226,7 @@ function uiGetNPSStats(startDate, endDate) {
 
 function uiCreateNPS(data) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_WRITE);
     var id = NPSService.createNPS(data);
     return { success: true, id: id };
   } catch (e) {
@@ -184,6 +240,7 @@ function uiCreateNPS(data) {
 
 function uiGetTasks(options) {
   try {
+    _requireAuth(PERMISSIONS.TASKS_READ);
     var result = TaskService.getTasks(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -193,6 +250,7 @@ function uiGetTasks(options) {
 
 function uiGetTasksByDateRange(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.TASKS_READ);
     var result = TaskService.getTasksByDateRange(startDate, endDate);
     return { success: true, data: result };
   } catch (e) {
@@ -202,6 +260,7 @@ function uiGetTasksByDateRange(startDate, endDate) {
 
 function uiGetTaskStats(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.TASKS_READ);
     var completed = TaskService.getCompletedTasksByDateRange(startDate, endDate);
     var overdue = TaskService.getOverdueTasks(startDate, endDate);
     var avgTime = TaskService.getAverageCompletionTime(startDate, endDate);
@@ -226,6 +285,7 @@ function uiGetTaskStats(startDate, endDate) {
 
 function uiCreateTask(data) {
   try {
+    _requireAuth(PERMISSIONS.TASKS_WRITE);
     var id = TaskService.createTask(data);
     return { success: true, id: id };
   } catch (e) {
@@ -235,6 +295,7 @@ function uiCreateTask(data) {
 
 function uiUpdateTask(id, data) {
   try {
+    _requireAuth(PERMISSIONS.TASKS_WRITE);
     var updated = TaskService.updateTask(id, data);
     return { success: true, data: updated };
   } catch (e) {
@@ -244,6 +305,7 @@ function uiUpdateTask(id, data) {
 
 function uiDeleteTask(id) {
   try {
+    _requireAuth(PERMISSIONS.TASKS_DELETE);
     TaskService.deleteTask(id);
     return { success: true };
   } catch (e) {
@@ -257,6 +319,7 @@ function uiDeleteTask(id) {
 
 function uiGetMembers() {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_READ);
     var members = Members.getMembers();
     return { success: true, data: members };
   } catch (e) {
@@ -266,6 +329,7 @@ function uiGetMembers() {
 
 function uiGetMemberStats() {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_READ);
     var total = Members.totalMembers();
     var active = Members.activeMembers();
     return { success: true, data: { total: total, active: active.length } };
@@ -276,6 +340,7 @@ function uiGetMemberStats() {
 
 function uiAddMember(data) {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_WRITE);
     var id = Members.addMember(data);
     return { success: true, id: id };
   } catch (e) {
@@ -285,6 +350,7 @@ function uiAddMember(data) {
 
 function uiUpdateMember(id, data) {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_WRITE);
     Members.updateMember(id, data);
     return { success: true };
   } catch (e) {
@@ -294,6 +360,7 @@ function uiUpdateMember(id, data) {
 
 function uiDeleteMember(id) {
   try {
+    _requireAuth(PERMISSIONS.MEMBERS_DELETE);
     Members.deleteMember(id);
     return { success: true };
   } catch (e) {
@@ -307,6 +374,7 @@ function uiDeleteMember(id) {
 
 function uiGetSales(options) {
   try {
+    _requireAuth(PERMISSIONS.ORDERS_READ);
     var result = SaleService.getSales(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -316,6 +384,7 @@ function uiGetSales(options) {
 
 function uiGetSalesByDateRange(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.ORDERS_READ);
     var result = SaleService.getSalesByDateRange(startDate, endDate);
     return { success: true, data: result };
   } catch (e) {
@@ -325,6 +394,7 @@ function uiGetSalesByDateRange(startDate, endDate) {
 
 function uiCreateSale(data) {
   try {
+    _requireAuth(PERMISSIONS.ORDERS_WRITE);
     var id = SaleService.createSale(data);
     return { success: true, id: id };
   } catch (e) {
@@ -338,6 +408,7 @@ function uiCreateSale(data) {
 
 function uiGetOrders(options) {
   try {
+    _requireAuth(PERMISSIONS.ORDERS_READ);
     var result = OrderService.getOrders(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -347,6 +418,7 @@ function uiGetOrders(options) {
 
 function uiGetOrdersByDateRange(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.ORDERS_READ);
     var result = OrderService.getOrdersByDateRange(startDate, endDate);
     return { success: true, data: result };
   } catch (e) {
@@ -356,6 +428,7 @@ function uiGetOrdersByDateRange(startDate, endDate) {
 
 function uiCreateOrder(data) {
   try {
+    _requireAuth(PERMISSIONS.ORDERS_WRITE);
     var id = OrderService.createOrder(data);
     return { success: true, id: id };
   } catch (e) {
@@ -365,6 +438,7 @@ function uiCreateOrder(data) {
 
 function uiUpdateOrderStatus(id, status) {
   try {
+    _requireAuth(PERMISSIONS.ORDERS_WRITE);
     var result;
     if (status === 'Confirmed') result = OrderService.confirmOrder(id);
     else if (status === 'Shipped') result = OrderService.shipOrder(id);
@@ -383,6 +457,7 @@ function uiUpdateOrderStatus(id, status) {
 
 function uiGetFinanceStats(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.FINANCE_READ);
     var pnl = FinanceService.getProfitAndLoss(startDate, endDate);
     var cashFlow = FinanceService.getCashFlow(startDate, endDate);
     var cashBalance = FinanceService.getCashBalance('Cash', endDate);
@@ -394,6 +469,7 @@ function uiGetFinanceStats(startDate, endDate) {
 
 function uiGetLedger(options) {
   try {
+    _requireAuth(PERMISSIONS.FINANCE_READ);
     var result = FinanceService.getLedger(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -407,6 +483,7 @@ function uiGetLedger(options) {
 
 function uiGetInventory(options) {
   try {
+    _requireAuth(PERMISSIONS.INVENTORY_READ);
     var result = InventoryService.getItems(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -416,6 +493,7 @@ function uiGetInventory(options) {
 
 function uiGetInventoryStats() {
   try {
+    _requireAuth(PERMISSIONS.INVENTORY_READ);
     var total = InventoryService.totalItems();
     var lowStock = InventoryService.getLowStockItems();
     var outOfStock = InventoryService.getOutOfStockItems();
@@ -438,6 +516,7 @@ function uiGetInventoryStats() {
 
 function uiCreateInventoryItem(data) {
   try {
+    _requireAuth(PERMISSIONS.INVENTORY_WRITE);
     var id = InventoryService.createItem(data);
     return { success: true, id: id };
   } catch (e) {
@@ -447,14 +526,15 @@ function uiCreateInventoryItem(data) {
 
 function openAddInventoryModal() {
   openModal('Add Inventory Item',
-    '<div class="form-group"><label>SKU *</label><input type="text" class="form-input" id="addInvSku" placeholder="SKU-001"></div>' +
-    '<div class="form-group"><label>Name *</label><input type="text" class="form-input" id="addInvName" placeholder="Product name"></div>' +
-    '<div class="form-group"><label>Category</label><input type="text" class="form-input" id="addInvCategory" placeholder="e.g. Electronics"></div>' +
-    '<div class="form-group"><label>Quantity *</label><input type="number" class="form-input" id="addInvQty" placeholder="0"></div>' +
-    '<div class="form-group"><label>Cost</label><input type="number" class="form-input" id="addInvCost" placeholder="0.00" step="0.01"></div>' +
-    '<div class="form-group"><label>Price</label><input type="number" class="form-input" id="addInvPrice" placeholder="0.00" step="0.01"></div>',
-    '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
-    '<button class="btn btn-primary" onclick="submitAddInventory()">Create Item</button>'
+    '<p><label>SKU *</label><input type="text" id="addInvSku" /></p>' +
+    '<p><label>Name *</label><input type="text" id="addInvName" /></p>' +
+    '<p><label>Category</label><input type="text" id="addInvCategory" /></p>' +
+    '<p><label>Quantity *</label><input type="number" id="addInvQty" /></p>' +
+    '<p><label>Cost</label><input type="number" id="addInvCost" /></p>' +
+    '<p><label>Price</label><input type="number" id="addInvPrice" /></p>',
+    '' +
+    '<button onclick="submitAddInventory()">Add</button>' +
+    '<button onclick="closeModal()">Cancel</button>'
   );
 }
 
@@ -479,6 +559,7 @@ function submitAddInventory() {
 
 function uiGetMarketingRecords(options) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_READ);
     var result = MktService.getRecords(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -488,6 +569,7 @@ function uiGetMarketingRecords(options) {
 
 function uiGetMarketingStats(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_READ);
     var spend = MktService.getTotalSpend(startDate, endDate);
     var impressions = MktService.getTotalImpressions(startDate, endDate);
     var reach = MktService.getTotalReach(startDate, endDate);
@@ -519,6 +601,7 @@ function uiGetMarketingStats(startDate, endDate) {
 
 function uiCreateMarketingRecord(data) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_WRITE);
     var id = MktService.createRecord(data);
     return { success: true, id: id };
   } catch (e) {
@@ -532,6 +615,7 @@ function uiCreateMarketingRecord(data) {
 
 function uiGetSocialRecords(options) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_READ);
     var result = SocService.getRecords(options || { limit: 1000 });
     return { success: true, data: result };
   } catch (e) {
@@ -541,6 +625,7 @@ function uiGetSocialRecords(options) {
 
 function uiGetSocialStats(startDate, endDate) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_READ);
     var followers = SocService.getFollowersAtDate(endDate);
     var reach = SocService.getTotalReach(startDate, endDate);
     var impressions = SocService.getTotalImpressions(startDate, endDate);
@@ -582,6 +667,7 @@ function uiGetSocialStats(startDate, endDate) {
 
 function uiCreateSocialRecord(data) {
   try {
+    _requireAuth(PERMISSIONS.REPORTS_WRITE);
     var id = SocService.createRecord(data);
     return { success: true, id: id };
   } catch (e) {
@@ -589,8 +675,100 @@ function uiCreateSocialRecord(data) {
   }
 }
 
+
+
 // ============================================================
-// LAUNCH UI
+// EXPENSE APIs — PHASE 2
+// ============================================================
+
+function uiGetExpenses(options) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_READ);
+    var result = FinanceService.getExpenseRequests(options || { limit: 1000 });
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiGetExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_READ);
+    var result = FinanceService.getExpenseRequest(id);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiCreateExpense(data) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_WRITE);
+    var id = FinanceService.createExpenseRequest(data);
+    return { success: true, id: id };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiSubmitExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_WRITE);
+    var result = FinanceService.submitExpenseRequest(id);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiApproveExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
+    var member = getCurrentMember();
+    var approverName = member ? member[MEMBER_COL.FULL_NAME] : 'System';
+    var result = FinanceService.approveExpenseRequest(id, approverName);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiRejectExpense(id, reason) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
+    var member = getCurrentMember();
+    var approverName = member ? member[MEMBER_COL.FULL_NAME] : 'System';
+    var result = FinanceService.rejectExpenseRequest(id, approverName, reason);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiPostExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
+    var result = FinanceService.postExpenseToLedger(id);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiDeleteExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_DELETE);
+    FinanceService.deleteExpenseRequest(id);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ============================================================
+// LAUNCH UI — NO BUSINESS PERMISSIONS REQUIRED
+// These are UI/bootstrap functions. Authorization is enforced
+// at the data layer (all business functions above).
 // ============================================================
 
 function showPhinoxDashboard() {
@@ -609,7 +787,8 @@ function showPhinoxDashboardSidebar() {
 }
 
 // ============================================================
-// WEB APP ENTRY POINT
+// WEB APP ENTRY POINT — NO BUSINESS PERMISSIONS REQUIRED
+// Authorization enforced at data layer.
 // ============================================================
 
 function doGet(e) {
@@ -620,11 +799,11 @@ function doGet(e) {
     return html;
   } catch (err) {
     return HtmlService.createHtmlOutput(
-      '<h1>PHINOX BOS v5 — Error</h1>' +
-      '<p>Failed to load UI_Index.html</p>' +
+      '<div style="padding:40px;font-family:sans-serif;text-align:center;">' +
+      '<h2>Failed to load UI_Index.html</h2>' +
       '<p>Error: ' + err.message + '</p>' +
-      '<p>Please verify that UI_Index.html exists in the project.</p>'
+      '<p>Please verify that UI_Index.html exists in the project.</p>' +
+      '</div>'
     ).setTitle('PHINOX BOS v5 — Error');
   }
 }
-
