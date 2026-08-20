@@ -27,8 +27,8 @@ const BOMAItemSchema = (function() {
       quantityRequired: { required: true, type: 'number', min: 0.01 },
       unit: { type: 'string', maxLength: 20 },
       wastagePercent: { type: 'number', min: 0, max: 100 },
-      notes: { type: 'string', maxLength: 2000 },
-      active: { type: 'boolean' }
+      notes: { type: 'string', maxLength: 2000 }
+      // 'active' is normalized manually in BOMService (boolean coercion)
     });
   
     function getDefaultItem() {

@@ -8,6 +8,7 @@
  * PHASE 3A.2: Added _ensureInventoryHeaders() to migrate existing sheets
  * PHASE 3B: Added StockMovement sheet with canonical StockMovementSchema
  * PHASE 3C: Added BOM and BOM_ITEM sheets with canonical schemas
+ * EXCEPTION: Added Orders sheet per OrderSchema (required for Phase 3C Step 25)
  * ============================================================
  */
 
@@ -30,6 +31,10 @@ const Setup = (function() {
     'Sales': {
       headers: ['id','customerId','productId','quantity','unitPrice','total','status','channel','date','createdAt','updatedAt'],
       widths: [22, 22, 22, 10, 12, 12, 10, 12, 15, 20, 20]
+    },
+    'Orders': {
+      headers: ['id','customerEmail','items','itemsTotal','shippingCost','totalAmount','status','shippingAddress','notes','createdAt','updatedAt','createdBy'],
+      widths: [22, 25, 40, 12, 12, 12, 12, 30, 30, 20, 20, 25]
     },
     'Logs': {
       headers: ['Timestamp','Level','Module','User','Message','Context'],

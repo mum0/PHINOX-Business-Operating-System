@@ -21,8 +21,8 @@ const BOMSchema = (function() {
     const VALIDATION = Object.freeze({
       finishedProductSku: { required: true, type: 'string', minLength: 1, maxLength: 50 },
       name: { required: true, type: 'string', minLength: 1, maxLength: 200 },
-      description: { type: 'string', maxLength: 2000 },
-      active: { type: 'boolean' }
+      description: { type: 'string', maxLength: 2000 }
+      // 'active' is normalized manually in BOMService (boolean coercion)
     });
   
     function getDefaultBOM() {

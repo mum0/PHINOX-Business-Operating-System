@@ -203,6 +203,9 @@ const BOMService = (function() {
       }
   
       item.quantityRequired = _toNumber(item.quantityRequired);
+      if (item.quantityRequired <= 0) {
+        throw ErrorHandler.validation('quantityRequired must be greater than 0', { quantityRequired: item.quantityRequired }, 'BOMService');
+      }
       item.wastagePercent = _toNumber(item.wastagePercent);
       if (item.wastagePercent < 0 || item.wastagePercent > 100) {
         throw ErrorHandler.validation('Wastage must be between 0 and 100', { wastagePercent: item.wastagePercent }, 'BOMService');
@@ -246,6 +249,9 @@ const BOMService = (function() {
         _checkComponent(data.componentSku);
       }
       if (data.quantityRequired !== undefined) data.quantityRequired = _toNumber(data.quantityRequired);
+      if (data.quantityRequired <= 0) {
+        throw ErrorHandler.validation('quantityRequired must be greater than 0', { quantityRequired: data.quantityRequired }, 'BOMService');
+      }
       if (data.wastagePercent !== undefined) {
         data.wastagePercent = _toNumber(data.wastagePercent);
         if (data.wastagePercent < 0 || data.wastagePercent > 100) {
