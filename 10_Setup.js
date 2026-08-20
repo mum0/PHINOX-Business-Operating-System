@@ -5,7 +5,9 @@
  * Run once per spreadsheet.
  * UPDATED v7C: Added Marketing Spend and Social Media Performance sheets
  * PHASE 3A.1: Inventory headers now obtained from canonical InventorySchema
+ * PHASE 3A.2: Added _ensureInventoryHeaders() to migrate existing sheets
  * PHASE 3B: Added StockMovement sheet with canonical StockMovementSchema
+ * PHASE 3C: Added BOM and BOM_ITEM sheets with canonical schemas
  * ============================================================
  */
 
@@ -73,8 +75,6 @@ const Setup = (function() {
 
   /**
    * PHASE 3A.1: Obtain Inventory configuration from canonical InventorySchema.
-   * This ensures Setup.js never drifts from the schema again.
-   * Fallback hardcodes the correct 20-column headers if schema is unavailable.
    */
   function _getInventoryConfig() {
     if (typeof InventorySchema !== 'undefined' && typeof InventorySchema.getSheetHeaders === 'function') {
@@ -83,7 +83,6 @@ const Setup = (function() {
         widths: [22, 15, 25, 15, 10, 10, 10, 10, 10, 12, 12, 15, 10, 15, 10, 30, 20, 20, 25, 12]
       };
     }
-    // Fallback: canonical 20-column headers (must match InventorySchema exactly)
     return {
       headers: ['id','sku','name','category','size','color','quantity','reserved','available','cost','price','location','reorderLevel','supplierId','status','notes','createdAt','updatedAt','createdBy','type'],
       widths: [22, 15, 25, 15, 10, 10, 10, 10, 10, 12, 12, 15, 10, 15, 10, 30, 20, 20, 25, 12]
@@ -91,8 +90,56 @@ const Setup = (function() {
   }
 
   /**
+   * PHASE 3A.2: Ensure existing Inventory sheet has correct 20-column headers.
+   */
+  function _ensureInventoryHeaders(ss) {
+    var sheet = ss.getSheetByName('Inventory');
+    if (!sheet) return;
+    var config = _getInventoryConfig();
+    var expectedHeaders = config.headers;
+    var currentHeaders = [];
+    var currentColCount = sheet.getLastColumn();
+    if (currentColCount > 0) {
+      currentHeaders = sheet.getRange(1, 1, 1, currentColCount).getValues()[0];
+    }
+    var needsFix = false;
+    if (currentHeaders.length !== expectedHeaders.length) {
+      needsFix = true;
+    } else {
+      for (var i = 0; i < expectedHeaders.length; i++) {
+        if (currentHeaders[i] !== expectedHeaders[i]) {
+          needsFix = true;
+          break;
+        }
+      }
+    }
+    if (!needsFix) {
+      Logger.info('Setup', 'Inventory headers verified', { columns: expectedHeaders.length });
+      return;
+    }
+    var maxCols = sheet.getMaxColumns();
+    if (maxCols < expectedHeaders.length) {
+      sheet.insertColumnsAfter(maxCols, expectedHeaders.length - maxCols);
+    }
+    sheet.getRange(1, 1, 1, expectedHeaders.length).clearContent();
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    var headerRange = sheet.getRange(1, 1, 1, expectedHeaders.length);
+    headerRange.setFontWeight('bold')
+      .setBackground('#1a237e')
+      .setFontColor('#ffffff')
+      .setHorizontalAlignment('center');
+    config.widths.forEach(function(w, i) {
+      sheet.setColumnWidth(i + 1, w);
+    });
+    sheet.setFrozenRows(1);
+    Logger.warn('Setup', 'Inventory headers migrated', { 
+      fromColumns: currentHeaders.length, 
+      toColumns: expectedHeaders.length
+    });
+  }
+
+  /**
    * PHASE 3B: Obtain StockMovement configuration from canonical StockMovementSchema.
-   * Fallback hardcodes the correct 13-column headers if schema is unavailable.
    */
   function _getStockMovementConfig() {
     if (typeof StockMovementSchema !== 'undefined' && typeof StockMovementSchema.getSheetHeaders === 'function') {
@@ -101,10 +148,41 @@ const Setup = (function() {
         widths: [22, 22, 15, 12, 10, 10, 10, 20, 15, 22, 30, 20, 25]
       };
     }
-    // Fallback: canonical 13-column headers (must match StockMovementSchema exactly)
     return {
       headers: ['id','inventoryId','sku','movementType','quantity','quantityBefore','quantityAfter','reason','referenceType','referenceId','notes','createdAt','createdBy'],
       widths: [22, 22, 15, 12, 10, 10, 10, 20, 15, 22, 30, 20, 25]
+    };
+  }
+
+  /**
+   * PHASE 3C: Obtain BOM configuration from canonical BOMSchema.
+   */
+  function _getBOMConfig() {
+    if (typeof BOMSchema !== 'undefined' && typeof BOMSchema.getSheetHeaders === 'function') {
+      return {
+        headers: BOMSchema.getSheetHeaders(),
+        widths: [22, 15, 25, 30, 10, 20, 20, 25]
+      };
+    }
+    return {
+      headers: ['id','finishedProductSku','name','description','active','createdAt','updatedAt','createdBy'],
+      widths: [22, 15, 25, 30, 10, 20, 20, 25]
+    };
+  }
+
+  /**
+   * PHASE 3C: Obtain BOM_ITEM configuration from canonical BOMAItemSchema.
+   */
+  function _getBOMAItemConfig() {
+    if (typeof BOMAItemSchema !== 'undefined' && typeof BOMAItemSchema.getSheetHeaders === 'function') {
+      return {
+        headers: BOMAItemSchema.getSheetHeaders(),
+        widths: [22, 22, 15, 12, 10, 12, 30, 10, 20, 20, 25]
+      };
+    }
+    return {
+      headers: ['id','bomId','componentSku','quantityRequired','unit','wastagePercent','notes','active','createdAt','updatedAt','createdBy'],
+      widths: [22, 22, 15, 12, 10, 12, 30, 10, 20, 20, 25]
     };
   }
 
@@ -114,20 +192,16 @@ const Setup = (function() {
       Logger.info('Setup', 'Sheet exists', { name: name });
       return sheet;
     }
-
     sheet = ss.insertSheet(name);
     sheet.appendRow(cfg.headers);
-
     const headerRange = sheet.getRange(1, 1, 1, cfg.headers.length);
     headerRange.setFontWeight('bold')
       .setBackground('#1a237e')
       .setFontColor('#ffffff')
       .setHorizontalAlignment('center');
-
     cfg.widths.forEach(function(w, i) {
       sheet.setColumnWidth(i + 1, w);
     });
-
     sheet.setFrozenRows(1);
     Logger.info('Setup', 'Sheet created', { name: name });
     return sheet;
@@ -136,28 +210,24 @@ const Setup = (function() {
   return {
     run: function() {
       const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-      // Create all standard sheets from SHEET_CONFIGS
       Object.keys(SHEET_CONFIGS).forEach(function(name) {
         createSheet(ss, name, SHEET_CONFIGS[name]);
       });
-
-      // PHASE 3A.1: Create Inventory sheet from canonical schema
+      _ensureInventoryHeaders(ss);
       createSheet(ss, 'Inventory', _getInventoryConfig());
-
-      // PHASE 3B: Create StockMovement sheet from canonical schema
       createSheet(ss, 'StockMovement', _getStockMovementConfig());
+      
+      // PHASE 3C: Create BOM sheets
+      createSheet(ss, 'BOM', _getBOMConfig());
+      createSheet(ss, 'BOM_ITEM', _getBOMAItemConfig());
 
-      // Default settings
       const settingsSheet = ss.getSheetByName('Settings');
       const defaults = [
         ['app.version', CONFIG.APP.VERSION, 'string', 'Application version', new Date().toISOString(), Security.currentUser()],
         ['app.initialized', 'true', 'boolean', 'System initialized flag', new Date().toISOString(), Security.currentUser()],
         ['security.defaultRole', 'viewer', 'string', 'Default role for new users', new Date().toISOString(), Security.currentUser()]
       ];
-
       defaults.forEach(function(row) {
-        // Check if key exists
         const data = settingsSheet.getDataRange().getValues();
         let exists = false;
         for (let i = 1; i < data.length; i++) {
@@ -165,16 +235,12 @@ const Setup = (function() {
         }
         if (!exists) settingsSheet.appendRow(row);
       });
-
       Logger.info('Setup', 'Initialization complete');
-      return 'System initialized. Sheets created: ' + Object.keys(SHEET_CONFIGS).join(', ') + ', Inventory, StockMovement';
+      return 'System initialized. Sheets created: ' + Object.keys(SHEET_CONFIGS).join(', ') + ', Inventory, StockMovement, BOM, BOM_ITEM';
     },
 
     reset: function() {
-      // Dangerous: deletes all data. Use with caution.
       const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-      // Reset standard sheets
       Object.keys(SHEET_CONFIGS).forEach(function(name) {
         const sheet = ss.getSheetByName(name);
         if (sheet) {
@@ -182,19 +248,27 @@ const Setup = (function() {
           sheet.appendRow(SHEET_CONFIGS[name].headers);
         }
       });
-
-      // PHASE 3A.1: Reset Inventory sheet from canonical schema
       const invSheet = ss.getSheetByName('Inventory');
       if (invSheet) {
         invSheet.clearContents();
         invSheet.appendRow(_getInventoryConfig().headers);
       }
-
-      // PHASE 3B: Reset StockMovement sheet from canonical schema
       const smSheet = ss.getSheetByName('StockMovement');
       if (smSheet) {
         smSheet.clearContents();
         smSheet.appendRow(_getStockMovementConfig().headers);
+      }
+      
+      // PHASE 3C: Reset BOM sheets
+      const bomSheet = ss.getSheetByName('BOM');
+      if (bomSheet) {
+        bomSheet.clearContents();
+        bomSheet.appendRow(_getBOMConfig().headers);
+      }
+      const bomItemSheet = ss.getSheetByName('BOM_ITEM');
+      if (bomItemSheet) {
+        bomItemSheet.clearContents();
+        bomItemSheet.appendRow(_getBOMAItemConfig().headers);
       }
 
       Logger.warn('Setup', 'System reset performed');

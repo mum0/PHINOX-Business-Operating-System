@@ -67,18 +67,21 @@
  var AUDIT_COL = { LOG_ID: 0, DATE: 1, USER: 2, ACTION: 3, SHEET: 4, RECORD_ID: 5, OLD_VALUE: 6, NEW_VALUE: 7 };
 
  var PERMISSIONS = {
- MEMBERS_READ: "members:read", MEMBERS_WRITE: "members:write", MEMBERS_DELETE: "members:delete",
- TASKS_READ: "tasks:read", TASKS_WRITE: "tasks:write", TASKS_DELETE: "tasks:delete", TASKS_APPROVE: "tasks:approve",
- KPI_READ: "kpi:read", KPI_WRITE: "kpi:write",
- INVENTORY_READ: "inventory:read", INVENTORY_WRITE: "inventory:write", INVENTORY_DELETE: "inventory:delete",
- SUPPLIERS_READ: "suppliers:read", SUPPLIERS_WRITE: "suppliers:write", SUPPLIERS_DELETE: "suppliers:delete",
- ORDERS_READ: "orders:read", ORDERS_WRITE: "orders:write", ORDERS_DELETE: "orders:delete",
- FINANCE_READ: "finance:read", FINANCE_WRITE: "finance:write", FINANCE_DELETE: "finance:delete",
- REPORTS_READ: "reports:read", REPORTS_WRITE: "reports:write",
- SETTINGS_READ: "settings:read", SETTINGS_WRITE: "settings:write",
- EXPENSES_READ: "expenses:read", EXPENSES_WRITE: "expenses:write", EXPENSES_APPROVE: "expenses:approve", EXPENSES_DELETE: "expenses:delete",
- ADMIN: "admin"
- };
+    MEMBERS_READ: "members:read", MEMBERS_WRITE: "members:write", MEMBERS_DELETE: "members:delete",
+    TASKS_READ: "tasks:read", TASKS_WRITE: "tasks:write", TASKS_DELETE: "tasks:delete", TASKS_APPROVE: "tasks:approve",
+    KPI_READ: "kpi:read", KPI_WRITE: "kpi:write",
+    INVENTORY_READ: "inventory:read", INVENTORY_WRITE: "inventory:write", INVENTORY_DELETE: "inventory:delete",
+    // PHASE 3C: BOM Permissions
+    INVENTORY_BOM_READ: "inventory:bom_read",
+    INVENTORY_BOM_MANAGE: "inventory:bom_manage",
+    SUPPLIERS_READ: "suppliers:read", SUPPLIERS_WRITE: "suppliers:write", SUPPLIERS_DELETE: "suppliers:delete",
+    ORDERS_READ: "orders:read", ORDERS_WRITE: "orders:write", ORDERS_DELETE: "orders:delete",
+    FINANCE_READ: "finance:read", FINANCE_WRITE: "finance:write", FINANCE_DELETE: "finance:delete",
+    REPORTS_READ: "reports:read", REPORTS_WRITE: "reports:write",
+    SETTINGS_READ: "settings:read", SETTINGS_WRITE: "settings:write",
+    EXPENSES_READ: "expenses:read", EXPENSES_WRITE: "expenses:write", EXPENSES_APPROVE: "expenses:approve", EXPENSES_DELETE: "expenses:delete",
+    ADMIN: "admin"
+  };
 
  var WORKFLOW_TYPES = {
  EXPENSE_APPROVAL: {name: 'اعتماد مصروف', approvers: ['CEO','Partner','Finance'], autoExecute: true},
