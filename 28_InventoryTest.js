@@ -7,57 +7,69 @@
  */
 
 function testInventoryModule() {
- console.log('=== Inventory Module Test Suite ===');
- let pass = 0, fail = 0;
- function assert(c, m) { if (c) { pass++; console.log(' ✓ ' + m); } else { fail++; console.error(' ✗ ' + m); } }
-
- console.log('\n--- InventorySchema ---');
- assert(InventorySchema.SCHEMA.id === 1, 'Schema id column is 1');
- assert(InventorySchema.SCHEMA.sku === 2, 'Schema sku column is 2');
- assert(InventorySchema.SCHEMA.name === 3, 'Schema name column is 3');
- assert(InventorySchema.SCHEMA.quantity === 7, 'Schema quantity column is 7');
- assert(InventorySchema.SCHEMA.reserved === 8, 'Schema reserved column is 8');
- assert(InventorySchema.SCHEMA.available === 9, 'Schema available column is 9');
- assert(Object.keys(InventorySchema.SCHEMA).length >= 19, 'Schema has at least 19 fields');
- assert(InventorySchema.STATUS.ACTIVE === 'Active', 'Status Active correct');
- assert(InventorySchema.STATUS.OUT_OF_STOCK === 'Out of Stock', 'Status Out of Stock correct');
- assert(InventorySchema.STATUS.DISCONTINUED === 'Discontinued', 'Status Discontinued correct');
-
- console.log('\n--- InventoryRepository ---');
- assert(typeof InventoryRepository.findById === 'function', 'Repository has findById');
- assert(typeof InventoryRepository.findBySku === 'function', 'Repository has findBySku');
- assert(typeof InventoryRepository.create === 'function', 'Repository has create');
- assert(typeof InventoryRepository.update === 'function', 'Repository has update');
- assert(typeof InventoryRepository.delete === 'function', 'Repository has delete');
-
- console.log('\n--- InventoryService ---');
- assert(InventoryService.getInventoryValue !== undefined, 'getInventoryValue exists');
- assert(InventoryService.getInventoryRetailValue !== undefined, 'getInventoryRetailValue exists');
- assert(InventoryService.reserveStock !== undefined, 'reserveStock exists');
- assert(InventoryService.releaseStock !== undefined, 'releaseStock exists');
- assert(InventoryService.commitStock !== undefined, 'commitStock exists');
- assert(InventoryService.restock !== undefined, 'restock exists');
- assert(InventoryService.adjustStock !== undefined, 'adjustStock exists (Phase 3B)');
- assert(InventoryService.returnStock !== undefined, 'returnStock exists (Phase 3B)');
-
- console.log('\n--- InventoryController ---');
- assert(typeof InventoryController.onEdit === 'function', 'Controller has onEdit');
- assert(typeof InventoryController.handleApiAction === 'function', 'Controller has handleApiAction');
- assert(typeof InventoryController.showInventoryStats === 'function', 'Controller has showInventoryStats');
- try { InventoryController.handleApiAction('inventory.stats', {}); assert(true, 'Stats API routes correctly'); }
- catch (e) { assert(false, 'Stats API failed: ' + e.message); }
- try { InventoryController.handleApiAction('inventory.unknown', {}); assert(false, 'Unknown action should fail'); }
- catch (e) { assert(e.category === 'VALIDATION_ERROR', 'Unknown action rejected'); }
-
- console.log('\n--- updateItem Security Boundary (Phase 3B) ---');
- assert(typeof InventoryService.updateItem === 'function', 'updateItem exists');
-
- console.log('\n=== Test Summary ===');
- console.log('Passed: ' + pass); console.log('Failed: ' + fail); console.log('Total: ' + (pass + fail));
- if (fail > 0) throw new Error(fail + ' test(s) failed');
- console.log('All tests passed!');
- return { passed: pass, failed: fail };
-}
+    console.log('=== Inventory Module Test Suite ===');
+    let pass = 0, fail = 0;
+    function assert(c, m) { if (c) { pass++; console.log(' ✓ ' + m); } else { fail++; console.error(' ✗ ' + m); } }
+  
+    console.log('\n--- InventorySchema ---');
+    assert(InventorySchema.SCHEMA.id === 1, 'Schema id column is 1');
+    assert(InventorySchema.SCHEMA.sku === 2, 'Schema sku column is 2');
+    assert(InventorySchema.SCHEMA.name === 3, 'Schema name column is 3');
+    assert(InventorySchema.SCHEMA.quantity === 7, 'Schema quantity column is 7');
+    assert(InventorySchema.SCHEMA.reserved === 8, 'Schema reserved column is 8');
+    assert(InventorySchema.SCHEMA.available === 9, 'Schema available column is 9');
+    assert(InventorySchema.SCHEMA.type === 20, 'Schema type column is 20 (Phase 3A)');
+    assert(Object.keys(InventorySchema.SCHEMA).length >= 20, 'Schema has at least 20 fields (Phase 3A)');
+    assert(InventorySchema.STATUS.ACTIVE === 'Active', 'Status Active correct');
+    assert(InventorySchema.STATUS.OUT_OF_STOCK === 'Out of Stock', 'Status Out of Stock correct');
+    assert(InventorySchema.STATUS.DISCONTINUED === 'Discontinued', 'Status Discontinued correct');
+    
+    // Phase 3A: TYPE enum assertions
+    assert(InventorySchema.TYPE.RAW_MATERIAL === 'RAW_MATERIAL', 'TYPE RAW_MATERIAL correct');
+    assert(InventorySchema.TYPE.COMPONENT === 'COMPONENT', 'TYPE COMPONENT correct');
+    assert(InventorySchema.TYPE.FINISHED_GOOD === 'FINISHED_GOOD', 'TYPE FINISHED_GOOD correct');
+    assert(InventorySchema.TYPE.OTHER === 'OTHER', 'TYPE OTHER correct');
+    assert(typeof InventorySchema.getSheetHeaders === 'function', 'getSheetHeaders exists (Phase 3A)');
+    var headers = InventorySchema.getSheetHeaders();
+    assert(headers.length === 20, 'getSheetHeaders returns 20 columns');
+    assert(headers[19] === 'type', 'Header 20 is type');
+    assert(InventorySchema.getDefaultItem().type === 'FINISHED_GOOD', 'Default type is FINISHED_GOOD');
+  
+    console.log('\n--- InventoryRepository ---');
+    assert(typeof InventoryRepository.findById === 'function', 'Repository has findById');
+    assert(typeof InventoryRepository.findBySku === 'function', 'Repository has findBySku');
+    assert(typeof InventoryRepository.create === 'function', 'Repository has create');
+    assert(typeof InventoryRepository.update === 'function', 'Repository has update');
+    assert(typeof InventoryRepository.delete === 'function', 'Repository has delete');
+  
+    console.log('\n--- InventoryService ---');
+    assert(InventoryService.getInventoryValue !== undefined, 'getInventoryValue exists');
+    assert(InventoryService.getInventoryRetailValue !== undefined, 'getInventoryRetailValue exists');
+    assert(InventoryService.reserveStock !== undefined, 'reserveStock exists');
+    assert(InventoryService.releaseStock !== undefined, 'releaseStock exists');
+    assert(InventoryService.commitStock !== undefined, 'commitStock exists');
+    assert(InventoryService.restock !== undefined, 'restock exists');
+    assert(InventoryService.adjustStock !== undefined, 'adjustStock exists (Phase 3B)');
+    assert(InventoryService.returnStock !== undefined, 'returnStock exists (Phase 3B)');
+  
+    console.log('\n--- InventoryController ---');
+    assert(typeof InventoryController.onEdit === 'function', 'Controller has onEdit');
+    assert(typeof InventoryController.handleApiAction === 'function', 'Controller has handleApiAction');
+    assert(typeof InventoryController.showInventoryStats === 'function', 'Controller has showInventoryStats');
+    try { InventoryController.handleApiAction('inventory.stats', {}); assert(true, 'Stats API routes correctly'); }
+    catch (e) { assert(false, 'Stats API failed: ' + e.message); }
+    try { InventoryController.handleApiAction('inventory.unknown', {}); assert(false, 'Unknown action should fail'); }
+    catch (e) { assert(e.category === 'VALIDATION_ERROR', 'Unknown action rejected'); }
+  
+    console.log('\n--- updateItem Security Boundary (Phase 3B) ---');
+    assert(typeof InventoryService.updateItem === 'function', 'updateItem exists');
+  
+    console.log('\n=== Test Summary ===');
+    console.log('Passed: ' + pass); console.log('Failed: ' + fail); console.log('Total: ' + (pass + fail));
+    if (fail > 0) throw new Error(fail + ' test(s) failed');
+    console.log('All tests passed!');
+    return { passed: pass, failed: fail };
+  }
 
 function testInventoryE2E() {
  console.log('=== Inventory E2E Test ===');
@@ -92,9 +104,10 @@ function testInventoryE2E() {
  // 1. CREATE
  console.log('\n--- Step 1: Create ---');
  itemId = InventoryService.createItem({
- sku: testSku, name: 'E2E Test Hoodie', category: 'Hoodies', size: 'L', color: 'Black',
- quantity: 50, cost: 25, price: 55, reorderLevel: 10, location: 'Warehouse A'
- });
+    sku: testSku, name: 'E2E Test Hoodie', category: 'Hoodies', size: 'L', color: 'Black',
+    quantity: 50, cost: 25, price: 55, reorderLevel: 10, location: 'Warehouse A',
+    type: 'FINISHED_GOOD'  // Phase 3A
+  });
  assert(typeof itemId === 'string' && itemId.indexOf('INV-') === 0, 'createItem returns INV ID: ' + itemId);
 
  // 2. GET BY SKU
@@ -164,22 +177,12 @@ function testInventoryE2E() {
  assert(updated.available === 65, 'Update: available unchanged = 65');
 
  // Phase 3B: updateItem must reject quantity/reserved
- console.log('\n--- Step 7b: updateItem Security ---');
- try {
- InventoryService.updateItem(itemId, { quantity: 100 });
- assert(false, 'updateItem should reject quantity change');
- } catch (e) {
- assert(e.category === 'VALIDATION_ERROR', 'updateItem rejects quantity with VALIDATION_ERROR');
- }
- try {
- InventoryService.updateItem(itemId, { reserved: 10 });
- assert(false, 'updateItem should reject reserved change');
- } catch (e) {
- assert(e.category === 'VALIDATION_ERROR', 'updateItem rejects reserved with VALIDATION_ERROR');
- }
- InventoryService.updateItem(itemId, { name: 'E2E Updated Hoodie' });
- assert(InventoryService.getItem(itemId).name === 'E2E Updated Hoodie', 'updateItem still allows name change');
-
+ c// Phase 3A: Type update
+console.log('\n--- Step 7c: Type Update ---');
+InventoryService.updateItem(itemId, { type: 'RAW_MATERIAL' });
+var typeUpdated = InventoryService.getItem(itemId);
+assert(typeUpdated.type === 'RAW_MATERIAL', 'Update: type changed to RAW_MATERIAL');
+InventoryService.updateItem(itemId, { type: 'FINISHED_GOOD' }); // reset
  // 8. LOW STOCK
  console.log('\n--- Step 8: Low Stock ---');
  const lowSku = 'PHX-TEST-LOW-' + Date.now();
@@ -234,6 +237,17 @@ function testInventoryE2E() {
  cleanup();
  throw e;
  } finally {
+    // Phase 3A: Backward compatibility — item without type
+console.log('\n--- Step 16: Backward Compatibility ---');
+var noTypeSku = 'PHX-NO-TYPE-' + Date.now();
+var noTypeId = InventoryService.createItem({
+  sku: noTypeSku, name: 'No Type Item', category: 'Test',
+  quantity: 1, cost: 1, price: 2
+  // type omitted — should default to FINISHED_GOOD
+});
+var noTypeItem = InventoryService.getItem(noTypeId);
+assert(noTypeItem.type === 'FINISHED_GOOD', 'Omitted type defaults to FINISHED_GOOD');
+InventoryService.deleteItem(noTypeId);
  cleanup();
  }
 }

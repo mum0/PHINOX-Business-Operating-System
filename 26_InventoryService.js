@@ -4,7 +4,8 @@
  * PHINOX is a clothing store — SKU is per-variant.
  * NO SpreadsheetApp. NO direct sheet access.
  * UPDATED Phase 3B: Added StockMovement integration, adjustStock, returnStock.
- *                  Split _updateItemRaw (internal) from updateItem (public, blocks stock fields).
+ * UPDATED Phase 3A: Added type field normalization.
+ * Split _updateItemRaw (internal) from updateItem (public, blocks stock fields).
  */
 
 const InventoryService = (function() {
@@ -98,6 +99,7 @@ const InventoryService = (function() {
    if (item.color) item.color = Utils.safeStr(item.color).trim();
    if (item.location) item.location = Utils.safeStr(item.location).trim();
    if (item.notes) item.notes = Utils.safeStr(item.notes).trim();
+   if (item.type) item.type = Utils.safeStr(item.type).trim();
    item.quantity = _toNumber(item.quantity);
    item.reserved = _toNumber(item.reserved);
    item.cost = _toNumber(item.cost);
@@ -136,6 +138,7 @@ const InventoryService = (function() {
    if (data.price !== undefined) data.price = _toNumber(data.price);
    if (data.reorderLevel !== undefined) data.reorderLevel = _toNumber(data.reorderLevel);
    if (Object.keys(data).length > 0) _validateInput(data, true);
+   if (data.type !== undefined) data.type = Utils.safeStr(data.type).trim();
    const merged = Object.assign({}, existing, data);
    _recalculateAvailable(merged); _autoStatus(merged); _checkStockInvariant(merged);
    data.available = merged.available; data.status = merged.status;
