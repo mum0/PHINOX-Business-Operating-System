@@ -2650,7 +2650,970 @@ tbody tr:hover td {
 </div>
 
 <script>
+// ═════════════════════════════════════════════════════════════════
+// PHASE 3D FIX KIT — Permissions, Expenses, BOM & Approvals
+// ═════════════════════════════════════════════════════════════════
 
+// ─── USER AUTH & PERMISSIONS SYSTEM ───
+var _currentUser = null;
+var _userPermissions = [];
+var _userRole = 'viewer'; // viewer, member, manager, admin, ceo
+
+function initAuthSystem() {
+  callServer('uiGetCurrentUser')
+    .then(function(res) {
+      _currentUser = res.data || {};
+      _userPermissions = _currentUser.permissions || [];
+      _userRole = _currentUser.role || 'viewer';
+      console.log('User:', _currentUser.email, 'Role:', _userRole, 'Perms:', _userPermissions.length);
+      applyPermissionsToUI();
+    })
+    .catch(function(err) {
+      console.error('Auth error:', err);
+      _currentUser = { email: 'guest', name: 'Guest', role: 'viewer' };
+      _userPermissions = [];
+    });
+}
+
+function hasPerm(perm) {
+  if (_userRole === 'ceo' || _userRole === 'admin') return true;
+  return _userPermissions.indexOf(perm) > -1;
+}
+
+function isAdmin() { return _userRole === 'admin' || _userRole === 'ceo'; }
+function isManager() { return _userRole === 'manager' || isAdmin(); }
+
+function applyPermissionsToUI() {
+  // Hide/show nav items based on role
+  var permsMap = {
+    'nav-expenses': ['expenses:read', 'finance:read'],
+    'nav-finance': ['finance:read'],
+    'nav-inventory': ['inventory:read'],
+    'nav-sales': ['sales:read'],
+    'nav-marketing': ['marketing:read'],
+    'nav-social': ['social:read'],
+    'nav-customers': ['customers:read'],
+    'nav-members': ['members:read'],
+    'nav-tasks': ['tasks:read'],
+    'nav-approvals': ['approvals:read', 'expenses:approve', 'admin:approve'],
+    'nav-operations': ['operations:read']
+  };
+  
+  // Show user name in header if possible
+  if (_currentUser && _currentUser.name) {
+    var header = document.querySelector('.top-header');
+    if (header && !document.getElementById('userBadge')) {
+      var badge = document.createElement('div');
+      badge.id = 'userBadge';
+      badge.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);';
+      badge.innerHTML = '<span style="background:var(--accent);color:#fff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase;">' + esc(_userRole) + '</span><span>' + esc(_currentUser.name) + '</span>';
+      header.insertBefore(badge, header.children[1]);
+    }
+  }
+}
+
+// ─── INVENTORY FIX — BOM INTEGRATION ───
+function loadInventory() {
+  showLoading('inventoryKpiCards');
+  showLoading('inventoryTable');
+
+  callServer('uiGetInventoryStats')
+    .then(function(result) {
+      var stats = result.data || {};
+      var cardsHtml = '';
+      cardsHtml += buildKpiCard('Total Items', stats.total, 0, '', 'count');
+      cardsHtml += buildKpiCard('Low Stock', stats.lowStock, 0, '', 'count');
+      cardsHtml += buildKpiCard('Out of Stock', stats.outOfStock, 0, '', 'count');
+      cardsHtml += buildKpiCard('Inventory Value', stats.value, 0, '', 'EGP');
+      
+      // Phase 3D Alert Cards
+      cardsHtml += '<div class="alert-cards" style="grid-column:1/-1;margin-top:8px;">' +
+        '<div class="alert-card low-stock" onclick="showLowStock()">' +
+        '<div class="alert-title">Low Stock Alert</div>' +
+        '<div class="alert-count" id="alertLowStockCount">' + (stats.lowStock || 0) + '</div>' +
+        '<div class="alert-sub">Items below reorder level</div></div>' +
+        '<div class="alert-card out-of-stock" onclick="showOutOfStock()">' +
+        '<div class="alert-title">Out of Stock</div>' +
+        '<div class="alert-count" id="alertOutOfStockCount">' + (stats.outOfStock || 0) + '</div>' +
+        '<div class="alert-sub">Items with zero quantity</div></div></div>';
+      
+      document.getElementById('inventoryKpiCards').innerHTML = cardsHtml;
+
+      return callServer('uiGetInventory');
+    })
+    .then(function(itemsResult) {
+      var items = itemsResult.data && itemsResult.data.data ? itemsResult.data.data : [];
+      AppState.inventoryData = items;
+      _inventoryCache = items; // for Phase 3D modals
+
+      // Rebuild table with Type + Actions columns
+      var thead = document.querySelector('#inventoryTable thead tr');
+      if (thead) {
+        var headers = ['SKU','Name','Category','Type','Qty','Reserved','Available','Cost','Price','Status','Actions'];
+        thead.innerHTML = headers.map(function(h){ return '<th>'+h+'</th>'; }).join('');
+      }
+
+      var tbody = document.querySelector('#inventoryTable tbody');
+      if (!tbody) return;
+      
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:32px;">No inventory items found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = items.map(function(item) {
+        var statusClass = item.status === 'ACTIVE' ? 'badge-success' : 
+                         item.status === 'OUT_OF_STOCK' ? 'badge-danger' : 'badge-warning';
+        var typeLabel = item.type || '—';
+        
+        var actions = '<div style="display:flex;gap:4px;flex-wrap:wrap;">';
+        actions += '<button class="btn btn-sm btn-outline" onclick="viewInventoryItem(\'' + esc(item.id) + '\')" title="View">👁</button>';
+        if (hasPerm('inventory:write')) {
+          actions += '<button class="btn btn-sm btn-outline" onclick="openAdjustStock(\'' + esc(item.id) + '\')" title="Adjust">⚖️</button>';
+          actions += '<button class="btn btn-sm btn-outline" onclick="openRestock(\'' + esc(item.id) + '\')" title="Restock">📥</button>';
+        }
+        actions += '<button class="btn btn-sm btn-outline" onclick="openMovements(\'' + esc(item.sku) + '\')" title="History">📋</button>';
+        if (item.type === 'FINISHED_GOOD') {
+          actions += '<button class="btn btn-sm btn-outline" onclick="openBOM(\'' + esc(item.sku) + '\')" title="BOM">📦</button>';
+          actions += '<button class="btn btn-sm btn-outline" onclick="openCostMargin(\'' + esc(item.id) + '\')" title="Cost">💰</button>';
+        }
+        actions += '</div>';
+
+        return '<tr>' +
+          '<td>' + esc(item.sku || '') + '</td>' +
+          '<td>' + esc(item.name || '') + '</td>' +
+          '<td>' + esc(item.category || '') + '</td>' +
+          '<td><span class="badge badge-neutral">' + esc(typeLabel) + '</span></td>' +
+          '<td>' + formatNumber(item.quantity, 0) + '</td>' +
+          '<td>' + formatNumber(item.reserved, 0) + '</td>' +
+          '<td>' + formatNumber(item.available, 0) + '</td>' +
+          '<td>' + formatCurrency(item.cost) + '</td>' +
+          '<td>' + formatCurrency(item.price) + '</td>' +
+          '<td><span class="badge ' + statusClass + '">' + esc(item.status || '—') + '</span></td>' +
+          '<td>' + actions + '</td>' +
+          '</tr>';
+      }).join('');
+
+      // Charts
+      if (items.length > 0) {
+        var statusCounts = {};
+        items.forEach(function(i) { statusCounts[i.status] = (statusCounts[i.status] || 0) + 1; });
+        createChart('inventoryStockChart', 'doughnut', {
+          labels: Object.keys(statusCounts),
+          datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#16A34A','#F59E0B','#DC2626','#6B7280'] }]
+        }, { plugins: { legend: { position: 'right' } } });
+
+        var topItems = items.slice(0, 10);
+        createChart('inventoryValueChart', 'bar', {
+          labels: topItems.map(function(i) { return i.name; }),
+          datasets: [{ label: 'Value (EGP)', data: topItems.map(function(i) { return (i.cost || 0) * (i.quantity || 0); }), backgroundColor: '#6A1F32' }]
+        });
+      }
+    })
+    .catch(function(e) {
+      document.getElementById('inventoryKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+    })
+    .finally(function() { 
+      hideLoading('inventoryKpiCards'); 
+      hideLoading('inventoryTable'); 
+    });
+}
+
+function viewInventoryItem(id) {
+  var item = (AppState.inventoryData || []).find(function(x){ return x.id === id; });
+  if (!item) return;
+  openModal('Inventory Item — ' + esc(item.name),
+    '<div style="padding:16px;display:grid;gap:12px;">' +
+    '<div class="grid-3"><div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">SKU</label><div style="font-weight:600;">' + esc(item.sku) + '</div></div>' +
+    '<div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Category</label><div style="font-weight:600;">' + esc(item.category) + '</div></div>' +
+    '<div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Type</label><div style="font-weight:600;">' + esc(item.type || '—') + '</div></div></div>' +
+    '<div class="grid-3"><div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Quantity</label><div style="font-size:20px;font-weight:700;">' + formatNumber(item.quantity, 0) + '</div></div>' +
+    '<div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Reserved</label><div style="font-size:20px;font-weight:700;">' + formatNumber(item.reserved, 0) + '</div></div>' +
+    '<div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Available</label><div style="font-size:20px;font-weight:700;">' + formatNumber(item.available, 0) + '</div></div></div>' +
+    '<div class="grid-2"><div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Cost</label><div style="font-size:20px;font-weight:700;">' + formatCurrency(item.cost) + '</div></div>' +
+    '<div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Price</label><div style="font-size:20px;font-weight:700;">' + formatCurrency(item.price) + '</div></div></div>' +
+    '<div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Status</label><div><span class="badge badge-' + (item.status==='ACTIVE'?'success':item.status==='OUT_OF_STOCK'?'danger':'warning') + '">' + esc(item.status) + '</span></div></div>' +
+    '<div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Reorder Level</label><div>' + formatNumber(item.reorderLevel, 0) + '</div></div>' +
+    '</div>',
+    '<button class="btn btn-outline" onclick="closeModal()">Close</button>' +
+    (hasPerm('inventory:write') ? '<button class="btn btn-primary" onclick="closeModal();openAdjustStock(\'' + esc(item.id) + '\')">Adjust Stock</button>' : '')
+  );
+}
+
+// ─── EXPENSES FIX — LINKED TO FINANCE ───
+function loadExpenses(dates) {
+  showLoading('expenseKpiCards');
+  showLoading('expenseTable');
+
+  var statusFilter = document.getElementById('expenseStatusFilter') ? document.getElementById('expenseStatusFilter').value : '';
+  var categoryFilter = document.getElementById('expenseCategoryFilter') ? document.getElementById('expenseCategoryFilter').value : '';
+
+  var options = { limit: 1000 };
+  if (statusFilter) options.status = statusFilter;
+  if (categoryFilter) options.category = categoryFilter;
+
+  callServer('uiGetExpenses', options)
+    .then(function(result) {
+      var expenses = result.data && result.data.data ? result.data.data : [];
+      AppState.expensesData = expenses;
+
+      // KPI Cards
+      var total = 0, pending = 0, approved = 0, posted = 0, rejected = 0, draft = 0;
+      expenses.forEach(function(e) {
+        var amt = Number(e.amount) || 0;
+        total += amt;
+        if (e.status === 'Draft') draft += amt;
+        else if (e.status === 'Pending') pending += amt;
+        else if (e.status === 'Approved') approved += amt;
+        else if (e.status === 'Posted') posted += amt;
+        else if (e.status === 'Rejected') rejected += amt;
+      });
+
+      var cardsHtml = '';
+      cardsHtml += buildKpiCard('Total Expenses', total, 0, 'period', 'EGP');
+      cardsHtml += buildKpiCard('Pending Approval', pending, 0, 'period', 'EGP');
+      cardsHtml += buildKpiCard('Approved', approved, 0, 'period', 'EGP');
+      cardsHtml += buildKpiCard('Posted to Ledger', posted, 0, 'period', 'EGP');
+      document.getElementById('expenseKpiCards').innerHTML = cardsHtml;
+
+      // Table
+      var tbody = document.querySelector('#expenseTable tbody');
+      if (!tbody) return;
+      
+      if (expenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;">No expenses found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = expenses.map(function(exp) {
+        var statusClass = 'badge-secondary';
+        if (exp.status === 'Pending') statusClass = 'badge-warning';
+        else if (exp.status === 'Approved') statusClass = 'badge-success';
+        else if (exp.status === 'Posted') statusClass = 'badge-primary';
+        else if (exp.status === 'Rejected') statusClass = 'badge-danger';
+        else if (exp.status === 'Draft') statusClass = 'badge-secondary';
+
+        var actions = '<div style="display:flex;gap:4px;flex-wrap:wrap;">';
+        if (exp.status === 'Draft' && (exp.requestedBy === _currentUser.email || isAdmin())) {
+          actions += '<button class="btn btn-sm btn-primary" onclick="submitExpenseForApproval(\'' + esc(exp.id) + '\')">Submit</button>';
+          actions += '<button class="btn btn-sm btn-danger" onclick="deleteExpenseRecord(\'' + esc(exp.id) + '\')">Delete</button>';
+        } else if (exp.status === 'Pending' && hasPerm('expenses:approve')) {
+          actions += '<button class="btn btn-sm btn-success" onclick="approveExpenseRecord(\'' + esc(exp.id) + '\')">Approve</button>';
+          actions += '<button class="btn btn-sm btn-danger" onclick="openRejectExpenseModal(\'' + esc(exp.id) + '\',\'' + esc(exp.title) + '\')">Reject</button>';
+        } else if (exp.status === 'Approved' && hasPerm('finance:write')) {
+          actions += '<button class="btn btn-sm btn-primary" onclick="postExpenseToLedger(\'' + esc(exp.id) + '\',\'' + esc(exp.title) + '\')">Post to Ledger</button>';
+        } else if (exp.status === 'Posted') {
+          actions += '<span class="badge badge-primary">Posted</span>';
+        } else if (exp.status === 'Rejected') {
+          actions += '<span class="badge badge-danger">Rejected</span>';
+        } else {
+          actions += '<span style="color:#999;font-size:12px;">—</span>';
+        }
+        actions += '</div>';
+
+        return '<tr>' +
+          '<td>' + formatDate(exp.createdAt) + '</td>' +
+          '<td>' + esc(exp.category || '—') + '</td>' +
+          '<td>' + esc(exp.title || '—') + '</td>' +
+          '<td style="font-weight:600;">' + formatCurrency(exp.amount) + '</td>' +
+          '<td><span class="badge ' + statusClass + '">' + esc(exp.status || 'Draft') + '</span></td>' +
+          '<td>' + esc(exp.requestedBy || '—') + '</td>' +
+          '<td>' + esc(exp.approvedBy || '—') + '</td>' +
+          '<td>' + actions + '</td>' +
+          '</tr>';
+      }).join('');
+    })
+    .catch(function(e) {
+      document.getElementById('expenseKpiCards').innerHTML = emptyState('⚠️', 'Error', e.message);
+      var tbody = document.querySelector('#expenseTable tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#c62828;">Error: ' + esc(e.message) + '</td></tr>';
+    })
+    .finally(function() {
+      hideLoading('expenseKpiCards');
+      hideLoading('expenseTable');
+    });
+}
+
+// Expense Actions (new names to avoid conflicts)
+function submitExpenseForApproval(id) {
+  if (!confirm('Submit this expense for approval?')) return;
+  callServer('uiSubmitExpense', id)
+    .then(function() { showToast('Success', 'Expense submitted for approval', 'success'); loadExpenses(getDateRange(AppState.dateRange)); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+function approveExpenseRecord(id) {
+  if (!confirm('Approve this expense?')) return;
+  callServer('uiApproveExpense', id)
+    .then(function() { 
+      showToast('Success', 'Expense approved', 'success'); 
+      loadExpenses(getDateRange(AppState.dateRange)); 
+    })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+function openRejectExpenseModal(id, title) {
+  document.getElementById('rejExpId').value = id;
+  document.getElementById('rejExpLabel').textContent = title || '—';
+  document.getElementById('rejExpReason').value = '';
+  document.getElementById('modalRejectExpense').style.display = 'flex';
+}
+
+function submitRejectExpense() {
+  var id = document.getElementById('rejExpId').value;
+  var reason = document.getElementById('rejExpReason').value.trim();
+  if (!reason) { showToast('Error', 'Rejection reason is required', 'error'); return; }
+  callServer('uiRejectExpense', id, reason)
+    .then(function() { showToast('Success', 'Expense rejected', 'success'); closeModal('modalRejectExpense'); loadExpenses(getDateRange(AppState.dateRange)); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+function postExpenseToLedger(id, title) {
+  document.getElementById('postExpId').value = id;
+  document.getElementById('postExpLabel').textContent = title || '—';
+  document.getElementById('postExpAccount').value = 'Cash';
+  document.getElementById('modalPostExpense').style.display = 'flex';
+}
+
+function submitPostExpense() {
+  var id = document.getElementById('postExpId').value;
+  var account = document.getElementById('postExpAccount').value;
+  callServer('uiPostExpense', id, account)
+    .then(function() { showToast('Success', 'Expense posted to ledger & linked to Finance', 'success'); closeModal('modalPostExpense'); loadExpenses(getDateRange(AppState.dateRange)); loadFinance(getDateRange(AppState.dateRange)); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+function deleteExpenseRecord(id) {
+  if (!confirm('Delete this draft expense?')) return;
+  callServer('uiDeleteExpense', id)
+    .then(function() { showToast('Success', 'Expense deleted', 'success'); loadExpenses(getDateRange(AppState.dateRange)); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+// ─── APPROVALS DASHBOARD ───
+function loadApprovals() {
+  showLoading('approvalsTable');
+  
+  // Load all pending items
+  Promise.all([
+    callServer('uiGetExpenses', { status: 'Pending', limit: 100 }),
+    callServer('uiGetTasksByDateRange', getDateRange('year').start, getDateRange('year').end)
+  ])
+    .then(function(results) {
+      var expenses = results[0].data && results[0].data.data ? results[0].data.data : [];
+      var tasks = results[1].data && results[1].data.data ? results[1].data.data : [];
+      
+      // Filter tasks waiting review
+      var pendingTasks = tasks.filter(function(t) { return t.status === 'Waiting Review'; });
+      
+      var allItems = [];
+      
+      expenses.forEach(function(e) {
+        allItems.push({
+          type: 'expense',
+          id: e.id,
+          title: e.title,
+          category: e.category,
+          amount: e.amount,
+          requester: e.requestedBy,
+          date: e.createdAt,
+          status: e.status,
+          data: e
+        });
+      });
+      
+      pendingTasks.forEach(function(t) {
+        allItems.push({
+          type: 'task',
+          id: t.id,
+          title: t.title,
+          category: t.category || 'Task',
+          amount: null,
+          requester: t.assignedTo,
+          date: t.dueDate,
+          status: t.status,
+          data: t
+        });
+      });
+      
+      // Sort by date
+      allItems.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+      
+      var tbody = document.querySelector('#approvalsTable tbody');
+      if (!tbody) return;
+      
+      if (allItems.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;">No pending approvals. Great job! 🎉</td></tr>';
+        document.getElementById('approvalsKpiCards').innerHTML = buildKpiCard('Pending Approvals', 0, 0, '', 'count') + buildKpiCard('Expenses', 0, 0, '', 'count') + buildKpiCard('Tasks', 0, 0, '', 'count');
+        return;
+      }
+      
+      document.getElementById('approvalsKpiCards').innerHTML = 
+        buildKpiCard('Pending Approvals', allItems.length, 0, '', 'count') +
+        buildKpiCard('Expenses', expenses.length, 0, '', 'count') +
+        buildKpiCard('Tasks', pendingTasks.length, 0, '', 'count') +
+        buildKpiCard('Total Value', expenses.reduce(function(s,e){return s+(e.amount||0);},0), 0, '', 'EGP');
+
+      tbody.innerHTML = allItems.map(function(item) {
+        var icon = item.type === 'expense' ? '🧾' : '📝';
+        var typeClass = item.type === 'expense' ? 'badge-warning' : 'badge-info';
+        var amountStr = item.amount ? formatCurrency(item.amount) : '—';
+        
+        var actions = '<div style="display:flex;gap:4px;">';
+        if (item.type === 'expense' && hasPerm('expenses:approve')) {
+          actions += '<button class="btn btn-sm btn-success" onclick="approveExpenseRecord(\'' + esc(item.id) + '\')">✓ Approve</button>';
+          actions += '<button class="btn btn-sm btn-danger" onclick="openRejectExpenseModal(\'' + esc(item.id) + '\',\'' + esc(item.title) + '\')">✕ Reject</button>';
+        } else if (item.type === 'task' && hasPerm('tasks:approve')) {
+          actions += '<button class="btn btn-sm btn-success" onclick="approveTask(\'' + esc(item.id) + '\')">✓ Approve</button>';
+          actions += '<button class="btn btn-sm btn-danger" onclick="rejectTask(\'' + esc(item.id) + '\')">✕ Reject</button>';
+        } else {
+          actions += '<span style="color:#999;font-size:12px;">No permission</span>';
+        }
+        actions += '</div>';
+        
+        return '<tr>' +
+          '<td>' + icon + '</td>' +
+          '<td><span class="badge ' + typeClass + '">' + esc(item.type) + '</span></td>' +
+          '<td style="font-weight:600;">' + esc(item.title) + '</td>' +
+          '<td>' + esc(item.category || '—') + '</td>' +
+          '<td style="font-weight:600;">' + amountStr + '</td>' +
+          '<td>' + esc(item.requester || '—') + '</td>' +
+          '<td>' + formatDate(item.date) + '</td>' +
+          '<td>' + actions + '</td>' +
+          '</tr>';
+      }).join('');
+    })
+    .catch(function(e) {
+      var tbody = document.querySelector('#approvalsTable tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c62828;">Error: ' + esc(e.message) + '</td></tr>';
+    })
+    .finally(function() { hideLoading('approvalsTable'); });
+}
+
+function approveTask(id) {
+  callServer('uiApproveTask', id)
+    .then(function() { showToast('Success', 'Task approved', 'success'); loadApprovals(); loadTasks(getDateRange(AppState.dateRange)); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+function rejectTask(id) {
+  var reason = prompt('Rejection reason (optional):');
+  callServer('uiRejectTask', id, reason || '')
+    .then(function() { showToast('Success', 'Task rejected', 'success'); loadApprovals(); loadTasks(getDateRange(AppState.dateRange)); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+// ─── NAVIGATION FIX — ADD APPROVALS PAGE ───
+function navigateTo(page) {
+  // If approvals page, inject it dynamically if not exists
+  if (page === 'approvals') {
+    ensureApprovalsPageExists();
+  }
+  
+  AppState.currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
+  var activeNav = document.querySelector('.nav-item[data-page="' + page + '"]');
+  if (activeNav) activeNav.classList.add('active');
+
+  var titles = {
+    'dashboard': 'Executive Dashboard', 'finance': 'Finance Dashboard',
+    'sales': 'Sales Dashboard', 'inventory': 'Inventory Dashboard',
+    'operations': 'Operations Dashboard', 'marketing': 'Marketing Dashboard',
+    'social': 'Social Media Dashboard', 'customers': 'Customer Management',
+    'satisfaction': 'Customer Satisfaction', 'nps': 'Net Promoter Score',
+    'performance': 'Performance Dashboard', 'members': 'Team Members',
+    'tasks': 'Tasks', 'expenses': 'Expenses', 'approvals': 'Approvals Dashboard'
+  };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+
+  document.querySelectorAll('.page').forEach(function(el) { el.classList.remove('active'); });
+  var targetPage = document.getElementById('page-' + page);
+  if (targetPage) targetPage.classList.add('active');
+
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+
+  loadPageData(page);
+}
+
+function ensureApprovalsPageExists() {
+  if (document.getElementById('page-approvals')) return;
+  
+  // Add nav item
+  var navSection = document.querySelector('.nav-section:nth-of-type(2)');
+  if (navSection) {
+    var navItem = document.createElement('a');
+    navItem.href = '#approvals';
+    navItem.className = 'nav-item';
+    navItem.setAttribute('data-page', 'approvals');
+    navItem.setAttribute('onclick', "navigateTo('approvals')");
+    navItem.innerHTML = '<span class="nav-icon">✅</span> Approvals';
+    navSection.appendChild(navItem);
+  }
+  
+  // Add page
+  var contentArea = document.getElementById('contentArea');
+  var pageDiv = document.createElement('div');
+  pageDiv.className = 'page';
+  pageDiv.id = 'page-approvals';
+  pageDiv.innerHTML = 
+    '<div class="section-header">' +
+    '  <div class="section-title">Approvals Dashboard</div>' +
+    '  <div class="section-desc">Review and approve pending requests</div>' +
+    '</div>' +
+    '<div class="grid-4 mb-3" id="approvalsKpiCards"></div>' +
+    '<div class="card mb-3">' +
+    '  <div class="card-header"><div class="card-title">Pending Approvals</div></div>' +
+    '  <div class="card-body no-padding">' +
+    '    <div class="table-wrap"><table id="approvalsTable"><thead><tr><th></th><th>Type</th><th>Title</th><th>Category</th><th>Amount</th><th>Requester</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table></div>' +
+    '  </div>' +
+    '</div>';
+  contentArea.appendChild(pageDiv);
+}
+
+function loadPageData(page) {
+  var dates = getDateRange(AppState.dateRange);
+  try {
+    switch(page) {
+      case 'dashboard': loadDashboard(dates); break;
+      case 'finance': loadFinance(dates); break;
+      case 'sales': loadSales(dates); break;
+      case 'inventory': loadInventory(); break;
+      case 'operations': loadOperations(dates); break;
+      case 'marketing': loadMarketing(dates); break;
+      case 'social': loadSocial(dates); break;
+      case 'customers': loadCustomers(dates); break;
+      case 'satisfaction': loadSatisfaction(dates); break;
+      case 'nps': loadNps(dates); break;
+      case 'performance': loadPerformance(dates); break;
+      case 'members': loadMembers(); break;
+      case 'tasks': loadTasks(dates); break;
+      case 'expenses': loadExpenses(dates); break;
+      case 'approvals': loadApprovals(); break;
+      default: break;
+    }
+  } catch (e) {
+    console.error('Load page error:', e);
+    showToast('Error', 'Failed to load data: ' + e.message, 'error');
+  }
+}
+
+// ─── PHASE 3D MODAL FUNCTIONS (complete) ───
+var _inventoryCache = [];
+var _bomComponents = [];
+var _currentBOM = null;
+
+function openAdjustStock(id) {
+  var item = _inventoryCache.find(function(i) { return i.id === id; });
+  if (!item) return;
+  document.getElementById('adjProductLabel').textContent = item.name + ' (' + item.sku + ')';
+  document.getElementById('adjInventoryId').value = item.id;
+  document.getElementById('adjSku').value = item.sku;
+  document.getElementById('adjCurrentQty').textContent = item.quantity || 0;
+  document.getElementById('adjNewQty').value = '';
+  document.getElementById('adjReason').value = 'Damage';
+  document.getElementById('adjNotes').value = '';
+  document.getElementById('modalAdjustStock').style.display = 'flex';
+}
+
+function submitAdjustStock() {
+  var inventoryId = document.getElementById('adjInventoryId').value;
+  var newQty = parseInt(document.getElementById('adjNewQty').value);
+  var reason = document.getElementById('adjReason').value;
+  var notes = document.getElementById('adjNotes').value.trim();
+  if (isNaN(newQty) || newQty < 0) { showToast('Error', 'Please enter a valid new quantity', 'error'); return; }
+  if (!reason) { showToast('Error', 'Please select a reason', 'error'); return; }
+  callServer('uiAdjustStock', { inventoryId: inventoryId, newQuantity: newQty, reason: reason, notes: notes })
+    .then(function() { showToast('Success', 'Stock adjusted successfully', 'success'); closeModal('modalAdjustStock'); loadInventory(); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+function openMovements(sku) {
+  var item = _inventoryCache.find(function(i) { return i.sku === sku; });
+  document.getElementById('movProductLabel').textContent = item ? (item.name + ' (' + sku + ')') : sku;
+  document.getElementById('movementsTableContainer').innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Loading movements...</p>';
+  document.getElementById('modalMovements').style.display = 'flex';
+  callServer('uiGetStockMovements', sku)
+    .then(function(res) {
+      var movements = (res.data && res.data.data) ? res.data.data : [];
+      if (movements.length === 0) {
+        document.getElementById('movementsTableContainer').innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No movement history found.</p>';
+          <p style="text-align:center;color:#999;padding:20px;">No movement history found.</p>;
+        return;
+      }
+      var html = '<table class="table" style="font-size:13px;"><thead><tr><th>Date</th><th>Type</th><th>Qty Change</th><th>Reason</th><th>User</th><th>Notes</th></tr></thead><tbody>';
+      movements.forEach(function(m) {
+        var changeClass = (m.quantityChange || 0) > 0 ? 'color:#16A34A;' : (m.quantityChange || 0) < 0 ? 'color:#DC2626;' : '';
+        var changeStr = (m.quantityChange > 0 ? '+' : '') + formatNumber(m.quantityChange, 0);
+        html += '<tr>' +
+          '<td>' + formatDate(m.createdAt) + '</td>' +
+          '<td>' + esc(m.movementType || '—') + '</td>' +
+          '<td style="font-weight:600;' + changeClass + '">' + changeStr + '</td>' +
+          '<td>' + esc(m.reason || '—') + '</td>' +
+          '<td>' + esc(m.createdBy || '—') + '</td>' +
+          '<td>' + esc(m.notes || '—') + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table>';
+      document.getElementById('movementsTableContainer').innerHTML = html;
+    })
+    .catch(function(err) {
+      document.getElementById('movementsTableContainer').innerHTML = '<p style="text-align:center;color:#c62828;padding:20px;">Error: ' + esc(err.message) + '</p>';
+    });
+}
+
+function openBOM(sku) {
+  var item = _inventoryCache.find(function(i) { return i.sku === sku; });
+  document.getElementById('bomProductLabel').textContent = item ? (item.name + ' (' + sku + ')') : sku;
+  document.getElementById('bomTableContainer').innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Loading BOM...</p>';
+  document.getElementById('bomActions').innerHTML = '';
+  document.getElementById('modalBOM').style.display = 'flex';
+  
+  callServer('uiGetBOM', sku)
+    .then(function(res) {
+      var bom = res.data;
+      if (!bom || !bom.id) {
+        document.getElementById('bomTableContainer').innerHTML = 
+          '<div style="text-align:center;padding:32px;">' +
+          '<div style="font-size:48px;margin-bottom:12px;">📦</div>' +
+          '<div style="font-weight:600;margin-bottom:8px;">No BOM Found</div>' +
+          '<div style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">This product does not have a Bill of Materials yet.</div>' +
+          (hasPerm('inventory:bom_manage') ? '<button class="btn btn-primary" onclick="closeModal(\'modalBOM\');openBOMEditor(\'' + esc(sku) + '\')">Create BOM</button>' : '') +
+          '</div>';
+        return;
+      }
+      
+      _currentBOM = bom;
+      document.getElementById('bomActions').innerHTML = 
+        (hasPerm('inventory:bom_manage') ? '<button class="btn btn-primary" onclick="closeModal(\'modalBOM\');openBOMEditor(\'' + esc(sku) + '\')">Edit BOM</button>' : '') +
+        '<button class="btn btn-outline" onclick="closeModal(\'modalBOM\')">Close</button>';
+      
+      return callServer('uiGetBOMItems', bom.id);
+    })
+    .then(function(itemsRes) {
+      if (!itemsRes) return;
+      var items = (itemsRes.data && itemsRes.data.data) ? itemsRes.data.data : [];
+      if (items.length === 0) {
+        document.getElementById('bomTableContainer').innerHTML = '<p style="text-align:center;color:#999;padding:20px;">BOM exists but has no components.</p>';
+        return;
+      }
+      
+      var totalCost = 0;
+      var html = '<table class="table bom-components-table" style="font-size:13px;"><thead><tr><th>Component</th><th>SKU</th><th>Qty</th><th>Unit Cost</th><th>Total Cost</th><th>Waste %</th></tr></thead><tbody>';
+      items.forEach(function(c) {
+        var compItem = _inventoryCache.find(function(i) { return i.id === c.componentId; });
+        var unitCost = compItem ? (compItem.cost || 0) : 0;
+        var lineCost = unitCost * (c.quantity || 0);
+        totalCost += lineCost;
+        html += '<tr>' +
+          '<td style="font-weight:600;">' + esc(compItem ? compItem.name : 'Unknown') + '</td>' +
+          '<td>' + esc(compItem ? compItem.sku : '—') + '</td>' +
+          '<td>' + formatNumber(c.quantity, 2) + ' ' + esc(c.unit || '') + '</td>' +
+          '<td>' + formatCurrency(unitCost) + '</td>' +
+          '<td style="font-weight:600;">' + formatCurrency(lineCost) + '</td>' +
+          '<td>' + (c.wastePercent || 0) + '%</td>' +
+          '</tr>';
+      });
+      html += '</tbody><tfoot><tr style="background:var(--bg-tertiary);font-weight:700;">' +
+        '<td colspan="4">Total BOM Cost</td>' +
+        '<td colspan="2">' + formatCurrency(totalCost) + '</td>' +
+        '</tr></tfoot></table>';
+      document.getElementById('bomTableContainer').innerHTML = html;
+    })
+    .catch(function(err) {
+      document.getElementById('bomTableContainer').innerHTML = '<p style="text-align:center;color:#c62828;padding:20px;">Error: ' + esc(err.message) + '</p>';
+    });
+}
+
+function openBOMEditor(sku) {
+  var item = _inventoryCache.find(function(i) { return i.sku === sku; });
+  document.getElementById('bomEditProductLabel').textContent = item ? (item.name + ' (' + sku + ')') : sku;
+  document.getElementById('bomEditSku').value = sku;
+  document.getElementById('modalBOMEditor').style.display = 'flex';
+  
+  _bomComponents = [];
+  callServer('uiGetBOM', sku)
+    .then(function(res) {
+      var bom = res.data;
+      if (bom && bom.id) {
+        _currentBOM = bom;
+        document.getElementById('bomEditNotes').value = bom.notes || '';
+        return callServer('uiGetBOMItems', bom.id);
+      } else {
+        _currentBOM = null;
+        document.getElementById('bomEditNotes').value = '';
+        return { data: { data: [] } };
+      }
+    })
+    .then(function(itemsRes) {
+      var items = (itemsRes.data && itemsRes.data.data) ? itemsRes.data.data : [];
+      _bomComponents = items.map(function(c) {
+        var compItem = _inventoryCache.find(function(i) { return i.id === c.componentId; });
+        return {
+          id: c.id,
+          componentId: c.componentId,
+          sku: compItem ? compItem.sku : '',
+          name: compItem ? compItem.name : 'Unknown',
+          quantity: c.quantity || 0,
+          unit: c.unit || 'pcs',
+          wastePercent: c.wastePercent || 0
+        };
+      });
+      renderBOMComponents();
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
+function renderBOMComponents() {
+  var container = document.getElementById('bomComponentsList');
+  if (!container) return;
+  
+  if (_bomComponents.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#999;padding:16px;">No components added yet. Use the dropdown below to add components.</p>';
+    return;
+  }
+  
+  var html = '<table class="table" style="font-size:13px;"><thead><tr><th>Component</th><th>Qty</th><th>Unit</th><th>Waste %</th><th></th></tr></thead><tbody>';
+  _bomComponents.forEach(function(c, idx) {
+    html += '<tr>' +
+      '<td>' + esc(c.name) + ' <span style="color:#999;font-size:11px;">(' + esc(c.sku) + ')</span></td>' +
+      '<td><input type="number" step="0.01" class="form-input" style="width:80px;" value="' + c.quantity + '" onchange="updateBOMComponentQty(' + idx + ', this.value)"></td>' +
+      '<td><input type="text" class="form-input" style="width:60px;" value="' + esc(c.unit) + '" onchange="updateBOMComponentUnit(' + idx + ', this.value)"></td>' +
+      '<td><input type="number" class="form-input" style="width:60px;" value="' + c.wastePercent + '" onchange="updateBOMComponentWaste(' + idx + ', this.value)"></td>' +
+      '<td><button class="btn btn-sm btn-danger" onclick="removeBOMComponent(' + idx + ')">🗑</button></td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function addBOMComponent() {
+  var select = document.getElementById('bomComponentSelect');
+  var qtyInput = document.getElementById('bomComponentQty');
+  var unitInput = document.getElementById('bomComponentUnit');
+  
+  var componentId = select ? select.value : '';
+  var qty = parseFloat(qtyInput ? qtyInput.value : 0);
+  var unit = unitInput ? unitInput.value : 'pcs';
+  
+  if (!componentId) { showToast('Error', 'Please select a component', 'error'); return; }
+  if (isNaN(qty) || qty <= 0) { showToast('Error', 'Please enter a valid quantity', 'error'); return; }
+  
+  var compItem = _inventoryCache.find(function(i) { return i.id === componentId; });
+  if (!compItem) { showToast('Error', 'Component not found', 'error'); return; }
+  
+  // Check if already exists
+  var existing = _bomComponents.find(function(c) { return c.componentId === componentId; });
+  if (existing) { showToast('Error', 'Component already in BOM. Update quantity instead.', 'error'); return; }
+  
+  _bomComponents.push({
+    id: null,
+    componentId: componentId,
+    sku: compItem.sku,
+    name: compItem.name,
+    quantity: qty,
+    unit: unit,
+    wastePercent: 0
+  });
+  
+  renderBOMComponents();
+  if (select) select.value = '';
+  if (qtyInput) qtyInput.value = '1';
+}
+
+function removeBOMComponent(index) {
+  _bomComponents.splice(index, 1);
+  renderBOMComponents();
+}
+
+function updateBOMComponentQty(index, value) {
+  var qty = parseFloat(value);
+  if (!isNaN(qty) && qty > 0) _bomComponents[index].quantity = qty;
+}
+
+function updateBOMComponentUnit(index, value) {
+  _bomComponents[index].unit = value;
+}
+
+function updateBOMComponentWaste(index, value) {
+  var waste = parseFloat(value);
+  if (!isNaN(waste) && waste >= 0) _bomComponents[index].wastePercent = waste;
+}
+
+function saveBOM() {
+  var sku = document.getElementById('bomEditSku').value;
+  var notes = document.getElementById('bomEditNotes').value.trim();
+  
+  if (_bomComponents.length === 0) { showToast('Error', 'BOM must have at least one component', 'error'); return; }
+  
+  var bomData = { sku: sku, notes: notes, components: _bomComponents };
+  
+  var savePromise;
+  if (_currentBOM && _currentBOM.id) {
+    savePromise = callServer('uiUpdateBOM', _currentBOM.id, bomData);
+  } else {
+    savePromise = callServer('uiCreateBOM', bomData);
+  }
+  
+  savePromise
+    .then(function(res) {
+      var bomId = (res.data && res.data.id) ? res.data.id : (_currentBOM ? _currentBOM.id : null);
+      if (!bomId) throw new Error('Failed to save BOM');
+      
+      // Save all components
+      var promises = _bomComponents.map(function(c) {
+        if (c.id) {
+          return callServer('uiUpdateBOMItem', c.id, { quantity: c.quantity, unit: c.unit, wastePercent: c.wastePercent });
+        } else {
+          return callServer('uiAddBOMItem', bomId, { componentId: c.componentId, quantity: c.quantity, unit: c.unit, wastePercent: c.wastePercent });
+        }
+      });
+      return Promise.all(promises);
+    })
+    .then(function() {
+      showToast('Success', 'BOM saved successfully', 'success');
+      closeModal('modalBOMEditor');
+      loadInventory();
+    })
+    .catch(function(err) {
+      showToast('Error', err.message, 'error');
+    });
+}
+
+function openCostMargin(id) {
+  var item = _inventoryCache.find(function(i) { return i.id === id; });
+  if (!item) return;
+  
+  document.getElementById('costProductLabel').textContent = item.name + ' (' + item.sku + ')';
+  document.getElementById('costProductId').value = id;
+  document.getElementById('costResultContainer').innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Click Calculate to see cost breakdown</p>';
+  document.getElementById('modalCostMargin').style.display = 'flex';
+}
+
+function calculateCostMargin() {
+  var id = document.getElementById('costProductId').value;
+  var manualPrice = parseFloat(document.getElementById('costManualPrice').value);
+  
+  callServer('uiCalculateCost', id)
+    .then(function(costRes) {
+      var costData = costRes.data || {};
+      var bomCost = costData.bomCost || 0;
+      var inventoryCost = costData.inventoryCost || 0;
+      var finalCost = costData.finalCost || bomCost || inventoryCost;
+      
+      var item = _inventoryCache.find(function(i) { return i.id === id; });
+      var sellingPrice = !isNaN(manualPrice) && manualPrice > 0 ? manualPrice : (item ? (item.price || 0) : 0);
+      var margin = sellingPrice > 0 ? ((sellingPrice - finalCost) / sellingPrice * 100) : 0;
+      var profit = sellingPrice - finalCost;
+      
+      var html = '<div class="cost-result-grid" style="display:grid;gap:12px;">';
+      html += '<div class="grid-2">';
+      html += '<div class="card" style="padding:16px;"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">BOM Cost</div><div style="font-size:24px;font-weight:700;">' + formatCurrency(bomCost) + '</div></div>';
+      html += '<div class="card" style="padding:16px;"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Inventory Cost</div><div style="font-size:24px;font-weight:700;">' + formatCurrency(inventoryCost) + '</div></div>';
+      html += '</div>';
+      html += '<div class="card" style="padding:16px;background:var(--accent);color:#fff;"><div style="font-size:11px;opacity:0.9;text-transform:uppercase;">Final Cost</div><div style="font-size:28px;font-weight:700;">' + formatCurrency(finalCost) + '</div></div>';
+      html += '<div class="grid-2">';
+      html += '<div class="card" style="padding:16px;"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Selling Price</div><div style="font-size:24px;font-weight:700;">' + formatCurrency(sellingPrice) + '</div></div>';
+      html += '<div class="card" style="padding:16px;"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Margin</div><div style="font-size:24px;font-weight:700;' + (margin >= 0 ? 'color:#16A34A;' : 'color:#DC2626;') + '">' + formatNumber(margin, 1) + '%</div></div>';
+      html += '</div>';
+      html += '<div class="card" style="padding:16px;"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Profit per Unit</div><div style="font-size:24px;font-weight:700;' + (profit >= 0 ? 'color:#16A34A;' : 'color:#DC2626;') + '">' + formatCurrency(profit) + '</div></div>';
+      html += '</div>';
+      
+      if (!bomCost || bomCost === 0) {
+        html += '<div style="margin-top:12px;padding:12px;background:#FEF3C7;border-radius:8px;font-size:13px;color:#92400E;">⚠️ No BOM found — using inventory cost only. <button class="btn btn-sm btn-outline" onclick="closeModal(\'modalCostMargin\');openBOMEditor(\'' + esc(item.sku) + '\')">Create BOM</button></div>';
+      }
+      
+      document.getElementById('costResultContainer').innerHTML = html;
+    })
+    .catch(function(err) {
+      // Fallback to inventory cost
+      var item = _inventoryCache.find(function(i) { return i.id === id; });
+      var invCost = item ? (item.cost || 0) : 0;
+      var sellingPrice = !isNaN(manualPrice) && manualPrice > 0 ? manualPrice : (item ? (item.price || 0) : 0);
+      var margin = sellingPrice > 0 ? ((sellingPrice - invCost) / sellingPrice * 100) : 0;
+      
+      var html = '<div style="text-align:center;padding:20px;">';
+      html += '<div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Inventory Cost</div>';
+      html += '<div style="font-size:28px;font-weight:700;">' + formatCurrency(invCost) + '</div>';
+      html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Margin</div>';
+      html += '<div style="font-size:24px;font-weight:700;">' + formatNumber(margin, 1) + '%</div>';
+      html += '<div style="margin-top:16px;color:#999;font-size:13px;">No BOM — using inventory cost. ' + (hasPerm('inventory:bom_manage') ? '<button class="btn btn-sm btn-outline" onclick="closeModal(\'modalCostMargin\');openBOMEditor(\'' + esc(item.sku) + '\')">Create BOM</button>' : '') + '</div>';
+      html += '</div>';
+      document.getElementById('costResultContainer').innerHTML = html;
+    });
+}
+
+function openRestock(id) {
+  var item = _inventoryCache.find(function(i) { return i.id === id; });
+  if (!item) return;
+  document.getElementById('restockProductLabel').textContent = item.name + ' (' + item.sku + ')';
+  document.getElementById('restockInventoryId').value = item.id;
+  document.getElementById('restockSku').value = item.sku;
+  document.getElementById('restockCurrentQty').textContent = item.quantity || 0;
+  document.getElementById('restockQty').value = '';
+  document.getElementById('restockCost').value = item.cost || '';
+  document.getElementById('restockSupplier').value = '';
+  document.getElementById('restockNotes').value = '';
+  document.getElementById('modalRestock').style.display = 'flex';
+}
+
+function submitRestock() {
+  var inventoryId = document.getElementById('restockInventoryId').value;
+  var qty = parseInt(document.getElementById('restockQty').value);
+  var cost = parseFloat(document.getElementById('restockCost').value);
+  var supplier = document.getElementById('restockSupplier').value.trim();
+  var notes = document.getElementById('restockNotes').value.trim();
+  
+  if (isNaN(qty) || qty <= 0) { showToast('Error', 'Please enter a valid quantity', 'error'); return; }
+  if (isNaN(cost) || cost < 0) { showToast('Error', 'Please enter a valid cost', 'error'); return; }
+  
+  callServer('uiRestockStock', { inventoryId: inventoryId, quantity: qty, unitCost: cost, supplier: supplier, notes: notes })
+    .then(function() { showToast('Success', 'Stock restocked successfully', 'success'); closeModal('modalRestock'); loadInventory(); })
+    .catch(function(err) { showToast('Error', err.message, 'error'); });
+}
+
+function showLowStock() {
+  var items = _inventoryCache.filter(function(i) { 
+    return (i.quantity || 0) <= (i.reorderLevel || 0) && (i.quantity || 0) > 0; 
+  });
+  showFilteredInventoryModal('Low Stock Items (' + items.length + ')', items, 'Items below or at reorder level');
+}
+
+function showOutOfStock() {
+  var items = _inventoryCache.filter(function(i) { return (i.quantity || 0) === 0; });
+  showFilteredInventoryModal('Out of Stock Items (' + items.length + ')', items, 'Items with zero quantity');
+}
+
+function showFilteredInventoryModal(title, items, subtitle) {
+  var html = '<div style="padding:16px;">';
+  if (subtitle) html += '<div style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">' + esc(subtitle) + '</div>';
+  
+  if (items.length === 0) {
+    html += '<p style="text-align:center;color:#999;padding:20px;">No items found.</p>';
+  } else {
+    html += '<div style="max-height:400px;overflow:auto;"><table class="table" style="font-size:13px;"><thead><tr><th>SKU</th><th>Name</th><th>Qty</th><th>Reorder Level</th><th>Status</th></tr></thead><tbody>';
+    items.forEach(function(item) {
+      html += '<tr>' +
+        '<td>' + esc(item.sku) + '</td>' +
+        '<td>' + esc(item.name) + '</td>' +
+        '<td style="font-weight:600;color:#DC2626;">' + formatNumber(item.quantity, 0) + '</td>' +
+        '<td>' + formatNumber(item.reorderLevel, 0) + '</td>' +
+        '<td><span class="badge badge-warning">' + esc(item.status) + '</span></td>' +
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+  
+  openModal(title, html, '<button class="btn btn-outline" onclick="closeModal()">Close</button>');
+}
+
+// ─── INIT ───
+document.addEventListener('DOMContentLoaded', function() {
+  initAuthSystem();
+});
 // ============================================
 // PHINOX BOS v5 — Frontend Application Engine
 // ============================================
