@@ -14,6 +14,12 @@
  * 7. UI launch functions (doGet, showPhinoxDashboard) remain unprotected by design
  * 8. No function signatures, arguments, or return structures changed
  * ============================================================
+ * PHASE 3D FIXES (2026-08-21):
+ * 1. Merged duplicate Expense API blocks (Phase 2 + Phase 3D)
+ * 2. Added uiGetCurrentUser for auth system
+ * 3. Added _requireAuth to all Phase 3D Inventory/BOM endpoints
+ * 4. Fixed uiRestockStock parameter mapping
+ * 5. Removed conflicting function re-declarations
  */
 
 // ============================================================
@@ -30,18 +36,39 @@
 function _requireAuth(permission) {
   var member = getCurrentMember();
   if (!member) {
-    throw new Error('Authentication required. Please ensure you are registered as an active member in the system.');
+    throw new Error("Authentication required. Please ensure you are registered as an active member in the system.");
   }
   if (!hasPermission(member, permission)) {
-    // Log authorization failure for audit trail
     try {
-      logActivity(member, 'Access Denied', 'UI_Server', permission, '', 'Unauthorized attempt');
-    } catch (e) {
-      // If audit logging fails, continue — security check is more important
-    }
-    throw new Error('Access denied: ' + permission);
+      logActivity(member, "Access Denied", "UI_Server", permission, "", "Unauthorized attempt");
+    } catch (e) {}
+    throw new Error("Access denied: " + permission);
   }
   return member;
+}
+
+// ============================================================
+// USER AUTH API
+// ============================================================
+
+function uiGetCurrentUser() {
+  try {
+    var member = getCurrentMember();
+    if (!member) {
+      return { success: false, error: "Not authenticated" };
+    }
+    return {
+      success: true,
+      data: {
+        email: member[MEMBER_COL.EMAIL],
+        name: member[MEMBER_COL.FULL_NAME],
+        role: member[MEMBER_COL.ROLE],
+        permissions: getRolePermissions(member[MEMBER_COL.ROLE])
+      }
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
 // ============================================================
@@ -440,11 +467,11 @@ function uiUpdateOrderStatus(id, status) {
   try {
     _requireAuth(PERMISSIONS.ORDERS_WRITE);
     var result;
-    if (status === 'Confirmed') result = OrderService.confirmOrder(id);
-    else if (status === 'Shipped') result = OrderService.shipOrder(id);
-    else if (status === 'Delivered') result = OrderService.deliverOrder(id);
-    else if (status === 'Cancelled') result = OrderService.cancelOrder(id);
-    else throw new Error('Invalid status: ' + status);
+    if (status === "Confirmed") result = OrderService.confirmOrder(id);
+    else if (status === "Shipped") result = OrderService.shipOrder(id);
+    else if (status === "Delivered") result = OrderService.deliverOrder(id);
+    else if (status === "Cancelled") result = OrderService.cancelOrder(id);
+    else throw new Error("Invalid status: " + status);
     return { success: true, data: result };
   } catch (e) {
     return { success: false, error: e.message };
@@ -460,7 +487,7 @@ function uiGetFinanceStats(startDate, endDate) {
     _requireAuth(PERMISSIONS.FINANCE_READ);
     var pnl = FinanceService.getProfitAndLoss(startDate, endDate);
     var cashFlow = FinanceService.getCashFlow(startDate, endDate);
-    var cashBalance = FinanceService.getCashBalance('Cash', endDate);
+    var cashBalance = FinanceService.getCashBalance("Cash", endDate);
     return { success: true, data: { pnl: pnl, cashFlow: cashFlow, cashBalance: cashBalance } };
   } catch (e) {
     return { success: false, error: e.message };
@@ -480,229 +507,6 @@ function uiGetLedger(options) {
 // ============================================================
 // INVENTORY APIs
 // ============================================================
-
-// ============================================================
-// INVENTORY APIs — PHASE 3D EXTENSIONS
-// ============================================================
-
-function uiGetStockMovements(sku, options) {
-  try {
-    if (!sku) throw new Error('SKU required');
-    var movements = StockMovementService.getMovementsBySku(sku);
-    return { success: true, data: movements };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiAdjustStock(data) {
-  try {
-    if (!data || !data.inventoryId || data.newQuantity === undefined || !data.reason) {
-      throw new Error('inventoryId, newQuantity, and reason required');
-    }
-    var result = InventoryService.adjustStock(
-      data.inventoryId,
-      data.newQuantity,
-      data.reason,
-      data.notes || ''
-    );
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiRestockStock(data) {
-  try {
-    if (!data || !data.sku || !data.qty) throw new Error('SKU and quantity required');
-    InventoryService.restock(data.sku, data.qty, 'UI_RESTOCK', data.notes || '');
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiGetBOM(sku) {
-  try {
-    if (!sku) throw new Error('SKU required');
-    var bom = BOMService.getBOMByFinishedProductSku(sku);
-    return { success: true, data: bom };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiGetBOMItems(bomId) {
-  try {
-    if (!bomId) throw new Error('bomId required');
-    var items = BOMService.getBOMItems(bomId);
-    return { success: true, data: items };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiCreateBOM(data) {
-  try {
-    if (!data) throw new Error('BOM data required');
-    var id = BOMService.createBOM(data);
-    return { success: true, id: id };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiUpdateBOM(id, data) {
-  try {
-    if (!id) throw new Error('BOM ID required');
-    var updated = BOMService.updateBOM(id, data);
-    return { success: true, data: updated };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiDeleteBOM(id) {
-  try {
-    if (!id) throw new Error('BOM ID required');
-    BOMService.deleteBOM(id);
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiAddBOMItem(bomId, data) {
-  try {
-    if (!bomId) throw new Error('bomId required');
-    var id = BOMService.addBOMItem(bomId, data);
-    return { success: true, id: id };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiUpdateBOMItem(id, data) {
-  try {
-    if (!id) throw new Error('BOM Item ID required');
-    var updated = BOMService.updateBOMItem(id, data);
-    return { success: true, data: updated };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiRemoveBOMItem(id) {
-  try {
-    if (!id) throw new Error('BOM Item ID required');
-    BOMService.removeBOMItem(id);
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiCalculateCost(productId) {
-  try {
-    if (!productId) throw new Error('productId required');
-    var result = BOMService.calculateUnitCost(productId);
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiCalculateMargin(productId) {
-  try {
-    if (!productId) throw new Error('productId required');
-    var result = BOMService.calculateGrossMargin(productId);
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiGetLowStock() {
-  try {
-    var result = InventoryService.getLowStockItems();
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiGetOutOfStock() {
-  try {
-    var result = InventoryService.getOutOfStockItems();
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-// ============================================================
-// EXPENSE APIs — PHASE 3D
-// ============================================================
-
-function uiGetExpenses(options) {
-  try {
-    var result = FinanceRepository.findAllExpenses(options || { limit: 1000 });
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiCreateExpenseRequest(data) {
-  try {
-    if (!data) throw new Error('Expense data required');
-    var id = FinanceService.createExpenseRequest(data);
-    return { success: true, id: id };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiSubmitExpense(id) {
-  try {
-    if (!id) throw new Error('Expense ID required');
-    FinanceService.submitExpenseRequest(id);
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiApproveExpense(id) {
-  try {
-    if (!id) throw new Error('Expense ID required');
-    FinanceService.approveExpenseRequest(id);
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiRejectExpense(id, reason) {
-  try {
-    if (!id) throw new Error('Expense ID required');
-    if (!reason) throw new Error('Rejection reason required');
-    FinanceService.rejectExpenseRequest(id, reason);
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiPostExpense(id, account) {
-  try {
-    if (!id) throw new Error('Expense ID required');
-    FinanceService.postExpenseToLedger(id, account || 'Cash');
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
 
 function uiGetInventory(options) {
   try {
@@ -748,32 +552,290 @@ function uiCreateInventoryItem(data) {
 }
 
 function openAddInventoryModal() {
-  openModal('Add Inventory Item',
-    '<p><label>SKU *</label><input type="text" id="addInvSku" /></p>' +
-    '<p><label>Name *</label><input type="text" id="addInvName" /></p>' +
-    '<p><label>Category</label><input type="text" id="addInvCategory" /></p>' +
-    '<p><label>Quantity *</label><input type="number" id="addInvQty" /></p>' +
-    '<p><label>Cost</label><input type="number" id="addInvCost" /></p>' +
-    '<p><label>Price</label><input type="number" id="addInvPrice" /></p>',
-    '' +
-    '<button onclick="submitAddInventory()">Add</button>' +
-    '<button onclick="closeModal()">Cancel</button>'
+  openModal("Add Inventory Item",
+    "<p><label>SKU *</label><input type=\"text\" id=\"addInvSku\" /></p>" +
+    "<p><label>Name *</label><input type=\"text\" id=\"addInvName\" /></p>" +
+    "<p><label>Category</label><input type=\"text\" id=\"addInvCategory\" /></p>" +
+    "<p><label>Quantity *</label><input type=\"number\" id=\"addInvQty\" /></p>" +
+    "<p><label>Cost</label><input type=\"number\" id=\"addInvCost\" /></p>" +
+    "<p><label>Price</label><input type=\"number\" id=\"addInvPrice\" /></p>",
+    "" +
+    "<button onclick=\"submitAddInventory()\">Add</button>" +
+    "<button onclick=\"closeModal()\">Cancel</button>"
   );
 }
 
 function submitAddInventory() {
   var data = {
-    sku: document.getElementById('addInvSku').value.trim(),
-    name: document.getElementById('addInvName').value.trim(),
-    category: document.getElementById('addInvCategory').value.trim(),
-    quantity: parseInt(document.getElementById('addInvQty').value) || 0,
-    cost: parseFloat(document.getElementById('addInvCost').value) || 0,
-    price: parseFloat(document.getElementById('addInvPrice').value) || 0
+    sku: document.getElementById("addInvSku").value.trim(),
+    name: document.getElementById("addInvName").value.trim(),
+    category: document.getElementById("addInvCategory").value.trim(),
+    quantity: parseInt(document.getElementById("addInvQty").value) || 0,
+    cost: parseFloat(document.getElementById("addInvCost").value) || 0,
+    price: parseFloat(document.getElementById("addInvPrice").value) || 0
   };
-  if (!data.sku || !data.name) { showToast('Error', 'SKU and Name are required', 'error'); return; }
-  callServer('uiCreateInventoryItem', data)
-    .then(function() { showToast('Success', 'Item created', 'success'); closeModal(); loadInventory(); })
-    .catch(function(err) { showToast('Error', err.message, 'error'); });
+  if (!data.sku || !data.name) { showToast("Error", "SKU and Name are required", "error"); return; }
+  callServer("uiCreateInventoryItem", data)
+    .then(function() { showToast("Success", "Item created", "success"); closeModal(); loadInventory(); })
+    .catch(function(err) { showToast("Error", err.message, "error"); });
+}
+
+// ============================================================
+// INVENTORY APIs — PHASE 3D EXTENSIONS (FIXED: added _requireAuth)
+// ============================================================
+
+function uiGetStockMovements(sku, options) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_READ);
+    if (!sku) throw new Error("SKU required");
+    var movements = StockMovementService.getMovementsBySku(sku);
+    return { success: true, data: movements };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiAdjustStock(data) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_WRITE);
+    if (!data || !data.inventoryId || data.newQuantity === undefined || !data.reason) {
+      throw new Error("inventoryId, newQuantity, and reason required");
+    }
+    var result = InventoryService.adjustStock(
+      data.inventoryId,
+      data.newQuantity,
+      data.reason,
+      data.notes || ""
+    );
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiRestockStock(data) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_WRITE);
+    if (!data || !data.sku || !data.qty) throw new Error("SKU and quantity required");
+    InventoryService.restock(data.sku, data.qty, "UI_RESTOCK", data.referenceId || "");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiGetBOM(sku) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_READ);
+    if (!sku) throw new Error("SKU required");
+    var bom = BOMService.getBOMByFinishedProductSku(sku);
+    return { success: true, data: bom };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiGetBOMItems(bomId) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_READ);
+    if (!bomId) throw new Error("bomId required");
+    var items = BOMService.getBOMItems(bomId);
+    return { success: true, data: items };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiCreateBOM(data) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
+    if (!data) throw new Error("BOM data required");
+    var id = BOMService.createBOM(data);
+    return { success: true, id: id };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiUpdateBOM(id, data) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
+    if (!id) throw new Error("BOM ID required");
+    var updated = BOMService.updateBOM(id, data);
+    return { success: true, data: updated };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiDeleteBOM(id) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
+    if (!id) throw new Error("BOM ID required");
+    BOMService.deleteBOM(id);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiAddBOMItem(bomId, data) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
+    if (!bomId) throw new Error("bomId required");
+    var id = BOMService.addBOMItem(bomId, data);
+    return { success: true, id: id };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiUpdateBOMItem(id, data) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
+    if (!id) throw new Error("BOM Item ID required");
+    var updated = BOMService.updateBOMItem(id, data);
+    return { success: true, data: updated };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiRemoveBOMItem(id) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
+    if (!id) throw new Error("BOM Item ID required");
+    BOMService.removeBOMItem(id);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiCalculateCost(productId) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_READ);
+    if (!productId) throw new Error("productId required");
+    var result = BOMService.calculateUnitCost(productId);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiCalculateMargin(productId) {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_BOM_READ);
+    if (!productId) throw new Error("productId required");
+    var result = BOMService.calculateGrossMargin(productId);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiGetLowStock() {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_READ);
+    var result = InventoryService.getLowStockItems();
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiGetOutOfStock() {
+  try {
+    _requireAuth(PERMISSIONS.INVENTORY_READ);
+    var result = InventoryService.getOutOfStockItems();
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ============================================================
+// EXPENSE APIs — MERGED (Phase 2 + Phase 3D unified)
+// ============================================================
+
+function uiGetExpenses(options) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_READ);
+    var result = FinanceRepository.findAllExpenses(options || { limit: 1000 });
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiGetExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_READ);
+    var result = FinanceRepository.findExpenseById(id);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiCreateExpense(data) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_WRITE);
+    var id = FinanceService.createExpenseRequest(data);
+    return { success: true, id: id };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiSubmitExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_WRITE);
+    var result = FinanceService.submitExpenseRequest(id);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiApproveExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
+    var result = FinanceService.approveExpenseRequest(id);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiRejectExpense(id, reason) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
+    var result = FinanceService.rejectExpenseRequest(id, reason);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiPostExpense(id, account) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
+    var result = FinanceService.postExpenseToLedger(id, account);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function uiDeleteExpense(id) {
+  try {
+    _requireAuth(PERMISSIONS.EXPENSES_DELETE);
+    FinanceService.deleteExpenseRequest(id);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
 // ============================================================
@@ -898,96 +960,6 @@ function uiCreateSocialRecord(data) {
   }
 }
 
-
-
-// ============================================================
-// EXPENSE APIs — PHASE 2
-// ============================================================
-
-function uiGetExpenses(options) {
-  try {
-    _requireAuth(PERMISSIONS.EXPENSES_READ);
-    var result = FinanceService.getExpenseRequests(options || { limit: 1000 });
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiGetExpense(id) {
-  try {
-    _requireAuth(PERMISSIONS.EXPENSES_READ);
-    var result = FinanceService.getExpenseRequest(id);
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiCreateExpense(data) {
-  try {
-    _requireAuth(PERMISSIONS.EXPENSES_WRITE);
-    var id = FinanceService.createExpenseRequest(data);
-    return { success: true, id: id };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiSubmitExpense(id) {
-  try {
-    _requireAuth(PERMISSIONS.EXPENSES_WRITE);
-    var result = FinanceService.submitExpenseRequest(id);
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiApproveExpense(id) {
-  try {
-    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
-    var member = getCurrentMember();
-    var approverName = member ? member[MEMBER_COL.FULL_NAME] : 'System';
-    var result = FinanceService.approveExpenseRequest(id, approverName);
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiRejectExpense(id, reason) {
-  try {
-    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
-    var member = getCurrentMember();
-    var approverName = member ? member[MEMBER_COL.FULL_NAME] : 'System';
-    var result = FinanceService.rejectExpenseRequest(id, approverName, reason);
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiPostExpense(id) {
-  try {
-    _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
-    var result = FinanceService.postExpenseToLedger(id);
-    return { success: true, data: result };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
-function uiDeleteExpense(id) {
-  try {
-    _requireAuth(PERMISSIONS.EXPENSES_DELETE);
-    FinanceService.deleteExpenseRequest(id);
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
-
 // ============================================================
 // LAUNCH UI — NO BUSINESS PERMISSIONS REQUIRED
 // These are UI/bootstrap functions. Authorization is enforced
@@ -995,16 +967,16 @@ function uiDeleteExpense(id) {
 // ============================================================
 
 function showPhinoxDashboard() {
-  var html = HtmlService.createHtmlOutputFromFile('UI_Index')
-    .setTitle('PHINOX BOS Dashboard')
+  var html = HtmlService.createHtmlOutputFromFile("UI_Index")
+    .setTitle("PHINOX BOS Dashboard")
     .setWidth(1280)
     .setHeight(900);
-  SpreadsheetApp.getUi().showModalDialog(html, 'PHINOX BOS');
+  SpreadsheetApp.getUi().showModalDialog(html, "PHINOX BOS");
 }
 
 function showPhinoxDashboardSidebar() {
-  var html = HtmlService.createHtmlOutputFromFile('UI_Index')
-    .setTitle('PHINOX BOS')
+  var html = HtmlService.createHtmlOutputFromFile("UI_Index")
+    .setTitle("PHINOX BOS")
     .setWidth(350);
   SpreadsheetApp.getUi().showSidebar(html);
 }
@@ -1016,17 +988,17 @@ function showPhinoxDashboardSidebar() {
 
 function doGet(e) {
   try {
-    var html = HtmlService.createHtmlOutputFromFile('UI_Index')
-      .setTitle('PHINOX BOS v5')
+    var html = HtmlService.createHtmlOutputFromFile("UI_Index")
+      .setTitle("PHINOX BOS v5")
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     return html;
   } catch (err) {
     return HtmlService.createHtmlOutput(
-      '<div style="padding:40px;font-family:sans-serif;text-align:center;">' +
-      '<h2>Failed to load UI_Index.html</h2>' +
-      '<p>Error: ' + err.message + '</p>' +
-      '<p>Please verify that UI_Index.html exists in the project.</p>' +
-      '</div>'
-    ).setTitle('PHINOX BOS v5 — Error');
+      "<div style=\"padding:40px;font-family:sans-serif;text-align:center;\">" +
+      "<h2>Failed to load UI_Index.html</h2>" +
+      "<p>Error: " + err.message + "</p>" +
+      "<p>Please verify that UI_Index.html exists in the project.</p>" +
+      "</div>"
+    ).setTitle("PHINOX BOS v5 — Error");
   }
 }
