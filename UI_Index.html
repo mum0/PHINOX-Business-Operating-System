@@ -7,6 +7,270 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
+
+/* ── Searchable Dropdown ── */
+.searchable-select {
+  position: relative;
+  width: 100%;
+}
+.searchable-select input {
+  width: 100%;
+  padding: 8px 32px 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.searchable-select .ss-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #999;
+  font-size: 16px;
+  display: none;
+}
+.searchable-select.has-value .ss-clear {
+  display: block;
+}
+.searchable-select .ss-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  z-index: 1000;
+  display: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.searchable-select .ss-dropdown.active {
+  display: block;
+}
+.searchable-select .ss-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.searchable-select .ss-option:hover,
+.searchable-select .ss-option.highlighted {
+  background: #e8eaf6;
+}
+.searchable-select .ss-option .ss-label {
+  font-weight: 500;
+  color: #1a237e;
+}
+.searchable-select .ss-option .ss-meta {
+  font-size: 11px;
+  color: #666;
+  margin-top: 2px;
+}
+.searchable-select .ss-empty {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+}
+.searchable-select .ss-loading {
+  padding: 12px;
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+}
+
+/* ── Alert Cards ── */
+.alert-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.alert-card {
+  flex: 1;
+  min-width: 180px;
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  color: #fff;
+}
+.alert-card:hover {
+  transform: translateY(-2px);
+}
+.alert-card.low-stock {
+  background: linear-gradient(135deg, #f57c00, #ef6c00);
+}
+.alert-card.out-of-stock {
+  background: linear-gradient(135deg, #c62828, #b71c1c);
+}
+.alert-card .alert-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  opacity: 0.9;
+  margin-bottom: 4px;
+}
+.alert-card .alert-count {
+  font-size: 28px;
+  font-weight: 700;
+}
+.alert-card .alert-sub {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+/* ── Modal Enhancements ── */
+.modal-section {
+  margin-bottom: 16px;
+}
+.modal-section label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.modal-section .readonly-value {
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #333;
+}
+.modal-section input[type="number"],
+.modal-section input[type="text"],
+.modal-section select,
+.modal-section textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.modal-section textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+.modal-section .hint {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+/* ── BOM Component Table ── */
+.bom-components-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.bom-components-table th {
+  background: #f5f5f5;
+  padding: 8px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #ddd;
+}
+.bom-components-table td {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+.bom-components-table .bom-actions {
+  text-align: right;
+}
+
+/* ── Cost Calculator Results ── */
+.cost-result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+.cost-result-item {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+.cost-result-item .label {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+}
+.cost-result-item .value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a237e;
+  margin-top: 4px;
+}
+.cost-result-item .value.positive {
+  color: #2e7d32;
+}
+.cost-result-item .value.negative {
+  color: #c62828;
+}
+
+/* ── Expense Status Badges ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.badge-draft { background: #e0e0e0; color: #555; }
+.badge-pending { background: #fff3e0; color: #ef6c00; }
+.badge-approved { background: #e8f5e9; color: #2e7d32; }
+.badge-rejected { background: #ffebee; color: #c62828; }
+.badge-posted { background: #e3f2fd; color: #1565c0; }
+
+/* ── Sub-tabs ── */
+.sub-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #eee;
+}
+.sub-tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+.sub-tab.active {
+  color: #1a237e;
+  border-bottom-color: #1a237e;
+}
+.sub-tab:hover {
+  color: #1a237e;
+}
+.sub-tab-content {
+  display: none;
+}
+.sub-tab-content.active {
+  display: block;
+}
+
 /* ============================================
    PHINOX BOS — Design System
    ============================================ */
@@ -1124,114 +1388,6 @@ tbody tr:hover td {
 .form-step.hidden { display: none; }
 .review-box { background: var(--bg); padding: 16px; border-radius: 8px; margin: 12px 0; }
 .review-box p { margin: 8px 0; }
-
-
-/* ═══════════════════════════════════════════════════════════════
-   PHASE 3D — INVENTORY & OPERATIONS UI ADDITIONS
-   ═══════════════════════════════════════════════════════════════ */
-
-/* ── Searchable Dropdown ── */
-.searchable-select { position: relative; width: 100%; }
-.searchable-select input {
-  width: 100%; padding: 8px 32px 8px 12px; border: 1px solid var(--border);
-  border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--card); color: var(--text);
-}
-.searchable-select .ss-clear {
-  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-  cursor: pointer; color: var(--text-secondary); font-size: 16px; display: none;
-}
-.searchable-select.has-value .ss-clear { display: block; }
-.searchable-select .ss-dropdown {
-  position: absolute; top: 100%; left: 0; right: 0; max-height: 240px;
-  overflow-y: auto; background: var(--card); border: 1px solid var(--border);
-  border-top: none; border-radius: 0 0 8px 8px; z-index: 1000;
-  display: none; box-shadow: var(--shadow-lg);
-}
-.searchable-select .ss-dropdown.active { display: block; }
-.searchable-select .ss-option {
-  padding: 8px 12px; cursor: pointer; font-size: 13px;
-  border-bottom: 1px solid var(--border-light);
-}
-.searchable-select .ss-option:hover,
-.searchable-select .ss-option.highlighted { background: rgba(106,31,50,0.08); }
-.searchable-select .ss-option .ss-label { font-weight: 600; color: var(--accent); }
-.searchable-select .ss-option .ss-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-.searchable-select .ss-empty { padding: 12px; text-align: center; color: var(--text-secondary); font-size: 13px; }
-
-/* ── Alert Cards ── */
-.alert-cards { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.alert-card {
-  flex: 1; min-width: 180px; padding: 16px; border-radius: 12px;
-  cursor: pointer; transition: var(--transition); color: #fff;
-}
-.alert-card:hover { transform: translateY(-2px); }
-.alert-card.low-stock { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.alert-card.out-of-stock { background: linear-gradient(135deg, #dc2626, #b91c1c); }
-.alert-card .alert-title { font-size: 12px; text-transform: uppercase; opacity: 0.9; margin-bottom: 4px; }
-.alert-card .alert-count { font-size: 28px; font-weight: 700; }
-.alert-card .alert-sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-
-/* ── Modal Enhancements ── */
-.modal-section { margin-bottom: 16px; }
-.modal-section label {
-  display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary);
-  margin-bottom: 4px; text-transform: uppercase;
-}
-.modal-section .readonly-value {
-  padding: 8px 12px; background: var(--bg); border-radius: 8px;
-  font-size: 14px; color: var(--text);
-}
-.modal-section input[type="number"],
-.modal-section input[type="text"],
-.modal-section select,
-.modal-section textarea {
-  width: 100%; padding: 8px 12px; border: 1px solid var(--border);
-  border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--card); color: var(--text);
-}
-.modal-section textarea { resize: vertical; min-height: 60px; }
-.modal-actions {
-  display: flex; gap: 8px; justify-content: flex-end;
-  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
-}
-
-/* ── BOM Component Table ── */
-.bom-components-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-.bom-components-table th { background: var(--bg); padding: 8px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); }
-.bom-components-table td { padding: 8px; border-bottom: 1px solid var(--border-light); }
-.bom-components-table .bom-actions { text-align: right; }
-
-/* ── Cost Calculator Results ── */
-.cost-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-.cost-result-item { background: var(--bg); padding: 12px; border-radius: 8px; text-align: center; }
-.cost-result-item .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
-.cost-result-item .value { font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px; }
-.cost-result-item .value.positive { color: var(--success); }
-.cost-result-item .value.negative { color: var(--danger); }
-
-/* ── Expense Status Badges ── */
-.badge-draft { background: #e0e0e0; color: #555; }
-.badge-pending { background: #fff3e0; color: #ef6c00; }
-.badge-approved { background: #e8f5e9; color: #2e7d32; }
-.badge-rejected { background: #ffebee; color: #c62828; }
-.badge-posted { background: #e3f2fd; color: #1565c0; }
-
-/* ── Sub-tabs ── */
-.sub-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
-.sub-tab { padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -2px; }
-.sub-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-.sub-tab:hover { color: var(--accent); }
-.sub-tab-content { display: none; }
-.sub-tab-content.active { display: block; }
-
-/* ── Phase 3D Modal Styles ── */
-.modal-overlay.p3d-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-.modal-overlay.p3d-modal.open { display: flex; }
-.modal.p3d { background: var(--card); border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); }
-.modal.p3d.lg { max-width: 900px; }
-.modal.p3d.md { max-width: 700px; }
-.modal.p3d .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.modal.p3d .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
-.modal.p3d .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 </style>
 </head>
 <body>
@@ -1592,7 +1748,7 @@ tbody tr:hover td {
           </div>
         </div>
         <div class="card-body no-padding">
-          <div class="table-wrap"><table id="inventoryTable"><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Type</th><th>Qty</th><th>Reserved</th><th>Available</th><th>Cost</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+          <div class="table-wrap"><table id="inventoryTable"><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Qty</th><th>Reserved</th><th>Available</th><th>Cost</th><th>Price</th><th>Status</th></tr></thead><tbody></tbody></table></div>
         </div>
       </div>
     </div>
@@ -2961,7 +3117,7 @@ function loadPageData(page) {
       case 'dashboard': loadDashboard(dates); break;
       case 'finance': loadFinance(dates); break;
       case 'sales': loadSales(dates); break;
-      case 'inventory': loadInventory(); initInventoryTab(); break;
+      case 'inventory': loadInventory(); break;
       case 'operations': loadOperations(dates); break;
       case 'marketing': loadMarketing(dates); break;
       case 'social': loadSocial(dates); break;
@@ -3518,24 +3674,13 @@ function loadInventory() {
 
       renderTable('inventoryTable', items, [
         { key: 'sku' }, { key: 'name' }, { key: 'category' },
-        { key: 'type', fmt: function(v) { return v || '—'; } },
         { key: 'quantity', fmt: function(v) { return formatNumber(v, 0); } },
         { key: 'reserved', fmt: function(v) { return formatNumber(v, 0); } },
         { key: 'available', fmt: function(v) { return formatNumber(v, 0); } },
         { key: 'cost', fmt: formatCurrency },
         { key: 'price', fmt: formatCurrency },
         { key: 'status', fmt: function(v) { return '<span class="badge badge-' + (v==='Active'?'success':v==='Out of Stock'?'danger':'warning') + '">' + v + '</span>'; } },
-        { key: 'id', fmt: function(v, row) {
-          var actions = '<button class="btn btn-sm btn-outline" data-action="view-inventory" data-id="' + esc(v) + '">View</button> ';
-          if (row.type === 'FINISHED_GOOD') {
-            actions += '<button class="btn btn-sm btn-primary" onclick="openBOM('' + esc(row.sku) + '')">BOM</button> ';
-            actions += '<button class="btn btn-sm btn-outline" onclick="openCostMargin('' + esc(v) + '')">Cost</button> ';
-          }
-          actions += '<button class="btn btn-sm btn-warning" onclick="openAdjustStock('' + esc(v) + '')">Adjust</button> ';
-          actions += '<button class="btn btn-sm btn-success" onclick="openRestock('' + esc(v) + '')">Restock</button> ';
-          actions += '<button class="btn btn-sm btn-outline" onclick="openMovements('' + esc(row.sku) + '')">Movements</button>';
-          return actions;
-        } }
+        { key: 'id', fmt: function(v) { return '<button class="btn btn-sm btn-outline" data-action="view-inventory" data-id="' + v + '">View</button>'; } }
       ]);
 
       AppState.inventoryData = items;
@@ -4036,24 +4181,12 @@ function filterInventory() {
   });
   renderTable('inventoryTable', filtered, [
     { key: 'sku' }, { key: 'name' }, { key: 'category' },
-    { key: 'type', fmt: function(v) { return v || '—'; } },
     { key: 'quantity', fmt: function(v) { return formatNumber(v, 0); } },
     { key: 'reserved', fmt: function(v) { return formatNumber(v, 0); } },
     { key: 'available', fmt: function(v) { return formatNumber(v, 0); } },
     { key: 'cost', fmt: formatCurrency },
     { key: 'price', fmt: formatCurrency },
-    { key: 'status', fmt: function(v) { return '<span class="badge badge-' + (v==='Active'?'success':v==='Out of Stock'?'danger':'warning') + '">' + v + '</span>'; } },
-    { key: 'id', fmt: function(v, row) {
-      var actions = '<button class="btn btn-sm btn-outline" data-action="view-inventory" data-id="' + esc(v) + '">View</button> ';
-      if (row.type === 'FINISHED_GOOD') {
-        actions += '<button class="btn btn-sm btn-primary" onclick="openBOM('' + esc(row.sku) + '')">BOM</button> ';
-        actions += '<button class="btn btn-sm btn-outline" onclick="openCostMargin('' + esc(v) + '')">Cost</button> ';
-      }
-      actions += '<button class="btn btn-sm btn-warning" onclick="openAdjustStock('' + esc(v) + '')">Adjust</button> ';
-      actions += '<button class="btn btn-sm btn-success" onclick="openRestock('' + esc(v) + '')">Restock</button> ';
-      actions += '<button class="btn btn-sm btn-outline" onclick="openMovements('' + esc(row.sku) + '')">Movements</button>';
-      return actions;
-    } }
+    { key: 'status', fmt: function(v) { return '<span class="badge badge-' + (v==='Active'?'success':v==='Out of Stock'?'danger':'warning') + '">' + v + '</span>'; } }
   ]);
 }
 
@@ -5463,612 +5596,6 @@ function submitAddNPS() {
 // END PHASE 9 PATCH KIT
 // ═══════════════════════════════════════════════════════════════
 
-
-
-// ═══════════════════════════════════════════════════════════════
-// PHASE 3D — INVENTORY & OPERATIONS UI
-// ═══════════════════════════════════════════════════════════════
-
-// ── State ──
-var _inventoryCache = [];
-var _bomComponents = [];
-var _currentBOM = null;
-var _userPermissions = [];
-
-// ── Permission Helpers ──
-function hasPerm(perm) { return _userPermissions.indexOf(perm) > -1; }
-
-function loadUserPermissions() {
-  callServer('uiGetCurrentUserPermissions', {})
-    .then(function(perms) { _userPermissions = perms || []; })
-    .catch(function() { _userPermissions = []; });
-}
-
-// ── Searchable Dropdown Component ──
-function createSearchableDropdown(containerId, options, config) {
-  config = config || {};
-  var container = document.getElementById(containerId);
-  if (!container) return null;
-  
-  var html = '<div class="searchable-select" id="' + containerId + '_ss">' +
-    '<input type="text" id="' + containerId + '_input" placeholder="' + (config.placeholder || 'Search...') + '" autocomplete="off">' +
-    '<span class="ss-clear" id="' + containerId + '_clear">×</span>' +
-    '<div class="ss-dropdown" id="' + containerId + '_dropdown"></div>' +
-    '<input type="hidden" id="' + containerId + '_value">' +
-    '</div>';
-  container.innerHTML = html;
-  
-  var input = document.getElementById(containerId + '_input');
-  var dropdown = document.getElementById(containerId + '_dropdown');
-  var hidden = document.getElementById(containerId + '_value');
-  var clearBtn = document.getElementById(containerId + '_clear');
-  var ssWrap = document.getElementById(containerId + '_ss');
-  var highlightedIndex = -1;
-  
-  function renderOptions(filter) {
-    filter = (filter || '').toLowerCase().trim();
-    var filtered = options;
-    if (filter) {
-      filtered = options.filter(function(opt) {
-        return (opt.label || '').toLowerCase().indexOf(filter) > -1 ||
-               (opt.sku || '').toLowerCase().indexOf(filter) > -1 ||
-               (opt.meta || '').toLowerCase().indexOf(filter) > -1;
-      });
-    }
-    if (filtered.length === 0) {
-      dropdown.innerHTML = '<div class="ss-empty">No results found</div>';
-      highlightedIndex = -1;
-      return;
-    }
-    var max = config.maxResults || 50;
-    var show = filtered.slice(0, max);
-    dropdown.innerHTML = show.map(function(opt, idx) {
-      return '<div class="ss-option" data-idx="' + idx + '" data-value="' + esc(opt.value) + '">' +
-        '<div class="ss-label">' + esc(opt.label) + '</div>' +
-        (opt.meta ? '<div class="ss-meta">' + esc(opt.meta) + '</div>' : '') +
-        '</div>';
-    }).join('');
-    highlightedIndex = -1;
-  }
-  
-  function selectOption(val, label) {
-    hidden.value = val;
-    input.value = label || '';
-    ssWrap.classList.add('has-value');
-    dropdown.classList.remove('active');
-    if (config.onSelect) config.onSelect(val, label);
-  }
-  
-  function clear() {
-    hidden.value = '';
-    input.value = '';
-    ssWrap.classList.remove('has-value');
-    dropdown.classList.remove('active');
-    if (config.onClear) config.onClear();
-  }
-  
-  input.addEventListener('focus', function() {
-    renderOptions(input.value);
-    dropdown.classList.add('active');
-  });
-  
-  input.addEventListener('input', function() {
-    renderOptions(input.value);
-    dropdown.classList.add('active');
-  });
-  
-  input.addEventListener('keydown', function(e) {
-    var opts = dropdown.querySelectorAll('.ss-option');
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      highlightedIndex = Math.min(highlightedIndex + 1, opts.length - 1);
-      updateHighlight(opts);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      highlightedIndex = Math.max(highlightedIndex - 1, 0);
-      updateHighlight(opts);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (highlightedIndex >= 0 && opts[highlightedIndex]) {
-        opts[highlightedIndex].click();
-      }
-    } else if (e.key === 'Escape') {
-      dropdown.classList.remove('active');
-    }
-  });
-  
-  function updateHighlight(opts) {
-    opts.forEach(function(o, i) {
-      o.classList.toggle('highlighted', i === highlightedIndex);
-    });
-  }
-  
-  dropdown.addEventListener('click', function(e) {
-    var opt = e.target.closest('.ss-option');
-    if (!opt) return;
-    var val = opt.getAttribute('data-value');
-    var data = options.find(function(o) { return String(o.value) === val; });
-    if (data) selectOption(data.value, data.label);
-  });
-  
-  clearBtn.addEventListener('click', clear);
-  
-  document.addEventListener('click', function(e) {
-    if (!ssWrap.contains(e.target)) dropdown.classList.remove('active');
-  });
-  
-  renderOptions('');
-  return { getValue: function() { return hidden.value; }, clear: clear };
-}
-
-// ── Inventory Tab Enhancements ──
-function initInventoryTab() {
-  var invHeader = document.getElementById('inventoryKpiCards');
-  if (invHeader && !document.getElementById('alertCardsWrapper')) {
-    var alertHtml = '<div class="alert-cards" id="alertCardsWrapper">' +
-      '<div class="alert-card low-stock" onclick="showLowStock()">' +
-        '<div class="alert-title">Low Stock</div>' +
-        '<div class="alert-count" id="alertLowStockCount">0</div>' +
-        '<div class="alert-sub">Items below reorder level</div>' +
-      '</div>' +
-      '<div class="alert-card out-of-stock" onclick="showOutOfStock()">' +
-        '<div class="alert-title">Out of Stock</div>' +
-        '<div class="alert-count" id="alertOutOfStockCount">0</div>' +
-        '<div class="alert-sub">Items with zero quantity</div>' +
-      '</div>' +
-    '</div>';
-    invHeader.insertAdjacentHTML('afterend', alertHtml);
-  }
-  loadInventoryStats();
-}
-
-function loadInventoryStats() {
-  callServer('uiGetInventoryStats', {})
-    .then(function(res) {
-      var elLow = document.getElementById('alertLowStockCount');
-      var elOut = document.getElementById('alertOutOfStockCount');
-      if (elLow) elLow.textContent = res.data && res.data.lowStock ? res.data.lowStock : 0;
-      if (elOut) elOut.textContent = res.data && res.data.outOfStock ? res.data.outOfStock : 0;
-    })
-    .catch(function(err) { console.error('loadInventoryStats', err); });
-}
-
-// ── Stock Adjustment ──
-function openAdjustStock(id) {
-  var item = (_inventoryCache || []).find(function(i) { return i.id === id; });
-  if (!item) return;
-  document.getElementById('adjProductLabel').textContent = item.name + ' (' + item.sku + ')';
-  document.getElementById('adjInventoryId').value = item.id;
-  document.getElementById('adjSku').value = item.sku;
-  document.getElementById('adjCurrentQty').textContent = item.quantity || 0;
-  document.getElementById('adjNewQty').value = '';
-  document.getElementById('adjReason').value = 'Damage';
-  document.getElementById('adjNotes').value = '';
-  document.getElementById('modalAdjustStock').style.display = 'flex';
-}
-
-function submitAdjustStock() {
-  var inventoryId = document.getElementById('adjInventoryId').value;
-  var newQty = parseInt(document.getElementById('adjNewQty').value);
-  var reason = document.getElementById('adjReason').value;
-  var notes = document.getElementById('adjNotes').value.trim();
-  
-  if (isNaN(newQty) || newQty < 0) { showToast('Error', 'Please enter a valid new quantity', 'error'); return; }
-  if (!reason) { showToast('Error', 'Please select a reason', 'error'); return; }
-  
-  callServer('uiAdjustStock', { inventoryId: inventoryId, newQuantity: newQty, reason: reason, notes: notes })
-    .then(function() {
-      showToast('Success', 'Stock adjusted successfully', 'success');
-      closeModal('modalAdjustStock');
-      loadInventory();
-    })
-    .catch(function(err) { showToast('Error', err.message, 'error'); });
-}
-
-// ── Stock Movements ──
-function openMovements(sku) {
-  var item = (_inventoryCache || []).find(function(i) { return i.sku === sku; });
-  document.getElementById('movProductLabel').textContent = item ? (item.name + ' (' + sku + ')') : sku;
-  document.getElementById('movementsTableContainer').innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">Loading movements...</p>';
-  document.getElementById('modalMovements').style.display = 'flex';
-  
-  callServer('uiGetStockMovements', sku)
-    .then(function(res) {
-      var movements = (res.data && res.data.data) ? res.data.data : [];
-      if (movements.length === 0) {
-        document.getElementById('movementsTableContainer').innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">No movement history found.</p>';
-        return;
-      }
-      var html = '<table class="data-table" style="width:100%;font-size:12px;">' +
-        '<thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Before</th><th>After</th><th>Reason</th><th>Reference</th><th>User</th></tr></thead><tbody>';
-      html += movements.map(function(m) {
-        return '<tr>' +
-          '<td>' + esc((m.createdAt || '').split('T')[0]) + '</td>' +
-          '<td>' + esc(m.movementType || '') + '</td>' +
-          '<td>' + (m.quantity || 0) + '</td>' +
-          '<td>' + (m.quantityBefore || 0) + '</td>' +
-          '<td>' + (m.quantityAfter || 0) + '</td>' +
-          '<td>' + esc(m.reason || '—') + '</td>' +
-          '<td>' + esc(m.reference || '—') + '</td>' +
-          '<td>' + esc(m.createdBy || '—') + '</td>' +
-          '</tr>';
-      }).join('');
-      html += '</tbody></table>';
-      document.getElementById('movementsTableContainer').innerHTML = html;
-    })
-    .catch(function(err) {
-      document.getElementById('movementsTableContainer').innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">Error: ' + esc(err.message) + '</p>';
-    });
-}
-
-// ── BOM ──
-function openBOM(sku) {
-  var item = (_inventoryCache || []).find(function(i) { return i.sku === sku; });
-  document.getElementById('bomProductLabel').textContent = item ? (item.name + ' (' + sku + ')') : sku;
-  document.getElementById('bomSku').value = sku;
-  document.getElementById('bomProductId').value = item ? item.id : '';
-  document.getElementById('bomContent').innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">Loading BOM...</p>';
-  document.getElementById('bomFooter').innerHTML = '<button class="btn btn-outline" onclick="closeModal(\'modalBOM\')">Close</button>';
-  document.getElementById('modalBOM').style.display = 'flex';
-  
-  callServer('uiGetBOM', sku)
-    .then(function(res) {
-      var bom = res.data;
-      if (!bom || !bom.id) {
-        var canCreate = hasPerm('inventory:bom_manage');
-        var html = '<div style="text-align:center;padding:30px;">' +
-          '<p style="color:var(--text-secondary);margin-bottom:16px;">No BOM found for this product.</p>' +
-          (canCreate ? '<button class="btn btn-primary" onclick="closeModal(\'modalBOM\');openBOMEditor(\'' + esc(sku) + '\')">Create BOM</button>' : '') +
-          '</div>';
-        document.getElementById('bomContent').innerHTML = html;
-        return;
-      }
-      _currentBOM = bom;
-      var canEdit = hasPerm('inventory:bom_manage');
-      callServer('uiGetBOMItems', bom.id)
-        .then(function(itemsRes) {
-          var items = (itemsRes.data && itemsRes.data.data) ? itemsRes.data.data : [];
-          var totalCost = items.reduce(function(sum, it) { return sum + ((it.quantityRequired || 0) * (it.unitCost || 0)); }, 0);
-          var html = '<div style="margin-bottom:12px;">' +
-            '<p><b>BOM Name:</b> ' + esc(bom.name || '—') + '</p>' +
-            '<p><b>Description:</b> ' + esc(bom.description || '—') + '</p>' +
-            '<p><b>Total Material Cost:</b> ' + totalCost.toFixed(2) + '</p>' +
-            '</div>' +
-            '<table class="bom-components-table">' +
-            '<thead><tr><th>Component</th><th>Qty</th><th>Unit</th><th>Wastage</th><th>Unit Cost</th><th>Line Cost</th></tr></thead><tbody>';
-          html += items.map(function(it) {
-            var lineCost = (it.quantityRequired || 0) * (it.unitCost || 0);
-            return '<tr>' +
-              '<td>' + esc(it.componentSku || '—') + '</td>' +
-              '<td>' + (it.quantityRequired || 0) + '</td>' +
-              '<td>' + esc(it.unit || 'pc') + '</td>' +
-              '<td>' + (it.wastagePercent || 0) + '%</td>' +
-              '<td>' + (it.unitCost || 0) + '</td>' +
-              '<td>' + lineCost.toFixed(2) + '</td>' +
-              '</tr>';
-          }).join('');
-          html += '</tbody></table>';
-          document.getElementById('bomContent').innerHTML = html;
-          if (canEdit) {
-            document.getElementById('bomFooter').innerHTML = 
-              '<button class="btn btn-outline" onclick="closeModal(\'modalBOM\')">Close</button>' +
-              '<button class="btn btn-primary" onclick="closeModal(\'modalBOM\');openBOMEditor(\'' + esc(sku) + '\')">Edit BOM</button>';
-          }
-        });
-    })
-    .catch(function(err) {
-      document.getElementById('bomContent').innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px;">Error: ' + esc(err.message) + '</p>';
-    });
-}
-
-function openBOMEditor(sku) {
-  var item = (_inventoryCache || []).find(function(i) { return i.sku === sku; });
-  document.getElementById('bomEditProductLabel').textContent = item ? (item.name + ' (' + sku + ')') : sku;
-  document.getElementById('bomEditSku').value = sku;
-  document.getElementById('bomEditName').value = '';
-  document.getElementById('bomEditDescription').value = '';
-  document.getElementById('bomEditId').value = '';
-  _bomComponents = [];
-  renderBOMComponents();
-  
-  var componentOptions = (_inventoryCache || [])
-    .filter(function(i) { return i.type !== 'FINISHED_GOOD' && i.sku !== sku; })
-    .map(function(i) {
-      return { value: i.sku, label: i.name, meta: i.sku + ' | Qty: ' + (i.quantity || 0) };
-    });
-  createSearchableDropdown('bomComponentSelect', componentOptions, { placeholder: 'Search component...', maxResults: 50 });
-  
-  callServer('uiGetBOM', sku)
-    .then(function(res) {
-      var bom = res.data;
-      if (bom && bom.id) {
-        document.getElementById('bomEditorTitle').textContent = 'Edit BOM';
-        document.getElementById('bomEditId').value = bom.id;
-        document.getElementById('bomEditName').value = bom.name || '';
-        document.getElementById('bomEditDescription').value = bom.description || '';
-        return callServer('uiGetBOMItems', bom.id);
-      }
-      document.getElementById('bomEditorTitle').textContent = 'Create BOM';
-      return { data: { data: [] } };
-    })
-    .then(function(itemsRes) {
-      var items = (itemsRes.data && itemsRes.data.data) ? itemsRes.data.data : [];
-      _bomComponents = items.map(function(it) {
-        var comp = (_inventoryCache || []).find(function(c) { return c.sku === it.componentSku; });
-        return {
-          id: it.id, sku: it.componentSku, name: comp ? comp.name : it.componentSku,
-          quantity: it.quantityRequired, unit: it.unit || 'pc', wastage: it.wastagePercent || 0, unitCost: it.unitCost || 0
-        };
-      });
-      renderBOMComponents();
-    });
-  
-  document.getElementById('modalBOMEditor').style.display = 'flex';
-}
-
-function addBOMComponent() {
-  var ss = document.getElementById('bomComponentSelect_value');
-  var sku = ss ? ss.value : '';
-  var qty = parseFloat(document.getElementById('bomCompQty').value);
-  var unit = document.getElementById('bomCompUnit').value.trim() || 'pc';
-  var wastage = parseFloat(document.getElementById('bomCompWastage').value) || 0;
-  
-  if (!sku) { showToast('Error', 'Please select a component', 'error'); return; }
-  if (isNaN(qty) || qty <= 0) { showToast('Error', 'Please enter a valid quantity', 'error'); return; }
-  
-  var comp = (_inventoryCache || []).find(function(i) { return i.sku === sku; });
-  if (!comp) { showToast('Error', 'Component not found', 'error'); return; }
-  
-  if (_bomComponents.find(function(c) { return c.sku === sku; })) {
-    showToast('Error', 'Component already added', 'error'); return;
-  }
-  
-  _bomComponents.push({ id: null, sku: sku, name: comp.name, quantity: qty, unit: unit, wastage: wastage, unitCost: comp.cost || 0 });
-  
-  if (ss) ss.value = '';
-  var ssInput = document.getElementById('bomComponentSelect_input');
-  if (ssInput) ssInput.value = '';
-  document.getElementById('bomCompQty').value = '';
-  document.getElementById('bomCompWastage').value = '0';
-  
-  renderBOMComponents();
-}
-
-function removeBOMComponent(index) {
-  _bomComponents.splice(index, 1);
-  renderBOMComponents();
-}
-
-function renderBOMComponents() {
-  var tbody = document.getElementById('bomComponentsBody');
-  if (_bomComponents.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No components added yet.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = _bomComponents.map(function(c, idx) {
-    var lineCost = (c.quantity || 0) * (c.unitCost || 0);
-    return '<tr>' +
-      '<td>' + esc(c.name || c.sku) + '</td>' +
-      '<td>' + c.quantity + '</td>' +
-      '<td>' + esc(c.unit) + '</td>' +
-      '<td>' + c.wastage + '%</td>' +
-      '<td>' + (c.unitCost || 0) + '</td>' +
-      '<td>' + lineCost.toFixed(2) + '</td>' +
-      '<td class="bom-actions"><button class="btn btn-sm btn-danger" onclick="removeBOMComponent(' + idx + ')">Remove</button></td>' +
-      '</tr>';
-  }).join('');
-}
-
-function saveBOM() {
-  var sku = document.getElementById('bomEditSku').value;
-  var bomId = document.getElementById('bomEditId').value;
-  var name = document.getElementById('bomEditName').value.trim();
-  var description = document.getElementById('bomEditDescription').value.trim();
-  
-  if (!name) { showToast('Error', 'BOM Name is required', 'error'); return; }
-  if (_bomComponents.length === 0) { showToast('Error', 'Add at least one component', 'error'); return; }
-  
-  var payload = { finishedProductSku: sku, name: name, description: description, active: true };
-  
-  var promise;
-  if (bomId) {
-    promise = callServer('uiUpdateBOM', { id: bomId, updates: payload });
-  } else {
-    promise = callServer('uiCreateBOM', payload);
-  }
-  
-  promise.then(function(res) {
-    var newBomId = bomId || (res.data && res.data.id);
-    if (!newBomId) throw new Error('Failed to save BOM');
-    
-    var compPromises = _bomComponents.map(function(c) {
-      if (c.id) {
-        return callServer('uiUpdateBOMItem', { id: c.id, updates: { quantityRequired: c.quantity, unit: c.unit, wastagePercent: c.wastage } });
-      } else {
-        return callServer('uiAddBOMItem', { bomId: newBomId, componentSku: c.sku, quantityRequired: c.quantity, unit: c.unit, wastagePercent: c.wastage, notes: '' });
-      }
-    });
-    return Promise.all(compPromises);
-  })
-  .then(function() {
-    showToast('Success', 'BOM saved successfully', 'success');
-    closeModal('modalBOMEditor');
-    if (document.getElementById('modalBOM').style.display === 'flex') {
-      openBOM(sku);
-    }
-  })
-  .catch(function(err) { showToast('Error', err.message, 'error'); });
-}
-
-// ── Cost & Margin ──
-function openCostMargin(productId) {
-  document.getElementById('costResults').style.display = 'none';
-  document.getElementById('btnUpdateCostFromBOM').style.display = 'none';
-  
-  var options = (_inventoryCache || []).map(function(i) {
-    return { value: i.id, label: i.name, meta: i.sku + ' | ' + (i.type || '') };
-  });
-  
-  var dd = createSearchableDropdown('costProductSelect', options, {
-    placeholder: 'Search product...',
-    onSelect: function(val) { calculateCostMargin(val); }
-  });
-  
-  if (productId) {
-    var item = (_inventoryCache || []).find(function(i) { return i.id === productId; });
-    if (item && dd) {
-      var input = document.getElementById('costProductSelect_input');
-      var hidden = document.getElementById('costProductSelect_value');
-      if (input) input.value = item.name;
-      if (hidden) hidden.value = item.id;
-      calculateCostMargin(item.id);
-    }
-  }
-  
-  document.getElementById('modalCostMargin').style.display = 'flex';
-}
-
-function calculateCostMargin(productId) {
-  var item = (_inventoryCache || []).find(function(i) { return i.id === productId; });
-  if (!item) return;
-  
-  document.getElementById('costSellingPrice').textContent = (item.price || 0).toFixed(2);
-  document.getElementById('costResults').style.display = 'block';
-  
-  callServer('uiCalculateCost', productId)
-    .then(function(costRes) {
-      var cost = costRes.data || {};
-      document.getElementById('costBomCost').textContent = (cost.bomCost || 0).toFixed(2);
-      document.getElementById('costUnitCost').textContent = (cost.unitCost || 0).toFixed(2);
-      
-      var profit = (item.price || 0) - (cost.unitCost || 0);
-      var margin = item.price > 0 ? ((profit / item.price) * 100) : 0;
-      
-      var profitEl = document.getElementById('costGrossProfit');
-      profitEl.textContent = profit.toFixed(2);
-      profitEl.className = 'value ' + (profit >= 0 ? 'positive' : 'negative');
-      
-      document.getElementById('costGrossMargin').textContent = margin.toFixed(1) + '%';
-      document.getElementById('costSource').textContent = cost.source || 'INVENTORY';
-      
-      if (hasPerm('inventory:write') && cost.source === 'BOM') {
-        document.getElementById('btnUpdateCostFromBOM').style.display = 'inline-block';
-        document.getElementById('btnUpdateCostFromBOM').onclick = function() {
-          callServer('uiUpdateInventoryItem', { id: productId, updates: { cost: cost.unitCost } })
-            .then(function() { showToast('Success', 'Inventory cost updated from BOM', 'success'); loadInventory(); })
-            .catch(function(err) { showToast('Error', err.message, 'error'); });
-        };
-      }
-    })
-    .catch(function(err) {
-      document.getElementById('costBomCost').textContent = '—';
-      document.getElementById('costUnitCost').textContent = (item.cost || 0).toFixed(2);
-      var profit = (item.price || 0) - (item.cost || 0);
-      var margin = item.price > 0 ? ((profit / item.price) * 100) : 0;
-      document.getElementById('costGrossProfit').textContent = profit.toFixed(2);
-      document.getElementById('costGrossMargin').textContent = margin.toFixed(1) + '%';
-      document.getElementById('costSource').textContent = 'INVENTORY';
-    });
-}
-
-function updateCostFromBOM() {
-  // Handled inline in calculateCostMargin
-}
-
-// ── Restock ──
-function openRestock(id) {
-  var item = (_inventoryCache || []).find(function(i) { return i.id === id; });
-  if (!item) return;
-  document.getElementById('restockProductLabel').textContent = item.name + ' (' + item.sku + ')';
-  document.getElementById('restockSku').value = item.sku;
-  document.getElementById('restockCurrentQty').textContent = item.quantity || 0;
-  document.getElementById('restockQty').value = '';
-  document.getElementById('restockNotes').value = '';
-  document.getElementById('modalRestock').style.display = 'flex';
-}
-
-function submitRestock() {
-  var sku = document.getElementById('restockSku').value;
-  var qty = parseInt(document.getElementById('restockQty').value);
-  var notes = document.getElementById('restockNotes').value.trim();
-  
-  if (isNaN(qty) || qty <= 0) { showToast('Error', 'Please enter a valid quantity to add', 'error'); return; }
-  
-  callServer('uiRestockStock', { sku: sku, qty: qty, notes: notes })
-    .then(function() {
-      showToast('Success', 'Stock restocked successfully', 'success');
-      closeModal('modalRestock');
-      loadInventory();
-    })
-    .catch(function(err) { showToast('Error', err.message, 'error'); });
-}
-
-// ── Low / Out of Stock ──
-function showLowStock() {
-  callServer('uiGetLowStock', {})
-    .then(function(res) {
-      var items = (res.data && res.data.data) ? res.data.data : [];
-      var html = '<div style="max-height:400px;overflow-y:auto;"><table class="data-table" style="width:100%;font-size:13px;">' +
-        '<thead><tr><th>SKU</th><th>Name</th><th>Qty</th><th>Reorder Level</th><th>Actions</th></tr></thead><tbody>';
-      html += items.map(function(item) {
-        return '<tr>' +
-          '<td>' + esc(item.sku) + '</td>' +
-          '<td>' + esc(item.name) + '</td>' +
-          '<td>' + (item.quantity || 0) + '</td>' +
-          '<td>' + (item.reorderLevel || 0) + '</td>' +
-          '<td>' +
-            '<button class="btn btn-sm btn-primary" onclick="closeModal();openRestock(\'' + esc(item.id) + '\')">Restock</button>' +
-            '<button class="btn btn-sm btn-outline" onclick="closeModal();openAdjustStock(\'' + esc(item.id) + '\')">Adjust</button>' +
-          '</td>' +
-          '</tr>';
-      }).join('');
-      html += '</tbody></table></div>';
-      openModal('Low Stock Items', html, '<button class="btn btn-outline" onclick="closeModal()">Close</button>');
-    })
-    .catch(function(err) { showToast('Error', err.message, 'error'); });
-}
-
-function showOutOfStock() {
-  callServer('uiGetOutOfStock', {})
-    .then(function(res) {
-      var items = (res.data && res.data.data) ? res.data.data : [];
-      var html = '<div style="max-height:400px;overflow-y:auto;"><table class="data-table" style="width:100%;font-size:13px;">' +
-        '<thead><tr><th>SKU</th><th>Name</th><th>Qty</th><th>Actions</th></tr></thead><tbody>';
-      html += items.map(function(item) {
-        return '<tr>' +
-          '<td>' + esc(item.sku) + '</td>' +
-          '<td>' + esc(item.name) + '</td>' +
-          '<td>' + (item.quantity || 0) + '</td>' +
-          '<td>' +
-            '<button class="btn btn-sm btn-primary" onclick="closeModal();openRestock(\'' + esc(item.id) + '\')">Restock</button>' +
-          '</td>' +
-          '</tr>';
-      }).join('');
-      html += '</tbody></table></div>';
-      openModal('Out of Stock Items', html, '<button class="btn btn-outline" onclick="closeModal()">Close</button>');
-    })
-    .catch(function(err) { showToast('Error', err.message, 'error'); });
-}
-
-// ── Modal Helper Override ──
-var _origCloseModal = (typeof closeModal === 'function') ? closeModal : null;
-closeModal = function(modalId) {
-  if (modalId) {
-    var el = document.getElementById(modalId);
-    if (el) el.style.display = 'none';
-  } else if (_origCloseModal) {
-    _origCloseModal();
-  }
-};
-
-// ── Initialization ──
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function() {
-    loadUserPermissions();
-  });
-} else {
-  loadUserPermissions();
-}
 </script>
 <!-- v5.1 ADDED — Custom Date Range Picker -->
 <div id="customDateModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
@@ -6090,17 +5617,12 @@ if (document.readyState === 'loading') {
 </div>
 
 
-
-<!-- ═══════════════════════════════════════════════════════════════
-     PHASE 3D — INVENTORY MODALS
-     ═══════════════════════════════════════════════════════════════ -->
-
 <!-- ── Stock Adjustment Modal ── -->
-<div id="modalAdjustStock" class="modal-overlay p3d-modal" style="display:none;">
-  <div class="modal p3d">
+<div id="modalAdjustStock" class="modal-overlay" style="display:none;">
+  <div class="modal">
     <div class="modal-header">
-      <h3 style="margin:0;font-size:16px;">Adjust Stock</h3>
-      <button class="modal-close" onclick="closeModal('modalAdjustStock')">×</button>
+      <h3>Adjust Stock</h3>
+      <button class="modal-close" onclick="closeModal('modalAdjustStock')">&times;</button>
     </div>
     <div class="modal-body">
       <div class="modal-section">
@@ -6133,18 +5655,18 @@ if (document.readyState === 'loading') {
       </div>
     </div>
     <div class="modal-footer modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('modalAdjustStock')">Cancel</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalAdjustStock')">Cancel</button>
       <button class="btn btn-primary" onclick="submitAdjustStock()">Confirm Adjustment</button>
     </div>
   </div>
 </div>
 
 <!-- ── Stock Movement Modal ── -->
-<div id="modalMovements" class="modal-overlay p3d-modal" style="display:none;">
-  <div class="modal p3d lg">
+<div id="modalMovements" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:900px;">
     <div class="modal-header">
-      <h3 style="margin:0;font-size:16px;">Stock Movement History</h3>
-      <button class="modal-close" onclick="closeModal('modalMovements')">×</button>
+      <h3>Stock Movement History</h3>
+      <button class="modal-close" onclick="closeModal('modalMovements')">&times;</button>
     </div>
     <div class="modal-body">
       <div class="modal-section">
@@ -6152,21 +5674,21 @@ if (document.readyState === 'loading') {
         <div class="readonly-value" id="movProductLabel">—</div>
       </div>
       <div id="movementsTableContainer" style="max-height:400px;overflow-y:auto;">
-        <p style="text-align:center;color:var(--text-secondary);padding:20px;">Loading movements...</p>
+        <p style="text-align:center;color:#999;padding:20px;">Loading movements...</p>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('modalMovements')">Close</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalMovements')">Close</button>
     </div>
   </div>
 </div>
 
 <!-- ── BOM Modal ── -->
-<div id="modalBOM" class="modal-overlay p3d-modal" style="display:none;">
-  <div class="modal p3d md">
+<div id="modalBOM" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:800px;">
     <div class="modal-header">
-      <h3 style="margin:0;font-size:16px;">Bill of Materials</h3>
-      <button class="modal-close" onclick="closeModal('modalBOM')">×</button>
+      <h3>Bill of Materials</h3>
+      <button class="modal-close" onclick="closeModal('modalBOM')">&times;</button>
     </div>
     <div class="modal-body">
       <div class="modal-section">
@@ -6176,21 +5698,21 @@ if (document.readyState === 'loading') {
         <input type="hidden" id="bomProductId">
       </div>
       <div id="bomContent">
-        <p style="text-align:center;color:var(--text-secondary);padding:20px;">Loading BOM...</p>
+        <p style="text-align:center;color:#999;padding:20px;">Loading BOM...</p>
       </div>
     </div>
     <div class="modal-footer modal-actions" id="bomFooter">
-      <button class="btn btn-outline" onclick="closeModal('modalBOM')">Close</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalBOM')">Close</button>
     </div>
   </div>
 </div>
 
 <!-- ── BOM Editor Modal ── -->
-<div id="modalBOMEditor" class="modal-overlay p3d-modal" style="display:none;">
-  <div class="modal p3d md">
+<div id="modalBOMEditor" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:800px;">
     <div class="modal-header">
-      <h3 style="margin:0;font-size:16px;" id="bomEditorTitle">Create BOM</h3>
-      <button class="modal-close" onclick="closeModal('modalBOMEditor')">×</button>
+      <h3 id="bomEditorTitle">Create BOM</h3>
+      <button class="modal-close" onclick="closeModal('modalBOMEditor')">&times;</button>
     </div>
     <div class="modal-body">
       <div class="modal-section">
@@ -6212,7 +5734,7 @@ if (document.readyState === 'loading') {
         <div id="bomComponentSelect"></div>
         <div style="display:flex;gap:8px;margin-top:8px;">
           <input type="number" id="bomCompQty" placeholder="Qty" style="width:80px;" min="0" step="0.01">
-          <input type="text" id="bomCompUnit" placeholder="Unit" style="width:100px;" value="pc">
+          <input type="text" id="bomCompUnit" placeholder="Unit (e.g. pc)" style="width:100px;" value="pc">
           <input type="number" id="bomCompWastage" placeholder="Wastage %" style="width:100px;" min="0" max="100" step="0.1" value="0">
           <button class="btn btn-sm btn-primary" onclick="addBOMComponent()">+ Add</button>
         </div>
@@ -6220,26 +5742,28 @@ if (document.readyState === 'loading') {
       <div class="modal-section">
         <label>Components</label>
         <table class="bom-components-table">
-          <thead><tr><th>Component</th><th>Qty</th><th>Unit</th><th>Wastage</th><th>Unit Cost</th><th>Line Cost</th><th></th></tr></thead>
+          <thead>
+            <tr><th>Component</th><th>Qty</th><th>Unit</th><th>Wastage</th><th>Unit Cost</th><th>Line Cost</th><th></th></tr>
+          </thead>
           <tbody id="bomComponentsBody">
-            <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No components added yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#999;">No components added yet.</td></tr>
           </tbody>
         </table>
       </div>
     </div>
     <div class="modal-footer modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('modalBOMEditor')">Cancel</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalBOMEditor')">Cancel</button>
       <button class="btn btn-primary" onclick="saveBOM()">Save BOM</button>
     </div>
   </div>
 </div>
 
 <!-- ── Cost & Margin Modal ── -->
-<div id="modalCostMargin" class="modal-overlay p3d-modal" style="display:none;">
-  <div class="modal p3d">
+<div id="modalCostMargin" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:600px;">
     <div class="modal-header">
-      <h3 style="margin:0;font-size:16px;">Cost & Margin Calculator</h3>
-      <button class="modal-close" onclick="closeModal('modalCostMargin')">×</button>
+      <h3>Cost & Margin Calculator</h3>
+      <button class="modal-close" onclick="closeModal('modalCostMargin')">&times;</button>
     </div>
     <div class="modal-body">
       <div class="modal-section">
@@ -6248,30 +5772,50 @@ if (document.readyState === 'loading') {
       </div>
       <div id="costResults" style="display:none;">
         <div class="cost-result-grid">
-          <div class="cost-result-item"><div class="label">Selling Price</div><div class="value" id="costSellingPrice">—</div></div>
-          <div class="cost-result-item"><div class="label">BOM Cost</div><div class="value" id="costBomCost">—</div></div>
-          <div class="cost-result-item"><div class="label">Unit Cost</div><div class="value" id="costUnitCost">—</div></div>
-          <div class="cost-result-item"><div class="label">Gross Profit</div><div class="value" id="costGrossProfit">—</div></div>
-          <div class="cost-result-item"><div class="label">Gross Margin %</div><div class="value" id="costGrossMargin">—</div></div>
-          <div class="cost-result-item"><div class="label">Cost Source</div><div class="value" id="costSource">—</div></div>
+          <div class="cost-result-item">
+            <div class="label">Selling Price</div>
+            <div class="value" id="costSellingPrice">—</div>
+          </div>
+          <div class="cost-result-item">
+            <div class="label">BOM Cost</div>
+            <div class="value" id="costBomCost">—</div>
+          </div>
+          <div class="cost-result-item">
+            <div class="label">Unit Cost</div>
+            <div class="value" id="costUnitCost">—</div>
+          </div>
+          <div class="cost-result-item">
+            <div class="label">Gross Profit</div>
+            <div class="value" id="costGrossProfit">—</div>
+          </div>
+          <div class="cost-result-item">
+            <div class="label">Gross Margin %</div>
+            <div class="value" id="costGrossMargin">—</div>
+          </div>
+          <div class="cost-result-item">
+            <div class="label">Cost Source</div>
+            <div class="value" id="costSource">—</div>
+          </div>
         </div>
         <div class="modal-actions" style="margin-top:16px;">
-          <button class="btn btn-primary" id="btnUpdateCostFromBOM" onclick="updateCostFromBOM()" style="display:none;">Update Inventory Cost from BOM</button>
+          <button class="btn btn-primary" id="btnUpdateCostFromBOM" onclick="updateCostFromBOM()" style="display:none;">
+            Update Inventory Cost from BOM
+          </button>
         </div>
       </div>
     </div>
     <div class="modal-footer modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('modalCostMargin')">Close</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalCostMargin')">Close</button>
     </div>
   </div>
 </div>
 
 <!-- ── Restock Modal ── -->
-<div id="modalRestock" class="modal-overlay p3d-modal" style="display:none;">
-  <div class="modal p3d">
+<div id="modalRestock" class="modal-overlay" style="display:none;">
+  <div class="modal">
     <div class="modal-header">
-      <h3 style="margin:0;font-size:16px;">Restock</h3>
-      <button class="modal-close" onclick="closeModal('modalRestock')">×</button>
+      <h3>Restock</h3>
+      <button class="modal-close" onclick="closeModal('modalRestock')">&times;</button>
     </div>
     <div class="modal-body">
       <div class="modal-section">
@@ -6293,10 +5837,106 @@ if (document.readyState === 'loading') {
       </div>
     </div>
     <div class="modal-footer modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('modalRestock')">Cancel</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalRestock')">Cancel</button>
       <button class="btn btn-primary" onclick="submitRestock()">Confirm Restock</button>
     </div>
   </div>
 </div>
+
+<!-- ── Expense Entry Modal ── -->
+<div id="modalExpense" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h3>Add Expense</h3>
+      <button class="modal-close" onclick="closeModal('modalExpense')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <label>Title *</label>
+        <input type="text" id="expTitle" placeholder="e.g. Meta Ads Campaign">
+      </div>
+      <div class="modal-section">
+        <label>Category *</label>
+        <select id="expCategory">
+          <option value="">Select category...</option>
+          <option value="Rent">Rent</option>
+          <option value="Salaries">Salaries</option>
+          <option value="Utilities">Utilities</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Shipping">Shipping</option>
+          <option value="Supplies">Supplies</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="modal-section">
+        <label>Amount *</label>
+        <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="modal-section">
+        <label>Description</label>
+        <textarea id="expDescription" placeholder="Optional description..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalExpense')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitExpense()">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Expense Post Modal ── -->
+<div id="modalPostExpense" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Post Expense to Ledger</h3>
+      <button class="modal-close" onclick="closeModal('modalPostExpense')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <label>Expense</label>
+        <div class="readonly-value" id="postExpLabel">—</div>
+        <input type="hidden" id="postExpId">
+      </div>
+      <div class="modal-section">
+        <label>Account *</label>
+        <select id="postExpAccount">
+          <option value="Cash">Cash</option>
+          <option value="Bank">Bank</option>
+          <option value="Credit Card">Credit Card</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalPostExpense')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitPostExpense()">Post to Ledger</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Reject Expense Modal ── -->
+<div id="modalRejectExpense" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Reject Expense</h3>
+      <button class="modal-close" onclick="closeModal('modalRejectExpense')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <label>Expense</label>
+        <div class="readonly-value" id="rejExpLabel">—</div>
+        <input type="hidden" id="rejExpId">
+      </div>
+      <div class="modal-section">
+        <label>Rejection Reason *</label>
+        <textarea id="rejExpReason" placeholder="Enter reason for rejection..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalRejectExpense')">Cancel</button>
+      <button class="btn btn-danger" onclick="submitRejectExpense()">Reject</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
