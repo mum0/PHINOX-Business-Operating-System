@@ -44,27 +44,165 @@ const InventoryController = (function() {
     return stats;
   }
 
-  function handleApiAction(action, params) {
-    params = params || {};
-    if (!action || typeof action !== 'string') throw ErrorHandler.validation('Action required', {}, 'InventoryController');
-    Logger.info('InventoryController', 'API action: ' + action, { params: Object.keys(params) });
-    switch (action) {
-      case 'inventory.stats': return showInventoryStats();
-      case 'inventory.list': return InventoryService.getItems(params);
-      case 'inventory.get': if (!params.id) throw ErrorHandler.validation('ID required', {}, 'InventoryController'); return InventoryService.getItem(params.id);
-      case 'inventory.getBySku': if (!params.sku) throw ErrorHandler.validation('SKU required', {}, 'InventoryController'); return InventoryService.getItemBySku(params.sku);
-      case 'inventory.create': return InventoryService.createItem(params);
-      case 'inventory.update': if (!params.id) throw ErrorHandler.validation('ID required', {}, 'InventoryController'); return InventoryService.updateItem(params.id, params.updates || Utils.omit(params, ['id', 'action']));
-      case 'inventory.delete': if (!params.id) throw ErrorHandler.validation('ID required', {}, 'InventoryController'); return InventoryService.deleteItem(params.id);
-      case 'inventory.reserve': if (!params.sku || !params.qty) throw ErrorHandler.validation('SKU and qty required', {}, 'InventoryController'); return InventoryService.reserveStock(params.sku, params.qty);
-      case 'inventory.release': if (!params.sku || !params.qty) throw ErrorHandler.validation('SKU and qty required', {}, 'InventoryController'); return InventoryService.releaseStock(params.sku, params.qty);
-      case 'inventory.commit': if (!params.sku || !params.qty) throw ErrorHandler.validation('SKU and qty required', {}, 'InventoryController'); return InventoryService.commitStock(params.sku, params.qty);
-      case 'inventory.restock': if (!params.sku || !params.qty) throw ErrorHandler.validation('SKU and qty required', {}, 'InventoryController'); return InventoryService.restock(params.sku, params.qty);
-      case 'inventory.lowStock': return InventoryService.getLowStockItems();
-      case 'inventory.outOfStock': return InventoryService.getOutOfStockItems();
-      default: throw ErrorHandler.validation('Unknown action: ' + action, {}, 'InventoryController');
-    }
+ /**
+ * PHINOX BOS — Inventory Controller
+ * Phase 3D Extensions: BOM, Stock Movement, Cost & Margin
+ */
+
+// ============================================================
+// EXISTING FUNCTIONS (preserve all existing code above this point)
+// ============================================================
+
+function handleApiAction(action, params) {
+  params = params || {};
+  
+  // ── Existing Phase 3A/3B Actions ──
+  switch (action) {
+    case 'inventory.stats':
+      return showInventoryStats();
+    case 'inventory.list':
+      return InventoryService.getItems(params);
+    case 'inventory.get':
+      if (!params.id) throw new Error('ID required');
+      return InventoryService.getItem(params.id);
+    case 'inventory.getBySku':
+      if (!params.sku) throw new Error('SKU required');
+      return InventoryService.getItemBySku(params.sku);
+    case 'inventory.create':
+      return InventoryService.createItem(params);
+    case 'inventory.update':
+      if (!params.id) throw new Error('ID required');
+      return InventoryService.updateItem(params.id, params);
+    case 'inventory.delete':
+      if (!params.id) throw new Error('ID required');
+      return InventoryService.deleteItem(params.id);
+    case 'inventory.reserve':
+      if (!params.sku || !params.qty) throw new Error('SKU and quantity required');
+      return InventoryService.reserveStock(params.sku, params.qty);
+    case 'inventory.release':
+      if (!params.sku || !params.qty) throw new Error('SKU and quantity required');
+      return InventoryService.releaseStock(params.sku, params.qty);
+    case 'inventory.commit':
+      if (!params.sku || !params.qty) throw new Error('SKU and quantity required');
+      return InventoryService.commitStock(params.sku, params.qty);
+    case 'inventory.restock':
+      if (!params.sku || !params.qty) throw new Error('SKU and quantity required');
+      return InventoryService.restock(params.sku, params.qty);
+    case 'inventory.lowStock':
+      return InventoryService.getLowStockItems();
+    case 'inventory.outOfStock':
+      return InventoryService.getOutOfStockItems();
+      
+    // ═══════════════════════════════════════════════════════
+    // PHASE 3D — NEW ACTIONS
+    // ═══════════════════════════════════════════════════════
+    
+    // ── FLOW 3: Stock Movement History ──
+    case 'inventory.movements':
+      if (!params.sku) throw new Error('SKU required for movement history');
+      return StockMovementService.getMovementsBySku(params.sku);
+    
+    // ── FLOW 2: Stock Adjustment ──
+    case 'inventory.adjust':
+      if (!params.inventoryId || params.newQuantity === undefined || !params.reason) {
+        throw new Error('inventoryId, newQuantity, and reason required');
+      }
+      return InventoryService.adjustStock(
+        params.inventoryId,
+        params.newQuantity,
+        params.reason,
+        params.notes || ''
+      );
+    
+    // ── FLOW 4: BOM View ──
+    case 'inventory.bom':
+      if (!params.sku) throw new Error('SKU required');
+      return BOMService.getBOMByFinishedProductSku(params.sku);
+    
+    case 'inventory.bomItems':
+      if (!params.bomId) throw new Error('bomId required');
+      return BOMService.getBOMItems(params.bomId);
+    
+    // ── FLOW 5: BOM Management ──
+    case 'inventory.bomCreate':
+      return BOMService.createBOM(params);
+    
+    case 'inventory.bomUpdate':
+      if (!params.id) throw new Error('BOM ID required');
+      return BOMService.updateBOM(params.id, params);
+    
+    case 'inventory.bomDelete':
+      if (!params.id) throw new Error('BOM ID required');
+      return BOMService.deleteBOM(params.id);
+    
+    case 'inventory.bomItemAdd':
+      if (!params.bomId) throw new Error('bomId required');
+      return BOMService.addBOMItem(params.bomId, params);
+    
+    case 'inventory.bomItemUpdate':
+      if (!params.id) throw new Error('BOM Item ID required');
+      return BOMService.updateBOMItem(params.id, params);
+    
+    case 'inventory.bomItemRemove':
+      if (!params.id) throw new Error('BOM Item ID required');
+      return BOMService.removeBOMItem(params.id);
+    
+    // ── FLOW 6: Cost & Margin ──
+    case 'inventory.cost':
+      if (!params.productId) throw new Error('productId required');
+      return BOMService.calculateUnitCost(params.productId);
+    
+    case 'inventory.margin':
+      if (!params.productId) throw new Error('productId required');
+      return BOMService.calculateGrossMargin(params.productId);
+    
+    default:
+      throw new Error('Unknown inventory action: ' + action);
   }
+}
+
+// ============================================================
+// PHASE 3D — MENU FUNCTIONS
+// ============================================================
+
+function menuShowBOM() {
+  try {
+    var html = HtmlService.createHtmlOutput(
+      '<p style="font-family:sans-serif;padding:20px;">Use the HTML Dashboard (Inventory tab) to view and manage BOMs.</p>'
+    )
+    .setWidth(400)
+    .setHeight(150);
+    SpreadsheetApp.getUi().showModalDialog(html, 'BOM Management');
+  } catch (e) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Error: ' + e.message);
+  }
+}
+
+function menuShowMovements() {
+  try {
+    var html = HtmlService.createHtmlOutput(
+      '<p style="font-family:sans-serif;padding:20px;">Use the HTML Dashboard (Inventory tab → Movements) to view stock movement history.</p>'
+    )
+    .setWidth(400)
+    .setHeight(150);
+    SpreadsheetApp.getUi().showModalDialog(html, 'Stock Movements');
+  } catch (e) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Error: ' + e.message);
+  }
+}
+
+function menuAdjustStock() {
+  try {
+    var html = HtmlService.createHtmlOutput(
+      '<p style="font-family:sans-serif;padding:20px;">Use the HTML Dashboard (Inventory tab → Adjust Stock) to adjust inventory quantities.</p>'
+    )
+    .setWidth(400)
+    .setHeight(150);
+    SpreadsheetApp.getUi().showModalDialog(html, 'Stock Adjustment');
+  } catch (e) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Error: ' + e.message);
+  }
+}
 
   function menuShowStats() {
     try { showInventoryStats(); }
