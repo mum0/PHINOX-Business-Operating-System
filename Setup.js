@@ -21,8 +21,38 @@ function onOpen() {
           .addItem(t("lang_ar"), "switchLanguageToArabic")
           .addItem(t("lang_en"), "switchLanguageToEnglish"))
       .addSeparator()
+      .addSubMenu(ui.createMenu("💰 Mini ERP")
+          .addItem("فاتورة مبيعات", "openSaleDialog")
+          .addItem("مصروف جديد", "openExpenseDialog")
+          .addItem("إضافة مساهم", "openShareholderDialog")
+          .addSeparator()
+          .addItem("تحديث Mini ERP", "refreshMiniERPDashboard"))
+      .addSeparator()
       .addItem(t("menu_about"), "showAbout")
       .addToUi();
+}
+
+function openSaleDialog(){
+  const html = HtmlService.createHtmlOutputFromFile('SaleDialog')
+    .setWidth(500).setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(html, 'فاتورة مبيعات جديدة');
+}
+
+function openExpenseDialog(){
+  const html = HtmlService.createHtmlOutputFromFile('ExpenseDialog')
+    .setWidth(500).setHeight(550);
+  SpreadsheetApp.getUi().showModalDialog(html, 'مصروف جديد');
+}
+
+function openShareholderDialog(){
+  const html = HtmlService.createHtmlOutputFromFile('ShareholderDialog')
+    .setWidth(450).setHeight(400);
+  SpreadsheetApp.getUi().showModalDialog(html, 'إضافة مساهم جديد');
+}
+
+function refreshMiniERPDashboard(){
+  buildDashboard();
+  SpreadsheetApp.getUi().toast("تم تحديث Mini ERP في لوحة التحكم");
 }
 
 function initializeSystem() {
@@ -85,6 +115,11 @@ function formatSheet(sheet){
         sheet.setColumnWidth(i,160);
     }
 }
+/**
+ * ============================================================
+ * PHINOX BOS - Web App Entry Point
+ * ============================================================
+ */
 
 function showAbout(){
   const cfg = getMiniERPConfig ? getMiniERPConfig() : {};

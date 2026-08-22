@@ -389,3 +389,50 @@ const APP = {
   }
 
 };
+
+/**
+ * ============================================================
+ * Mini ERP Integration
+ * ============================================================
+ */
+
+const MINI_ERP = {
+  SHEETS: {
+    SALES: 'Sales',
+    EXPENSES: 'Expenses',
+    SHAREHOLDERS: 'Shareholders'
+  },
+  COLS: {
+    SALES: { INVOICE: 0, DATE: 1, CUSTOMER: 2, DESCRIPTION: 3, AMOUNT: 4, PAYMENT: 5, NOTES: 6 },
+    EXPENSES: { DATE: 0, TYPE: 1, SUPPLIER: 2, DESCRIPTION: 3, AMOUNT: 4, NOTES: 5 },
+    SHAREHOLDERS: { NAME: 0, EMAIL: 1, SHARES: 2, OWNERSHIP: 3, INV_VALUE: 4, CURRENT_VALUE: 5, PROFIT: 6, LOSS: 7 }
+  },
+  SETTINGS_ROWS: {
+    COMPANY_NAME: 2,
+    CURRENCY: 3,
+    SHARE_PRICE: 4,
+    INITIAL_CAPITAL: 5
+  },
+  PAYMENT_METHODS: ['نقداً', 'بنك', 'تحويل', 'بطاقة', 'أخرى'],
+  EXPENSE_TYPES: ['مشتريات', 'مصروف'],
+  CURRENCIES: ['SAR', 'USD', 'EUR', 'AED', 'EGP'],
+  SYMBOLS: {
+    SAR: 'ر.س', USD: '$', EUR: '€', AED: 'د.إ', EGP: 'ج.م'
+  }
+};
+
+// دمج الألوان الإضافية
+APP.COLORS.PRIMARY_DARK = '#283593';
+APP.COLORS.PRIMARY_LIGHT = '#e8eaf6';
+APP.COLORS.PURPLE = '#4a148c';
+APP.COLORS.PURPLE_LIGHT = '#7B1FA2';
+APP.COLORS.GRAY_BG = '#f5f5f5';
+APP.COLORS.GRAY_LIGHT = '#f8f9fa';
+APP.COLORS.GRAY_BORDER = '#e0e0e0';
+APP.COLORS.TEXT_MUTED = '#757575';
+APP.COLORS.DARK_HEADER = '#37474f';
+
+// إضافة الأوراق الجديدة إلى APP
+APP.SHEETS.SALES = "Sales";
+APP.SHEETS.EXPENSES = "Expenses";
+APP.SHEETS.SHAREHOLDERS = "Shareholders";

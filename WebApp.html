@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PHINOX BOS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root{--primary:#1a237e;--primary-light:#e8eaf6;--success:#2E7D32;--warning:#E65100;--danger:#C62828;--info:#1565C0;--header:#37474f;--bg:#f5f5f5;--card:#fff;--text:#212121;}
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+    body{background:var(--bg);color:var(--text);}
+    .app-header{background:var(--primary);color:#fff;padding:15px 25px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:10px;}
+    .app-header h1{font-size:20px;}
+    .header-actions{display:flex;gap:10px;flex-wrap:wrap;}
+    .btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;transition:.2s;}
+    .btn:hover{opacity:.85;transform:translateY(-1px);}
+    .btn-primary{background:#fff;color:var(--primary);} .btn-success{background:var(--success);color:#fff;}
+    .btn-info{background:var(--info);color:#fff;} .btn-warning{background:var(--warning);color:#fff;}
+    .container{padding:20px;max-width:1400px;margin:0 auto;}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:25px;}
+    .card{background:var(--card);border-radius:10px;padding:18px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-right:4px solid var(--info);position:relative;}
+    .card.success{border-right-color:var(--success);} .card.warning{border-right-color:var(--warning);} .card.danger{border-right-color:var(--danger);}
+    .card-icon{position:absolute;left:15px;top:15px;font-size:28px;opacity:.15;}
+    .card h3{font-size:12px;color:#666;margin-bottom:6px;} .card .value{font-size:26px;font-weight:700;}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+    @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+    .section{background:var(--card);border-radius:10px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);margin-bottom:20px;}
+    .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;}
+    .section h2{font-size:16px;color:var(--primary);}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{background:var(--header);color:#fff;padding:10px;text-align:right;}
+    td{padding:10px;border-bottom:1px solid #e0e0e0;} tr:hover{background:#f8f9fa;}
+    .badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+    .badge-green{background:#e6f4ea;color:var(--success);} .badge-red{background:#fce8e6;color:var(--danger);}
+    .badge-yellow{background:#fef3e8;color:#b06000;} .badge-blue{background:#e8f0fe;color:var(--info);}
+    .error-box{background:#fce8e6;color:var(--danger);padding:15px;border-radius:8px;margin:20px;text-align:center;}
+    .loading{text-align:center;padding:30px;color:#999;}
+    .spinner{display:inline-block;width:20px;height:20px;border:3px solid #f3f3f3;border-top:3px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite;}
+    @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+    .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--header);color:#fff;padding:12px 24px;border-radius:8px;font-size:13px;z-index:9999;display:none;}
+    .toast.show{display:block;}
+    .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;justify-content:center;align-items:center;padding:20px;}
+    .modal-box{background:#fff;border-radius:12px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 10px 40px rgba(0,0,0,0.2);}
+    .modal-header{background:var(--primary);color:#fff;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;}
+    .modal-header h3{font-size:16px;}
+    .modal-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;}
+    .modal-body{padding:20px;}
+    .form-group{margin-bottom:15px;}
+    .form-group label{display:block;font-size:13px;font-weight:700;color:#555;margin-bottom:5px;}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);}
+    .form-row{display:flex;gap:15px;}
+    .form-row .form-group{flex:1;}
+    .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+    .btn-add{background:var(--success);color:#fff;padding:6px 12px;font-size:12px;border:none;border-radius:4px;cursor:pointer;}
+    .btn-remove{background:var(--danger);color:#fff;padding:6px 10px;font-size:12px;border:none;border-radius:4px;cursor:pointer;}
+    .item-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-end;}
+    .item-row .form-group{margin-bottom:0;}
+    .item-row .form-group.qty{flex:0 0 70px;} .item-row .form-group.price{flex:0 0 90px;}
+
+    .section-actions{display:flex;gap:8px;margin-bottom:12px;}
+    .btn-sm{padding:5px 12px;font-size:12px;border:none;border-radius:4px;cursor:pointer;font-weight:700;}
+    .btn-sm:hover{opacity:.85;}
+    .btn-del{background:var(--danger);color:#fff;}
+    .btn-edit{background:var(--info);color:#fff;}
+    .btn-view{background:#757575;color:#fff;}
+    .actions-col{white-space:nowrap;width:120px;}
+    .actions-col button{margin-left:4px;padding:3px 8px;font-size:11px;border:none;border-radius:3px;cursor:pointer;}
+  </style>
+</head>
+<body>
+
+  <div class="app-header">
+    <div class="app-header">
+      <h1><i class="fas fa-bolt"></i> PHINOX <span style="font-size:14px;opacity:.8">نظام التشغيل المؤسسي</span></h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> تحديث</button>
+        <button class="btn btn-success" onclick="showModal('taskModal')"><i class="fas fa-plus"></i> مهمة</button>
+        <button class="btn btn-info" onclick="showModal('memberModal')"><i class="fas fa-user-plus"></i> عضو</button>
+        <button class="btn btn-warning" onclick="showModal('productModal')"><i class="fas fa-box"></i> منتج</button>
+        <button class="btn btn-success" onclick="showModal('orderModal')"><i class="fas fa-shopping-cart"></i> طلب</button>
+        <button class="btn btn-success" onclick="showModal('saleModal')" style="background:#2E7D32;"><i class="fas fa-file-invoice-dollar"></i> 💰 مبيعات</button>
+        <button class="btn btn-warning" onclick="showModal('expenseModal')" style="background:#E65100;"><i class="fas fa-money-bill-wave"></i> 💸 مصروف</button>
+        <button class="btn btn-info" onclick="showModal('shareholderModal')" style="background:#1565C0;"><i class="fas fa-users-cog"></i> 🏛️ مساهم</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Mini ERP: Sales -->
+    <div class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-file-invoice-dollar"></i> 💰 المبيعات (Mini ERP)</h2>
+        <button class="btn btn-success" style="padding:6px 14px;font-size:12px;" onclick="showModal('saleModal')">+ فاتورة</button>
+      </div>
+      <div id="salesArea"><div class="loading">جاري التحميل...</div></div>
+    </div>
+
+    <!-- Mini ERP: Expenses -->
+    <div class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-money-bill-wave"></i> 💸 المصروفات (Mini ERP)</h2>
+        <button class="btn btn-warning" style="padding:6px 14px;font-size:12px;" onclick="showModal('expenseModal')">+ مصروف</button>
+      </div>
+      <div id="expensesArea"><div class="loading">جاري التحميل...</div></div>
+    </div>
+
+    <!-- Mini ERP: Shareholders -->
+    <div class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-users-cog"></i> 🏛️ المساهمون (Mini ERP)</h2>
+        <button class="btn btn-info" style="padding:6px 14px;font-size:12px;" onclick="showModal('shareholderModal')">+ مساهم</button>
+      </div>
+      <div id="shareholdersArea"><div class="loading">جاري التحميل...</div></div>
+    </div>
+
+    <div id="errorArea"></div>
+    
+    <div class="cards" id="cardsArea">
+      <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-trophy"></i> أفضل الأعضاء</h2></div>
+        <div id="topMembersArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-tasks"></i> ملخص المهام</h2></div>
+        <div id="tasksArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-warehouse"></i> المخزون</h2></div>
+        <div id="inventoryArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><h2><i class="fas fa-chart-line"></i> المالية</h2></div>
+        <div id="financeArea"><div class="loading">جاري التحميل...</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><h2><i class="fas fa-shopping-bag"></i> طلبات العملاء</h2></div>
+      <div id="ordersArea"><div class="loading">جاري التحميل...</div></div>
+    </div>
+  </div>
+
+  <!-- Task Modal -->
+  <div class="modal-overlay" id="taskModal">
+    <div class="modal-box">
+      <div class="modal-header"><h3>✅ إضافة مهمة جديدة</h3><button class="modal-close" onclick="hideModal('taskModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>عنوان المهمة *</label><input type="text" id="tTitle" placeholder="مثال: تصميم لوجو جديد"></div>
+        <div class="form-row">
+          <div class="form-group"><label>الفئة *</label>
+            <select id="tCategory"><option>Design</option><option>Marketing</option><option>Operations</option><option>Supply</option><option>Finance</option><option>Sales</option><option>CEO</option></select>
+          </div>
+          <div class="form-group"><label>مسندة إلى *</label><select id="tAssigned"><option value="">اختر عضو...</option></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>الأولوية *</label><select id="tPriority"><option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option></select></div>
+          <div class="form-group"><label>الصعوبة *</label><select id="tDifficulty"><option>Easy</option><option selected>Medium</option><option>Hard</option><option>Critical</option></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>تاريخ البدء</label><input type="date" id="tStart"></div>
+          <div class="form-group"><label>تاريخ الاستحقاق</label><input type="date" id="tDue"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="hideModal('taskModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
+          <button class="btn btn-primary" onclick="submitTask()" style="background:var(--primary);color:#fff;">💾 حفظ المهمة</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Member Modal -->
+  <div class="modal-overlay" id="memberModal">
+    <div class="modal-box">
+      <div class="modal-header"><h3>👤 إضافة عضو جديد</h3><button class="modal-close" onclick="hideModal('memberModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>الاسم الكامل *</label><input type="text" id="mName" placeholder="مثال: أحمد محمد"></div>
+        <div class="form-group"><label>الدور *</label>
+          <select id="mRole"><option>CEO</option><option>Partner</option><option>Designer</option><option>Marketing</option><option>Operations</option><option>Customer Service</option><option>Finance</option></select>
+        </div>
+        <div class="form-group"><label>البريد الإلكتروني *</label><input type="email" id="mEmail" placeholder="example@domain.com"></div>
+        <div class="form-group"><label>رقم الهاتف</label><input type="text" id="mPhone" placeholder="01234567890"></div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="hideModal('memberModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
+          <button class="btn btn-primary" onclick="submitMember()" style="background:var(--primary);color:#fff;">💾 حفظ العضو</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Modal -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-box">
+      <div class="modal-header"><h3>📦 إضافة منتج جديد</h3><button class="modal-close" onclick="hideModal('productModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>اسم المنتج *</label><input type="text" id="pName" placeholder="مثال: تيشيرت قطن"></div>
+        <div class="form-row">
+          <div class="form-group"><label>الفئة *</label>
+            <select id="pCategory"><option>Apparel</option><option>Accessories</option><option>Footwear</option><option>Home</option><option>Electronics</option><option>Other</option></select>
+          </div>
+          <div class="form-group"><label>المتغير</label><input type="text" id="pVariant" placeholder="V1"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>اللون</label><input type="text" id="pColor" placeholder="أسود"></div>
+          <div class="form-group"><label>المقاس</label><input type="text" id="pSize" placeholder="L"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>الكمية *</label><input type="number" id="pQty" value="0" min="0"></div>
+          <div class="form-group"><label>الحد الأدنى للتنبيه</label><input type="number" id="pMin" value="5" min="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>التكلفة (ج.م)</label><input type="number" id="pCost" value="0" min="0" step="0.01"></div>
+          <div class="form-group"><label>سعر البيع (ج.م)</label><input type="number" id="pPrice" value="0" min="0" step="0.01"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>المستودع</label><input type="text" id="pWarehouse" value="Main"></div>
+          <div class="form-group"><label>المورد</label><input type="text" id="pSupplier" placeholder="اسم المورد"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="hideModal('productModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
+          <button class="btn btn-primary" onclick="submitProduct()" style="background:var(--primary);color:#fff;">💾 حفظ المنتج</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Modal -->
+  <div class="modal-overlay" id="orderModal">
+    <div class="modal-box" style="max-width:700px;">
+      <div class="modal-header"><h3>🛒 طلب جديد</h3><button class="modal-close" onclick="hideModal('orderModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>اسم العميل *</label><input type="text" id="oCustomer" placeholder="اسم العميل"></div>
+        <div class="form-row">
+          <div class="form-group"><label>الهاتف</label><input type="text" id="oPhone" placeholder="01234567890"></div>
+          <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="oEmail" placeholder="client@email.com"></div>
+        </div>
+        <div style="background:#f8f9fa;padding:15px;border-radius:8px;margin-bottom:15px;">
+          <label style="font-weight:700;margin-bottom:10px;display:block;">📦 بنود الطلب</label>
+          <div id="orderItemsContainer"></div>
+          <button class="btn-add" onclick="addOrderItemRow()">+ إضافة منتج</button>
+        </div>
+        <div class="form-group"><label>عنوان الشحن</label><textarea id="oAddress" rows="2" placeholder="العنوان الكامل..."></textarea></div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="hideModal('orderModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
+          <button class="btn btn-primary" onclick="submitOrder()" style="background:var(--primary);color:#fff;">💾 إنشاء الطلب</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+
+  
+  <script>
+
+    // ── Mini ERP: Render Functions ──
+    function renderMiniERP(data){
+      // Sales
+      var salesHtml = '<table><tr><th>المعرف</th><th>التاريخ</th><th>العميل</th><th>الوصف</th><th>المبلغ</th><th>الدفع</th></tr>';
+      if(data.sales && data.sales.length){
+        data.sales.slice(-5).reverse().forEach(function(s){
+          salesHtml += '<tr><td>' + s[0] + '</td><td>' + formatDate(s[1]) + '</td><td>' + s[2] + '</td><td>' + s[3] + '</td><td><strong>' + s[4] + ' ج.م</strong></td><td>' + s[5] + '</td></tr>';
+        });
+      } else {
+        salesHtml += '<tr><td colspan="6" style="text-align:center;color:#999;">لا توجد فواتير</td></tr>';
+      }
+      document.getElementById('salesArea').innerHTML = salesHtml + '</table>';
+
+      // Expenses
+      var expHtml = '<table><tr><th>التاريخ</th><th>النوع</th><th>المورد</th><th>الوصف</th><th>المبلغ</th></tr>';
+      if(data.expenses && data.expenses.length){
+        data.expenses.slice(-5).reverse().forEach(function(e){
+          expHtml += '<tr><td>' + formatDate(e[0]) + '</td><td><span class="badge ' + (e[1]==='مشتريات'?'badge-blue':'badge-yellow') + '">' + e[1] + '</span></td><td>' + e[2] + '</td><td>' + e[3] + '</td><td><strong>' + e[4] + ' ج.م</strong></td></tr>';
+        });
+      } else {
+        expHtml += '<tr><td colspan="5" style="text-align:center;color:#999;">لا توجد مصروفات</td></tr>';
+      }
+      document.getElementById('expensesArea').innerHTML = expHtml + '</table>';
+
+      // Shareholders
+      var shHtml = '<table><tr><th>الاسم</th><th>البريد</th><th>الأسهم</th><th>الملكية</th><th>القيمة الحالية</th><th>الربح/الخسارة</th></tr>';
+      if(data.shareholders && data.shareholders.length){
+        data.shareholders.forEach(function(sh){
+          var profit = Number(sh[6]) || 0;
+          var loss = Number(sh[7]) || 0;
+          var plBadge = profit > 0 ? '<span class="badge badge-green">+' + profit + '</span>' : (loss > 0 ? '<span class="badge badge-red">-' + loss + '</span>' : '-');
+          shHtml += '<tr><td><strong>' + sh[0] + '</strong></td><td>' + sh[1] + '</td><td>' + sh[2] + '</td><td>' + sh[3] + '</td><td>' + sh[5] + ' ج.م</td><td>' + plBadge + '</td></tr>';
+        });
+      } else {
+        shHtml += '<tr><td colspan="6" style="text-align:center;color:#999;">لا يوجد مساهمون</td></tr>';
+      }
+      document.getElementById('shareholdersArea').innerHTML = shHtml + '</table>';
+    }
+
+    function formatDate(d){
+      if(!d) return '';
+      var date = new Date(d);
+      if(isNaN(date.getTime())) return String(d);
+      return date.toLocaleDateString('ar-EG');
+    }
+
+    // ── Submit Mini ERP ──
+    function submitSale(){
+      var customer = document.getElementById('sCustomer').value.trim();
+      var amount = Number(document.getElementById('sAmount').value);
+      if(!customer || amount <= 0){ showToast('العميل والمبلغ مطلوبان', true); return; }
+
+      var btn = event.target;
+      btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 حفظ الفاتورة'; btn.disabled = false;
+          if(res && res.success){ showToast('✅ ' + res.message); hideModal('saleModal'); loadDashboard(); }
+          else { showToast('❌ ' + (res && res.error ? res.error : 'خطأ'), true); }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 حفظ الفاتورة'; btn.disabled = false;
+          showToast('❌ ' + err.message, true);
+        })
+        .addSaleFromDialog({
+          invoice: document.getElementById('sInvoice').value.trim(),
+          customer: customer,
+          description: document.getElementById('sDesc').value.trim(),
+          amount: amount,
+          payment: document.getElementById('sPayment').value,
+          date: document.getElementById('sDate').value,
+          notes: document.getElementById('sNotes').value.trim()
+        });
+    }
+
+    function submitExpense(){
+      var desc = document.getElementById('eDesc').value.trim();
+      var amount = Number(document.getElementById('eAmount').value);
+      if(!desc || amount <= 0){ showToast('الوصف والمبلغ مطلوبان', true); return; }
+
+      var btn = event.target;
+      btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 حفظ المصروف'; btn.disabled = false;
+          if(res && res.success){ showToast('✅ ' + res.message); hideModal('expenseModal'); loadDashboard(); }
+          else { showToast('❌ ' + (res && res.error ? res.error : 'خطأ'), true); }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 حفظ المصروف'; btn.disabled = false;
+          showToast('❌ ' + err.message, true);
+        })
+        .addExpenseFromDialog({
+          type: document.getElementById('eType').value,
+          supplier: document.getElementById('eSupplier').value.trim(),
+          description: desc,
+          amount: amount,
+          date: document.getElementById('eDate').value,
+          notes: document.getElementById('eNotes').value.trim()
+        });
+    }
+
+    function submitShareholder(){
+      var name = document.getElementById('shName').value.trim();
+      var shares = Number(document.getElementById('shShares').value);
+      if(!name || shares <= 0){ showToast('الاسم وعدد الأسهم مطلوبان', true); return; }
+
+      var btn = event.target;
+      btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 حفظ المساهم'; btn.disabled = false;
+          if(res && res.success){ showToast('✅ ' + res.message); hideModal('shareholderModal'); loadDashboard(); }
+          else { showToast('❌ ' + (res && res.error ? res.error : 'خطأ'), true); }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 حفظ المساهم'; btn.disabled = false;
+          showToast('❌ ' + err.message, true);
+        })
+        .addShareholderFromDialog({
+          name: name,
+          email: document.getElementById('shEmail').value.trim(),
+          shares: shares
+        });
+    }
+
+    console.log('PHINOX WebApp loaded');
+
+    function showToast(msg, isError){
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isError ? 'var(--danger)' : 'var(--header)';
+      t.classList.add('show');
+      setTimeout(function(){t.classList.remove('show');}, 3000);
+    }
+
+    function showError(msg){
+      console.error('PHINOX Error:', msg);
+      document.getElementById('errorArea').innerHTML = '<div class="error-box">❌ ' + msg + '<br><small>افتح Console (F12) لرؤية التفاصيل</small></div>';
+    }
+
+    function showModal(id){
+      document.getElementById(id).style.display = 'flex';
+      if(id === 'taskModal') loadMembersDropdown();
+      if(id === 'orderModal' && document.getElementById('orderItemsContainer').children.length === 0) addOrderItemRow();
+    }
+
+    function hideModal(id){
+      document.getElementById(id).style.display = 'none';
+      clearModalFields(id);
+    }
+
+    function clearModalFields(id){
+      document.querySelectorAll('#'+id+' input, #'+id+' select, #'+id+' textarea').forEach(function(el){
+        if(el.tagName === 'SELECT') el.selectedIndex = 0;
+        else if(el.type === 'number') el.value = el.id.includes('Min') ? 5 : 0;
+        else el.value = '';
+      });
+      if(id === 'orderModal') document.getElementById('orderItemsContainer').innerHTML = '';
+    }
+
+    function loadDashboard(){
+      console.log('Loading dashboard data...');
+      google.script.run
+        .withSuccessHandler(function(data){
+          console.log('Dashboard data received:', data);
+          renderDashboard(data);
+          if(data.sales) renderMiniERP(data);
+        })
+        .withFailureHandler(function(err){
+          console.error('Failed to load dashboard:', err);
+          showError('فشل تحميل البيانات: ' + err.message);
+        })
+        .getDashboardData();
+    }
+
+    function renderDashboard(data){
+      try {
+        // ── Cards ──
+        document.getElementById('cardsArea').innerHTML = 
+          '<div class="card"><i class="fas fa-users card-icon"></i><h3>الأعضاء</h3><div class="value">' + (data.cards.members || 0) + '</div></div>' +
+          '<div class="card"><i class="fas fa-tasks card-icon"></i><h3>المهام</h3><div class="value">' + (data.cards.tasks || 0) + '</div></div>' +
+          '<div class="card success"><i class="fas fa-check-circle card-icon"></i><h3>المنجزة</h3><div class="value">' + (data.cards.completed || 0) + '</div></div>' +
+          '<div class="card danger"><i class="fas fa-exclamation-triangle card-icon"></i><h3>المتأخرة</h3><div class="value">' + (data.cards.late || 0) + '</div></div>' +
+          '<div class="card"><i class="fas fa-chart-pie card-icon"></i><h3>متوسط KPI</h3><div class="value">' + (data.cards.kpi || 0) + '</div></div>' +
+          '<div class="card success"><i class="fas fa-percentage card-icon"></i><h3>الإنتاجية</h3><div class="value">' + (data.cards.productivity || 0) + '%</div></div>';
+
+        // ── Top Members ──
+        var tm = '<div class="section-actions"><button class="btn-sm btn-success" onclick="showModal(\'memberModal\')">+ عضو</button></div>' +
+          '<table><tr><th>العضو</th><th>KPI</th><th>إنتاجية</th><th>التقدير</th><th class="actions-col">إجراءات</th></tr>';
+        if(data.topMembers && data.topMembers.length){
+          data.topMembers.forEach(function(m){
+            tm += '<tr><td>' + (m.name || '') + '</td><td>' + (m.kpi || 0) + '</td><td>' + (m.productivity || 0) + '%</td><td><span class="badge badge-green">' + (m.grade || '') + '</span></td>' +
+              '<td class="actions-col"><button class="btn-del" onclick="deleteRecord(\'Members\',\'' + (m.name || '') + '\')">🗑️</button></td></tr>';
+          });
+        }
+        document.getElementById('topMembersArea').innerHTML = tm + '</table>';
+
+        // ── Tasks ──
+        var ts = '<div class="section-actions"><button class="btn-sm btn-success" onclick="showModal(\'taskModal\')">+ مهمة</button></div>' +
+          '<table><tr><th>المقياس</th><th>القيمة</th></tr>' +
+          '<tr><td>بانتظار المراجعة</td><td>' + (data.tasksSummary.pending || 0) + '</td></tr>' +
+          '<tr><td>قيد التنفيذ</td><td>' + (data.tasksSummary.active || 0) + '</td></tr>' +
+          '<tr><td>المنجزة</td><td>' + (data.tasksSummary.completed || 0) + '</td></tr>' +
+          '<tr><td>المتأخرة</td><td><span class="badge badge-red">' + (data.tasksSummary.late || 0) + '</span></td></tr>' +
+          '<tr><td>متوسط الدرجة</td><td>' + (data.tasksSummary.avgScore || 0) + '</td></tr></table>';
+        document.getElementById('tasksArea').innerHTML = ts;
+
+        // ── Inventory ──
+        var inv = '<div class="section-actions"><button class="btn-sm btn-success" onclick="showModal(\'productModal\')">+ منتج</button></div>' +
+          '<table><tr><th>المقياس</th><th>القيمة</th></tr>' +
+          '<tr><td>إجمالي المنتجات</td><td>' + (data.inventory.totalProducts || 0) + '</td></tr>' +
+          '<tr><td>الكمية الإجمالية</td><td>' + (data.inventory.totalQuantity || 0) + '</td></tr>' +
+          '<tr><td>القيمة</td><td>' + (data.inventory.totalValue || 0) + ' ج.م</td></tr>' +
+          '<tr><td>منخفض المخزون</td><td><span class="badge badge-yellow">' + (data.inventory.lowStock || 0) + '</span></td></tr>' +
+          '<tr><td>نفذ من المخزون</td><td><span class="badge badge-red">' + (data.inventory.outOfStock || 0) + '</span></td></tr></table>';
+        document.getElementById('inventoryArea').innerHTML = inv;
+
+        // ── Finance ──
+        var fin = '<table><tr><th>المقياس</th><th>القيمة</th></tr>' +
+          '<tr><td>الرصيد الحالي</td><td><strong>' + (data.finance.currentBalance || 0) + ' ج.م</strong></td></tr>' +
+          '<tr><td>إيرادات الشهر</td><td style="color:var(--success)">' + (data.finance.monthlyIncome || 0) + ' ج.م</td></tr>' +
+          '<tr><td>مصروفات الشهر</td><td style="color:var(--danger)">' + (data.finance.monthlyExpense || 0) + ' ج.م</td></tr>' +
+          '<tr><td>ربح الشهر</td><td><span class="badge ' + ((data.finance.monthlyProfit || 0) >= 0 ? 'badge-green' : 'badge-red') + '">' + (data.finance.monthlyProfit || 0) + ' ج.م</span></td></tr></table>';
+        document.getElementById('financeArea').innerHTML = fin;
+
+        // ── Orders ──
+        var ord = '<div class="section-actions"><button class="btn-sm btn-success" onclick="showModal(\'orderModal\')">+ طلب</button></div>' +
+          '<table><tr><th>المقياس</th><th>القيمة</th></tr>' +
+          '<tr><td>إجمالي الطلبات</td><td>' + (data.orders.totalOrders || 0) + '</td></tr>' +
+          '<tr><td>الإيرادات</td><td>' + (data.orders.revenue || 0) + ' ج.م</td></tr>' +
+          '<tr><td>متوسط قيمة الطلب</td><td>' + (data.orders.averageValue || 0) + ' ج.م</td></tr>' +
+          '<tr><td>نسبة التحويل</td><td>' + (data.orders.conversionRate || 0) + '%</td></tr>' +
+          '<tr><td>نسبة الإرجاع</td><td><span class="badge badge-yellow">' + (data.orders.returnRate || 0) + '%</span></td></tr></table>';
+        document.getElementById('ordersArea').innerHTML = ord;
+
+        // ── Mini ERP ──
+        if(data.sales) renderMiniERP(data);
+
+        console.log('Dashboard rendered successfully');
+      } catch(e) {
+        console.error('Render error:', e);
+        showError('خطأ في عرض البيانات: ' + e.message);
+      }
+    }
+    function refreshAll(){
+      var btn = event.target;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحديث...';
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث';
+          if(res && res.success){ showToast(res.message); loadDashboard(); }
+          else { showToast((res && res.error) || 'خطأ غير معروف', true); }
+        })
+        .withFailureHandler(function(err){
+          btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث';
+          showToast(err.message, true);
+        })
+        .refreshSystemFromUI();
+    }
+
+    function loadMembersDropdown(){
+      var sel = document.getElementById('tAssigned');
+      sel.innerHTML = '<option value="">اختر عضو...</option>';
+      google.script.run
+        .withSuccessHandler(function(list){
+          list.forEach(function(m){
+            var opt = document.createElement('option');
+            opt.value = m.name;
+            opt.textContent = m.name + ' (' + m.role + ')';
+            sel.appendChild(opt);
+          });
+        })
+        .withFailureHandler(function(){})
+        .getMembersList();
+    }
+
+    function submitTask(){
+      var title = document.getElementById('tTitle').value.trim();
+      var assigned = document.getElementById('tAssigned').value;
+      if(!title || !assigned){ showToast('املأ الحقول المطلوبة', true); return; }
+
+      var btn = event.target;
+      btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 حفظ المهمة'; btn.disabled = false;
+          if(res && res.success){ showToast('✅ ' + res.message); hideModal('taskModal'); loadDashboard(); }
+          else { showToast('❌ ' + ((res && res.error) || 'خطأ'), true); }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 حفظ المهمة'; btn.disabled = false;
+          showToast('❌ ' + err.message, true);
+        })
+        .createTaskFromDialog({
+          title: title,
+          category: document.getElementById('tCategory').value,
+          assignedTo: assigned,
+          priority: document.getElementById('tPriority').value,
+          difficulty: document.getElementById('tDifficulty').value,
+          startDate: document.getElementById('tStart').value,
+          dueDate: document.getElementById('tDue').value
+        });
+    }
+
+    function submitMember(){
+      var name = document.getElementById('mName').value.trim();
+      var email = document.getElementById('mEmail').value.trim();
+      var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if(!name || !emailRegex.test(email)){ showToast('الاسم والبريد الصحيح مطلوبان', true); return; }
+
+      var btn = event.target;
+      btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 حفظ العضو'; btn.disabled = false;
+          if(res && res.success){ showToast('✅ ' + res.message); hideModal('memberModal'); loadDashboard(); }
+          else { showToast('❌ ' + ((res && res.error) || 'خطأ'), true); }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 حفظ العضو'; btn.disabled = false;
+          showToast('❌ ' + err.message, true);
+        })
+        .addMemberFromDialog({
+          name: name,
+          role: document.getElementById('mRole').value,
+          email: email,
+          phone: document.getElementById('mPhone').value.trim()
+        });
+    }
+
+    function submitProduct(){
+      var name = document.getElementById('pName').value.trim();
+      if(!name){ showToast('اسم المنتج مطلوب', true); return; }
+
+      var btn = event.target;
+      btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 حفظ المنتج'; btn.disabled = false;
+          if(res && res.success){ showToast('✅ ' + res.message); hideModal('productModal'); loadDashboard(); }
+          else { showToast('❌ ' + ((res && res.error) || 'خطأ'), true); }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 حفظ المنتج'; btn.disabled = false;
+          showToast('❌ ' + err.message, true);
+        })
+        .addProductFromDialog({
+          name: name,
+          category: document.getElementById('pCategory').value,
+          variant: document.getElementById('pVariant').value.trim(),
+          color: document.getElementById('pColor').value.trim(),
+          size: document.getElementById('pSize').value.trim(),
+          quantity: document.getElementById('pQty').value,
+          minStock: document.getElementById('pMin').value,
+          cost: document.getElementById('pCost').value,
+          price: document.getElementById('pPrice').value,
+          warehouse: document.getElementById('pWarehouse').value.trim(),
+          supplier: document.getElementById('pSupplier').value.trim()
+        });
+    }
+
+    function addOrderItemRow(){
+      var container = document.getElementById('orderItemsContainer');
+      var div = document.createElement('div');
+      div.className = 'item-row';
+      div.innerHTML = 
+        '<div class="form-group" style="flex:1;"><input type="text" class="oItemName" placeholder="اسم المنتج"></div>' +
+        '<div class="form-group qty"><input type="number" class="oItemQty" value="1" min="1"></div>' +
+        '<div class="form-group price"><input type="number" class="oItemPrice" value="0" min="0" step="0.01"></div>' +
+        '<button type="button" class="btn-remove" onclick="this.parentElement.remove()">🗑️</button>';
+      container.appendChild(div);
+    }
+
+    function submitOrder(){
+      var customer = document.getElementById('oCustomer').value.trim();
+      if(!customer){ showToast('اسم العميل مطلوب', true); return; }
+
+      var items = [];
+      document.querySelectorAll('.item-row').forEach(function(row){
+        var n = row.querySelector('.oItemName').value.trim();
+        var q = Number(row.querySelector('.oItemQty').value) || 1;
+        var p = Number(row.querySelector('.oItemPrice').value) || 0;
+        if(n) items.push({productName: n, quantity: q, unitPrice: p});
+      });
+      if(items.length === 0){ showToast('أضف منتجاً واحداً على الأقل', true); return; }
+
+      var btn = event.target;
+      btn.textContent = '⏳ جاري الإنشاء...'; btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.textContent = '💾 إنشاء الطلب'; btn.disabled = false;
+          if(res && res.success){ showToast('✅ ' + res.message); hideModal('orderModal'); loadDashboard(); }
+          else { showToast('❌ ' + ((res && res.error) || 'خطأ'), true); }
+        })
+        .withFailureHandler(function(err){
+          btn.textContent = '💾 إنشاء الطلب'; btn.disabled = false;
+          showToast('❌ ' + err.message, true);
+        })
+        .addOrderFromDialog({
+          customer: customer,
+          phone: document.getElementById('oPhone').value.trim(),
+          email: document.getElementById('oEmail').value.trim(),
+          items: items,
+          shippingAddress: document.getElementById('oAddress').value.trim()
+        });
+    }
+    // ── Delete Record ──
+    function deleteRecord(sheetName, id){
+      if(!id || id === 'undefined'){ showToast('لا يمكن حذف هذا السجل', true); return; }
+      if(!confirm('⚠️ هل أنت متأكد من حذف هذا السجل من ' + sheetName + '؟\n\nلا يمكن التراجع عن هذا الإجراء.')) return;
+      
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.success){ showToast('✅ ' + res.message); loadDashboard(); }
+          else { showToast('❌ ' + (res && res.error ? res.error : 'خطأ'), true); }
+        })
+        .withFailureHandler(function(err){
+          showToast('❌ ' + err.message, true);
+        })
+        .deleteRecordFromUI({sheet: sheetName, id: id});
+    }
+    // Init
+    document.addEventListener('DOMContentLoaded', function(){
+      console.log('DOM ready, loading dashboard...');
+      loadDashboard();
+    });
+  </script>
+  <!-- Sale Modal -->
+  <div class="modal-overlay" id="saleModal">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-header"><h3>💰 فاتورة مبيعات جديدة</h3><button class="modal-close" onclick="hideModal('saleModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>رقم الفاتورة (اختياري)</label><input type="text" id="sInvoice" placeholder="تلقائي"></div>
+        <div class="form-group"><label>العميل *</label><input type="text" id="sCustomer" placeholder="اسم العميل"></div>
+        <div class="form-group"><label>الوصف</label><input type="text" id="sDesc" placeholder="وصف البيع"></div>
+        <div class="form-row">
+          <div class="form-group"><label>المبلغ *</label><input type="number" id="sAmount" value="0" min="0" step="0.01"></div>
+          <div class="form-group"><label>طريقة الدفع</label>
+            <select id="sPayment">
+              <option value="نقداً">نقداً</option>
+              <option value="بنك">بنك</option>
+              <option value="تحويل">تحويل</option>
+              <option value="بطاقة">بطاقة</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>التاريخ</label><input type="date" id="sDate"></div>
+        <div class="form-group"><label>ملاحظات</label><textarea id="sNotes" rows="2"></textarea></div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="hideModal('saleModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
+          <button class="btn btn-primary" onclick="submitSale()" style="background:var(--success);color:#fff;">💾 حفظ الفاتورة</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expense Modal -->
+  <div class="modal-overlay" id="expenseModal">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-header"><h3>💸 مصروف جديد</h3><button class="modal-close" onclick="hideModal('expenseModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group"><label>النوع *</label>
+            <select id="eType">
+              <option value="مشتريات">مشتريات</option>
+              <option value="مصروف">مصروف</option>
+            </select>
+          </div>
+          <div class="form-group"><label>المورد</label><input type="text" id="eSupplier" placeholder="اسم المورد"></div>
+        </div>
+        <div class="form-group"><label>الوصف *</label><input type="text" id="eDesc" placeholder="وصف المصروف"></div>
+        <div class="form-row">
+          <div class="form-group"><label>المبلغ *</label><input type="number" id="eAmount" value="0" min="0" step="0.01"></div>
+          <div class="form-group"><label>التاريخ</label><input type="date" id="eDate"></div>
+        </div>
+        <div class="form-group"><label>ملاحظات</label><textarea id="eNotes" rows="2"></textarea></div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="hideModal('expenseModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
+          <button class="btn btn-primary" onclick="submitExpense()" style="background:var(--warning);color:#fff;">💾 حفظ المصروف</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shareholder Modal -->
+  <div class="modal-overlay" id="shareholderModal">
+    <div class="modal-box" style="max-width:450px;">
+      <div class="modal-header"><h3>🏛️ إضافة مساهم جديد</h3><button class="modal-close" onclick="hideModal('shareholderModal')">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>الاسم *</label><input type="text" id="shName" placeholder="اسم المساهم"></div>
+        <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="shEmail" placeholder="email@domain.com"></div>
+        <div class="form-group"><label>عدد الأسهم *</label><input type="number" id="shShares" value="1" min="1"></div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="hideModal('shareholderModal')" style="background:#e0e0e0;color:#333;">إلغاء</button>
+          <button class="btn btn-primary" onclick="submitShareholder()" style="background:var(--info);color:#fff;">💾 حفظ المساهم</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -286,4 +286,89 @@ function findRowIndex(data, colIndex, value){
     }
   }
   return -1;
+/**
+ * ============================================================
+ * Mini ERP Helpers
+ * ============================================================
+ */
+
+function formatCurrency(value, currency){
+  currency = currency || 'EGP';
+  const symbol = MINI_ERP.SYMBOLS[currency] || currency;
+  const abs = Math.abs(value);
+  const formatted = abs.toLocaleString('ar-SA', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  return (value < 0 ? '-' : '') + formatted + ' ' + symbol;
+}
+
+function formatPercent(ratio){
+  return (ratio * 100).toFixed(2) + '%';
+}
+
+function formatNumber(value){
+  return Number(value).toLocaleString('ar-SA');
+}
+
+function formatDateStr(date){
+  if(!date) return '';
+  const d = date instanceof Date ? date : new Date(date);
+  if(isNaN(d.getTime())) return String(date);
+  return Utilities.formatDate(d, APP.INFO.TIMEZONE, 'dd/MM/yyyy');
+}
+
+function toMonthKey(date){
+  if(!(date instanceof Date) || isNaN(date.getTime())) return null;
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+}
+
+function isPositiveNumber(val){
+  const n = parseFloat(val);
+  return isFinite(n) && n > 0;
+}
+
+function safeStr(val){
+  return val !== null && val !== undefined ? String(val).trim() : '';
+}
+
+function getLastDataRow(sheet, col){
+  const lastRow = sheet.getLastRow();
+  if(lastRow < 2) return 1;
+  const colData = sheet.getRange(1, col, lastRow, 1).getValues();
+  for(let i = colData.length - 1; i >= 0; i--){
+    if(colData[i][0] !== '') return i + 1;
+  }
+  return 1;
+}
+
+function styleHeader(range, bgColor, textColor){
+  range.setBackground(bgColor || APP.COLORS.PRIMARY)
+    .setFontColor(textColor || '#FFFFFF')
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+}
+
+function applyAlternatingRows(sheet, startRow, numRows, numCols){
+  for(let i = 0; i < numRows; i++){
+    sheet.getRange(startRow + i, 1, 1, numCols)
+      .setBackground(i % 2 === 0 ? '#ffffff' : APP.COLORS.GRAY_LIGHT);
+  }
+}
+
+function showToast(message, title, timeout){
+  SpreadsheetApp.getActiveSpreadsheet().toast(message, title || '⚙️ PHINOX', timeout || 3);
+}
+
+function getMiniERPConfig(){
+  const sheet = getSheet(APP.SHEETS.SETTINGS);
+  if(!sheet) return {companyName: 'PHINOX', currency: 'EGP', sharePrice: 1000, initialCapital: 0};
+  const values = sheet.getRange(3, 2, 4, 1).getValues();
+  return {
+    companyName: String(values[0][0] || 'PHINOX').trim(),
+    currency: String(values[1][0] || 'EGP').trim(),
+    sharePrice: parseFloat(values[2][0]) || 0,
+    initialCapital: parseFloat(values[3][0]) || 0
+  };
+}
+
 }
