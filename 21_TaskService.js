@@ -125,7 +125,7 @@ const TaskService = (function() {
  function startTask(id) { return changeTaskStatus(id, S.IN_PROGRESS); }
  function submitTask(id) { return changeTaskStatus(id, S.WAITING_REVIEW); }
  function approveTask(id) { return changeTaskStatus(id, S.APPROVED); }
- function rejectTask(id) { return changeTaskStatus(id, S.REJECTED); }
+ function rejectTask(id, reason) { var updates = { status: S.REJECTED }; if (reason) updates.notes = reason; return updateTask(id, updates); }
  function cancelTask(id) { return changeTaskStatus(id, S.CANCELLED); }
  function assignTask(id, member) {
  if (!member || String(member).trim() === '') throw ErrorHandler.validation('Member required', {}, 'TaskService');

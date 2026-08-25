@@ -1,283 +1,261 @@
+// ═══════════════════════════════════════════════════════════════════════
+// PHINOX BOS v5 — Setup & Sheet Initialization
+// ═══════════════════════════════════════════════════════════════════════════════════
+// CRITICAL: Members headers MUST match MEMBER_COL in 13_Permissions.js exactly.
+// Any column order change here MUST be reflected in MEMBER_COL constants.
+// Also includes auto-migration from old 9-column to new 12-column Members format.
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+var SHEET_CONFIGS = {
+  'Members': {
+    headers: ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes'],
+    //  Index:    0      1         2      3       4       5        6          7          8               9           10               11
+    //  Matches MEMBER_COL in 13_Permissions.js:
+    //  MEMBER_ID=0, FULL_NAME=1, ROLE=2, EMAIL=3, PHONE=4, STATUS=5, JOIN_DATE=6, KPI_SCORE=7, TASKS_COMPLETED=8, TASKS_LATE=9, AVERAGE_QUALITY=10, NOTES=11
+    widths: [22, 20, 14, 28, 16, 12, 16, 10, 12, 10, 12, 30]
+  },
+  'Tasks': {
+    headers: ['id','title','description','assigneeEmail','priority','status','dueDate','createdAt','completedAt','approvedBy','notes'],
+    widths: [22, 25, 35, 25, 12, 14, 14, 16, 16, 20, 30]
+  },
+  'KPI': {
+    headers: ['id','name','category','target','actual','unit','period','periodType','createdAt','notes'],
+    widths: [22, 20, 16, 12, 12, 10, 14, 14, 16, 30]
+  },
+  'Inventory': {
+    headers: ['id','sku','name','category','quantity','unitCost','sellingPrice','minStock','supplier','status','createdAt','updatedAt','notes'],
+    widths: [22, 18, 22, 16, 10, 12, 12, 10, 20, 12, 16, 16, 30]
+  },
+  'Suppliers': {
+    headers: ['id','name','contactPerson','email','phone','address','category','rating','status','notes'],
+    widths: [22, 22, 20, 25, 16, 30, 16, 10, 12, 30]
+  },
+  'Orders': {
+    headers: ['id','customerEmail','customerName','items','totalAmount','status','orderDate','deliveryDate','notes'],
+    widths: [22, 25, 20, 40, 14, 12, 14, 14, 30]
+  },
+  'Finance': {
+    headers: ['id','date','type','category','description','amount','account','ref','createdAt','notes'],
+    widths: [22, 14, 14, 18, 30, 14, 18, 22, 16, 30]
+  },
+  'Reports': {
+    headers: ['id','type','title','data','generatedBy','generatedAt','notes'],
+    widths: [22, 16, 25, 50, 22, 18, 30]
+  },
+  'Settings': {
+    headers: ['key','value','updatedBy','updatedAt','notes'],
+    widths: [25, 40, 22, 18, 30]
+  },
+  'Audit Log': {
+    headers: ['id','date','user','action','sheet','recordId','oldValue','newValue'],
+    widths: [22, 18, 25, 20, 14, 22, 30, 30]
+  },
+  'Approvals': {
+    headers: ['id','type','requester','requestDate','targetSheet','targetId','details','status','approver','approvalDate','notes'],
+    widths: [22, 18, 22, 16, 16, 22, 40, 14, 22, 16, 30]
+  },
+  'Archive': {
+    headers: ['id','originalSheet','data','deletedBy','deletedAt','restoredAt','purgeAfter'],
+    widths: [22, 18, 50, 22, 18, 18, 14]
+  },
+  'Customers': {
+    headers: ['id','name','email','phone','address','city','status','totalOrders','totalSpent','createdAt','notes'],
+    widths: [22, 22, 25, 16, 30, 14, 12, 12, 14, 16, 30]
+  },
+  'Sales': {
+    headers: ['id','orderId','productId','productName','quantity','unitPrice','total','saleDate','salesperson','channel','notes'],
+    widths: [22, 22, 22, 22, 10, 12, 12, 14, 20, 14, 30]
+  },
+  'Marketing': {
+    headers: ['id','date','channel','campaign','reach','impressions','clicks','conversions','cost','notes'],
+    widths: [22, 14, 14, 22, 12, 12, 10, 12, 12, 30]
+  },
+  'Social': {
+    headers: ['id','date','platform','followers','reach','impressions','engagements','likes','comments','shares','saves','videoViews','profileVisits','linkClicks','leads','purchases','revenue','notes'],
+    widths: [22, 14, 12, 12, 12, 12, 12, 10, 10, 10, 10, 12, 12, 12, 10, 10, 12, 30]
+  },
+  'Satisfaction': {
+    headers: ['id','customerId','customerName','score','feedback','category','date','followUp','notes'],
+    widths: [22, 22, 22, 10, 35, 16, 14, 10, 30]
+  },
+  'NPS': {
+    headers: ['id','customerId','customerName','score','feedback','date','notes'],
+    widths: [22, 22, 22, 10, 35, 14, 30]
+  },
+  'BOM': {
+    headers: ['id','sku','name','totalCost','status','createdAt','updatedAt','notes'],
+    widths: [22, 18, 22, 14, 12, 16, 16, 30]
+  },
+  'BOM_ITEM': {
+    headers: ['id','bomId','componentSku','componentName','quantity','unit','unitCost','totalCost','notes'],
+    widths: [22, 22, 18, 22, 10, 10, 12, 12, 30]
+  },
+  'Expenses': {
+    headers: ['id','date','category','amount','description','submittedBy','status','approvedBy','approvedAt','postedToAccount','account','receiptUrl','notes'],
+    widths: [22, 14, 16, 14, 30, 22, 14, 22, 16, 18, 18, 25, 30]
+  }
+};
+
 /**
- * ============================================================
- * PHINOX BOS — Setup Module
- * Initialize sheets, headers, and properties.
- * Run once per spreadsheet.
- * UPDATED v7C: Added Marketing Spend and Social Media Performance sheets
- * PHASE 3A.1: Inventory headers now obtained from canonical InventorySchema
- * PHASE 3A.2: Added _ensureInventoryHeaders() to migrate existing sheets
- * PHASE 3B: Added StockMovement sheet with canonical StockMovementSchema
- * PHASE 3C: Added BOM and BOM_ITEM sheets with canonical schemas
- * EXCEPTION: Added Orders sheet per OrderSchema (required for Phase 3C Step 25)
- * ============================================================
+ * Auto-migrate Members sheet from old 9-column format to new 12-column format.
+ * Detects column mismatch, maps old data, recreates sheet with correct structure.
+ * If Members sheet is empty, seeds the current user as Admin.
  */
-
-const Setup = (function() {
-  'use strict';
-
-  const SHEET_CONFIGS = {
-    'Tasks': {
-      headers: ['id','title','assignee','priority','status','dueDate','createdAt','updatedAt','createdBy'],
-      widths: [22, 30, 20, 10, 12, 15, 20, 20, 25]
-    },
-    'Members': {
-      headers: ['id','name','email','role','department','kpiScore','status','createdAt','updatedAt'],
-      widths: [22, 20, 25, 12, 15, 10, 10, 20, 20]
-    },
-    'Finance': {
-      headers: ['id','type','category','amount','currency','date','description','reference','status','createdAt','updatedAt'],
-      widths: [22, 12, 15, 12, 8, 15, 30, 20, 10, 20, 20]
-    },
-    'Sales': {
-      headers: ['id','customerId','productId','quantity','unitPrice','total','status','channel','date','createdAt','updatedAt'],
-      widths: [22, 22, 22, 10, 12, 12, 10, 12, 15, 20, 20]
-    },
-    'Orders': {
-      headers: ['id','customerEmail','items','itemsTotal','shippingCost','totalAmount','status','shippingAddress','notes','createdAt','updatedAt','createdBy'],
-      widths: [22, 25, 40, 12, 12, 12, 12, 30, 30, 20, 20, 25]
-    },
-    'Logs': {
-      headers: ['Timestamp','Level','Module','User','Message','Context'],
-      widths: [22, 8, 15, 25, 40, 40]
-    },
-    'Settings': {
-      headers: ['key','value','type','description','updatedAt','updatedBy'],
-      widths: [25, 30, 10, 40, 20, 25]
-    },
-    'KPI Results': {
-      headers: ['id','kpiId','name','value','period','date','sheet','createdAt'],
-      widths: [22, 20, 20, 15, 10, 15, 15, 20]
-    },
-    'Finance Ledger': {
-      headers: ['id','date','type','category','description','amount','account','relatedId','relatedType','status','idempotencyKey','approvedBy','notes','createdAt','updatedAt','createdBy'],
-      widths: [22, 15, 12, 15, 35, 12, 12, 22, 12, 10, 30, 25, 25, 20, 20, 25]
-    },
-    'Finance Expenses': {
-      headers: ['id','title','category','amount','description','status','requestedBy','approvedBy','rejectionReason','createdAt','updatedAt'],
-      widths: [22, 25, 15, 12, 35, 12, 25, 25, 25, 20, 20]
-    },
-    'Marketing Spend': {
-      headers: ['id','date','platform','channel','campaignId','campaignName','currency','spend','impressions','reach','clicks','leads','conversions','attributedRevenue','creativeCost','agencyCost','otherCost','notes','createdAt','createdBy'],
-      widths: [22, 15, 12, 12, 20, 25, 8, 12, 12, 12, 12, 10, 10, 15, 12, 12, 12, 25, 20, 25]
-    },
-    'Social Media Performance': {
-      headers: ['id','date','platform','followers','followerGrowth','reach','impressions','engagements','likes','comments','shares','saves','videoViews','watchTime','profileVisits','linkClicks','leads','purchases','attributedRevenue','notes','createdAt','createdBy'],
-      widths: [22, 15, 12, 12, 12, 12, 12, 12, 10, 10, 10, 10, 12, 12, 12, 12, 10, 10, 15, 25, 20, 25]
-    },
-    'Customers': {
-      headers: ['id','name','email','phone','status','segment','joinDate','lastOrderDate','totalOrders','totalAmount','averageOrderValue','notes','createdAt','updatedAt'],
-      widths: [22, 20, 25, 15, 10, 12, 15, 15, 12, 12, 12, 25, 20, 20]
-    },
-    'Satisfaction': {
-      headers: ['id','customerEmail','orderId','score','feedback','createdAt','updatedAt'],
-      widths: [22, 25, 22, 8, 40, 20, 20]
-    },
-    'NPS': {
-      headers: ['id','customerEmail','orderId','score','feedback','createdAt','updatedAt'],
-      widths: [22, 25, 22, 8, 40, 20, 20]
-    }
-  };
-
-  /**
-   * PHASE 3A.1: Obtain Inventory configuration from canonical InventorySchema.
-   */
-  function _getInventoryConfig() {
-    if (typeof InventorySchema !== 'undefined' && typeof InventorySchema.getSheetHeaders === 'function') {
-      return {
-        headers: InventorySchema.getSheetHeaders(),
-        widths: [22, 15, 25, 15, 10, 10, 10, 10, 10, 12, 12, 15, 10, 15, 10, 30, 20, 20, 25, 12]
-      };
-    }
-    return {
-      headers: ['id','sku','name','category','size','color','quantity','reserved','available','cost','price','location','reorderLevel','supplierId','status','notes','createdAt','updatedAt','createdBy','type'],
-      widths: [22, 15, 25, 15, 10, 10, 10, 10, 10, 12, 12, 15, 10, 15, 10, 30, 20, 20, 25, 12]
-    };
+function _migrateMembersIfNeeded(opt_ss) {
+  var ss = opt_ss || SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Members');
+  if (!sheet) {
+    console.log('[SETUP] No Members sheet — will be created by normal flow.');
+    return;
   }
 
-  /**
-   * PHASE 3A.2: Ensure existing Inventory sheet has correct 20-column headers.
-   */
-  function _ensureInventoryHeaders(ss) {
-    var sheet = ss.getSheetByName('Inventory');
-    if (!sheet) return;
-    var config = _getInventoryConfig();
-    var expectedHeaders = config.headers;
-    var currentHeaders = [];
-    var currentColCount = sheet.getLastColumn();
-    if (currentColCount > 0) {
-      currentHeaders = sheet.getRange(1, 1, 1, currentColCount).getValues()[0];
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 1) {
+    console.log('[SETUP] Members sheet is blank — will be set up by normal flow.');
+    return;
+  }
+
+  var existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var expected = SHEET_CONFIGS['Members'].headers;
+
+  // Check if already correct (12 columns, right order)
+  if (existingHeaders.length >= expected.length) {
+    var isCorrect = true;
+    for (var i = 0; i < expected.length; i++) {
+      if (String(existingHeaders[i]) !== expected[i]) { isCorrect = false; break; }
     }
-    var needsFix = false;
-    if (currentHeaders.length !== expectedHeaders.length) {
-      needsFix = true;
-    } else {
-      for (var i = 0; i < expectedHeaders.length; i++) {
-        if (currentHeaders[i] !== expectedHeaders[i]) {
-          needsFix = true;
-          break;
-        }
-      }
-    }
-    if (!needsFix) {
-      Logger.info('Setup', 'Inventory headers verified', { columns: expectedHeaders.length });
+    if (isCorrect) {
+      console.log('[SETUP] Members columns already correct (' + existingHeaders.length + ' cols). No migration needed.');
       return;
     }
-    var maxCols = sheet.getMaxColumns();
-    if (maxCols < expectedHeaders.length) {
-      sheet.insertColumnsAfter(maxCols, expectedHeaders.length - maxCols);
-    }
-    sheet.getRange(1, 1, 1, expectedHeaders.length).clearContent();
-    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
-    var headerRange = sheet.getRange(1, 1, 1, expectedHeaders.length);
-    headerRange.setFontWeight('bold')
-      .setBackground('#1a237e')
-      .setFontColor('#ffffff')
-      .setHorizontalAlignment('center');
-    config.widths.forEach(function(w, i) {
-      sheet.setColumnWidth(i + 1, w);
-    });
-    sheet.setFrozenRows(1);
-    Logger.warn('Setup', 'Inventory headers migrated', { 
-      fromColumns: currentHeaders.length, 
-      toColumns: expectedHeaders.length
-    });
   }
 
-  /**
-   * PHASE 3B: Obtain StockMovement configuration from canonical StockMovementSchema.
-   */
-  function _getStockMovementConfig() {
-    if (typeof StockMovementSchema !== 'undefined' && typeof StockMovementSchema.getSheetHeaders === 'function') {
-      return {
-        headers: StockMovementSchema.getSheetHeaders(),
-        widths: [22, 22, 15, 12, 10, 10, 10, 20, 15, 22, 30, 20, 25]
-      };
-    }
-    return {
-      headers: ['id','inventoryId','sku','movementType','quantity','quantityBefore','quantityAfter','reason','referenceType','referenceId','notes','createdAt','createdBy'],
-      widths: [22, 22, 15, 12, 10, 10, 10, 20, 15, 22, 30, 20, 25]
-    };
+  // ── Old or mismatched format detected — perform migration ──
+  console.log('[SETUP] Members migration needed. Old headers: ' + JSON.stringify(existingHeaders));
+
+  // Read all existing data
+  var lastRow = sheet.getLastRow();
+  var oldData = [];
+  if (lastRow > 1) {
+    oldData = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  }
+  console.log('[SETUP] Read ' + oldData.length + ' existing member rows.');
+
+  // Detect old column positions by header name
+  var oldIdx = {};
+  for (var h = 0; h < existingHeaders.length; h++) {
+    var hdr = String(existingHeaders[h]).toLowerCase().trim();
+    if (hdr === 'id' || hdr === 'member_id') oldIdx.id = h;
+    else if (hdr === 'name' || hdr === 'fullname' || hdr === 'full_name') oldIdx.name = h;
+    else if (hdr === 'email') oldIdx.email = h;
+    else if (hdr === 'role') oldIdx.role = h;
+    else if (hdr === 'phone') oldIdx.phone = h;
+    else if (hdr === 'status') oldIdx.status = h;
+    else if (hdr === 'department' || hdr === 'dept') oldIdx.dept = h;
+    else if (hdr === 'kpiscore' || hdr === 'kpi_score' || hdr === 'kpi') oldIdx.kpi = h;
+  }
+  console.log('[SETUP] Detected old column map: ' + JSON.stringify(oldIdx));
+
+  // Map each old row → new 12-column row (MEMBER_COL order)
+  var newRows = [];
+  for (var r = 0; r < oldData.length; r++) {
+    var row = oldData[r];
+    newRows.push([
+      oldIdx.id    !== undefined ? row[oldIdx.id]    : ('MEM-' + String(r + 1).padStart(3, '0')),
+      oldIdx.name  !== undefined ? row[oldIdx.name]  : '',
+      oldIdx.role  !== undefined ? row[oldIdx.role]  : 'Operations',
+      oldIdx.email !== undefined ? row[oldIdx.email] : '',
+      oldIdx.phone !== undefined ? row[oldIdx.phone] : '',
+      oldIdx.status !== undefined ? row[oldIdx.status] : 'Active',
+      new Date().toISOString().split('T')[0],
+      oldIdx.kpi   !== undefined ? row[oldIdx.kpi]   : 0,
+      0, 0, 0,
+      ''
+    ]);
   }
 
-  /**
-   * PHASE 3C: Obtain BOM configuration from canonical BOMSchema.
-   */
-  function _getBOMConfig() {
-    if (typeof BOMSchema !== 'undefined' && typeof BOMSchema.getSheetHeaders === 'function') {
-      return {
-        headers: BOMSchema.getSheetHeaders(),
-        widths: [22, 15, 25, 30, 10, 20, 20, 25]
-      };
-    }
-    return {
-      headers: ['id','finishedProductSku','name','description','active','createdAt','updatedAt','createdBy'],
-      widths: [22, 15, 25, 30, 10, 20, 20, 25]
-    };
+  // If sheet had no data rows, seed current user as Admin
+  if (newRows.length === 0) {
+    var currentUser = Session.getActiveUser().getEmail();
+    newRows.push([
+      'MEM-001',
+      'Admin User',
+      'Admin',
+      currentUser,
+      '',
+      'Active',
+      new Date().toISOString().split('T')[0],
+      0, 0, 0, 0,
+      'Initial admin created by Setup migration'
+    ]);
+    console.log('[SETUP] No existing data. Seeded default Admin: ' + currentUser);
   }
 
-  /**
-   * PHASE 3C: Obtain BOM_ITEM configuration from canonical BOMAItemSchema.
-   */
-  function _getBOMAItemConfig() {
-    if (typeof BOMAItemSchema !== 'undefined' && typeof BOMAItemSchema.getSheetHeaders === 'function') {
-      return {
-        headers: BOMAItemSchema.getSheetHeaders(),
-        widths: [22, 22, 15, 12, 10, 12, 30, 10, 20, 20, 25]
-      };
-    }
-    return {
-      headers: ['id','bomId','componentSku','quantityRequired','unit','wastagePercent','notes','active','createdAt','updatedAt','createdBy'],
-      widths: [22, 22, 15, 12, 10, 12, 30, 10, 20, 20, 25]
-    };
+  // Recreate sheet with correct structure
+  ss.deleteSheet(sheet);
+  var newSheet = ss.insertSheet('Members');
+
+  // Write headers
+  newSheet.getRange(1, 1, 1, expected.length).setValues([expected])
+    .setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+
+  // Write migrated data
+  newSheet.getRange(2, 1, newRows.length, expected.length).setValues(newRows);
+
+  // Set column widths
+  var widths = SHEET_CONFIGS['Members'].widths;
+  for (var w = 0; w < widths.length; w++) {
+    newSheet.setColumnWidth(w + 1, widths[w]);
   }
 
-  function createSheet(ss, name, cfg) {
-    let sheet = ss.getSheetByName(name);
-    if (sheet) {
-      Logger.info('Setup', 'Sheet exists', { name: name });
-      return sheet;
+  console.log('[SETUP] Members migration done! ' + newRows.length + ' rows → new 12-column format.');
+}
+
+
+function run() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  console.log('[SETUP] Starting sheet initialization...');
+
+  // ── Step 1: Migrate Members if columns are outdated ──
+  _migrateMembersIfNeeded(ss);
+
+  // ── Step 2: Create / verify all sheets ──
+  var sheetNames = Object.keys(SHEET_CONFIGS);
+  for (var i = 0; i < sheetNames.length; i++) {
+    var name = sheetNames[i];
+    var config = SHEET_CONFIGS[name];
+    var sheet = ss.getSheetByName(name);
+
+    if (!sheet) {
+      sheet = ss.insertSheet(name);
+      console.log('[SETUP] Created sheet: ' + name);
     }
-    sheet = ss.insertSheet(name);
-    sheet.appendRow(cfg.headers);
-    const headerRange = sheet.getRange(1, 1, 1, cfg.headers.length);
-    headerRange.setFontWeight('bold')
-      .setBackground('#1a237e')
-      .setFontColor('#ffffff')
-      .setHorizontalAlignment('center');
-    cfg.widths.forEach(function(w, i) {
-      sheet.setColumnWidth(i + 1, w);
-    });
-    sheet.setFrozenRows(1);
-    Logger.info('Setup', 'Sheet created', { name: name });
-    return sheet;
-  }
 
-  return {
-    run: function() {
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      Object.keys(SHEET_CONFIGS).forEach(function(name) {
-        createSheet(ss, name, SHEET_CONFIGS[name]);
-      });
-      _ensureInventoryHeaders(ss);
-      createSheet(ss, 'Inventory', _getInventoryConfig());
-      createSheet(ss, 'StockMovement', _getStockMovementConfig());
-      
-      // PHASE 3C: Create BOM sheets
-      createSheet(ss, 'BOM', _getBOMConfig());
-      createSheet(ss, 'BOM_ITEM', _getBOMAItemConfig());
+    // Set headers if first row is empty or different
+    var headerRow = sheet.getRange(1, 1, 1, config.headers.length);
+    var existingHeaders = headerRow.getValues()[0];
+    var needsUpdate = false;
 
-      const settingsSheet = ss.getSheetByName('Settings');
-      const defaults = [
-        ['app.version', CONFIG.APP.VERSION, 'string', 'Application version', new Date().toISOString(), Security.currentUser()],
-        ['app.initialized', 'true', 'boolean', 'System initialized flag', new Date().toISOString(), Security.currentUser()],
-        ['security.defaultRole', 'viewer', 'string', 'Default role for new users', new Date().toISOString(), Security.currentUser()]
-      ];
-      defaults.forEach(function(row) {
-        const data = settingsSheet.getDataRange().getValues();
-        let exists = false;
-        for (let i = 1; i < data.length; i++) {
-          if (data[i][0] === row[0]) { exists = true; break; }
-        }
-        if (!exists) settingsSheet.appendRow(row);
-      });
-      Logger.info('Setup', 'Initialization complete');
-      return 'System initialized. Sheets created: ' + Object.keys(SHEET_CONFIGS).join(', ') + ', Inventory, StockMovement, BOM, BOM_ITEM';
-    },
-
-    reset: function() {
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      Object.keys(SHEET_CONFIGS).forEach(function(name) {
-        const sheet = ss.getSheetByName(name);
-        if (sheet) {
-          sheet.clearContents();
-          sheet.appendRow(SHEET_CONFIGS[name].headers);
-        }
-      });
-      const invSheet = ss.getSheetByName('Inventory');
-      if (invSheet) {
-        invSheet.clearContents();
-        invSheet.appendRow(_getInventoryConfig().headers);
+    for (var j = 0; j < config.headers.length; j++) {
+      if (existingHeaders[j] !== config.headers[j]) {
+        needsUpdate = true;
+        break;
       }
-      const smSheet = ss.getSheetByName('StockMovement');
-      if (smSheet) {
-        smSheet.clearContents();
-        smSheet.appendRow(_getStockMovementConfig().headers);
-      }
-      
-      // PHASE 3C: Reset BOM sheets
-      const bomSheet = ss.getSheetByName('BOM');
-      if (bomSheet) {
-        bomSheet.clearContents();
-        bomSheet.appendRow(_getBOMConfig().headers);
-      }
-      const bomItemSheet = ss.getSheetByName('BOM_ITEM');
-      if (bomItemSheet) {
-        bomItemSheet.clearContents();
-        bomItemSheet.appendRow(_getBOMAItemConfig().headers);
-      }
-
-      Logger.warn('Setup', 'System reset performed');
-      return 'System reset complete.';
     }
-  };
-})();
+
+    if (needsUpdate || existingHeaders[0] === '') {
+      headerRow.setValues([config.headers]);
+      headerRow.setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+      console.log('[SETUP] Headers set for: ' + name + ' (' + config.headers.length + ' columns)');
+    }
+
+    // Set column widths
+    if (config.widths) {
+      for (var j = 0; j < config.widths.length; j++) {
+        sheet.setColumnWidth(j + 1, config.widths[j]);
+      }
+    }
+  }
+
+  console.log('[SETUP] Done. ' + sheetNames.length + ' sheets verified.');
+}

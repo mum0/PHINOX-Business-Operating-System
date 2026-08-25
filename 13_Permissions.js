@@ -80,6 +80,15 @@
     REPORTS_READ: "reports:read", REPORTS_WRITE: "reports:write",
     SETTINGS_READ: "settings:read", SETTINGS_WRITE: "settings:write",
     EXPENSES_READ: "expenses:read", EXPENSES_WRITE: "expenses:write", EXPENSES_APPROVE: "expenses:approve", EXPENSES_DELETE: "expenses:delete",
+    DASHBOARD_READ: "dashboard:read",
+    CUSTOMERS_READ: "customers:read", CUSTOMERS_WRITE: "customers:write",
+    SALES_READ: "sales:read", SALES_WRITE: "sales:write",
+    MARKETING_READ: "marketing:read", MARKETING_WRITE: "marketing:write",
+    SOCIAL_READ: "social:read", SOCIAL_WRITE: "social:write",
+    SATISFACTION_READ: "satisfaction:read", SATISFACTION_WRITE: "satisfaction:write",
+    NPS_READ: "nps:read", NPS_WRITE: "nps:write",
+    PERFORMANCE_READ: "performance:read",
+    EXPENSE_POST: "expenses:post",
     ADMIN: "admin"
   };
 
@@ -143,7 +152,7 @@
  .setBackground('#1a237e')
  .setFontColor('#ffffff');
  if (widths) widths.forEach(function(w, i) { sheet.setColumnWidth(i + 1, w); });
- Logger.info('Permissions', 'Sheet created', { name: name });
+ console.log('[Permissions] Sheet created: ' + name);
  return sheet;
  }
 
@@ -218,6 +227,15 @@ function ensureAppConstants(){
   PERMISSIONS.REPORTS_READ, PERMISSIONS.REPORTS_WRITE,
   PERMISSIONS.SETTINGS_READ, PERMISSIONS.SETTINGS_WRITE,
   PERMISSIONS.EXPENSES_READ, PERMISSIONS.EXPENSES_WRITE, PERMISSIONS.EXPENSES_APPROVE, PERMISSIONS.EXPENSES_DELETE,
+  PERMISSIONS.EXPENSE_POST,
+  PERMISSIONS.DASHBOARD_READ,
+  PERMISSIONS.CUSTOMERS_READ, PERMISSIONS.CUSTOMERS_WRITE,
+  PERMISSIONS.SALES_READ, PERMISSIONS.SALES_WRITE,
+  PERMISSIONS.MARKETING_READ, PERMISSIONS.MARKETING_WRITE,
+  PERMISSIONS.SOCIAL_READ, PERMISSIONS.SOCIAL_WRITE,
+  PERMISSIONS.SATISFACTION_READ, PERMISSIONS.SATISFACTION_WRITE,
+  PERMISSIONS.NPS_READ, PERMISSIONS.NPS_WRITE,
+  PERMISSIONS.PERFORMANCE_READ,
   PERMISSIONS.ADMIN
 ],
  [APP.ROLES.CEO]: [
@@ -232,6 +250,15 @@ function ensureAppConstants(){
  PERMISSIONS.SETTINGS_READ, PERMISSIONS.SETTINGS_WRITE,
  PERMISSIONS.EXPENSES_READ, PERMISSIONS.EXPENSES_WRITE, PERMISSIONS.EXPENSES_APPROVE, PERMISSIONS.EXPENSES_DELETE,
  PERMISSIONS.INVENTORY_BOM_READ, PERMISSIONS.INVENTORY_BOM_MANAGE,
+ PERMISSIONS.EXPENSE_POST,
+ PERMISSIONS.DASHBOARD_READ,
+ PERMISSIONS.CUSTOMERS_READ, PERMISSIONS.CUSTOMERS_WRITE,
+ PERMISSIONS.SALES_READ, PERMISSIONS.SALES_WRITE,
+ PERMISSIONS.MARKETING_READ, PERMISSIONS.MARKETING_WRITE,
+ PERMISSIONS.SOCIAL_READ, PERMISSIONS.SOCIAL_WRITE,
+ PERMISSIONS.SATISFACTION_READ, PERMISSIONS.SATISFACTION_WRITE,
+ PERMISSIONS.NPS_READ, PERMISSIONS.NPS_WRITE,
+ PERMISSIONS.PERFORMANCE_READ,
  PERMISSIONS.ADMIN
  ],
  [APP.ROLES.PARTNER]: [
@@ -245,26 +272,36 @@ function ensureAppConstants(){
  PERMISSIONS.REPORTS_READ, PERMISSIONS.REPORTS_WRITE,
  PERMISSIONS.SETTINGS_READ, PERMISSIONS.SETTINGS_WRITE,
  PERMISSIONS.EXPENSES_READ, PERMISSIONS.EXPENSES_WRITE, PERMISSIONS.EXPENSES_APPROVE, PERMISSIONS.EXPENSES_DELETE,
- PERMISSIONS.INVENTORY_BOM_READ, PERMISSIONS.INVENTORY_BOM_MANAGE 
+ PERMISSIONS.INVENTORY_BOM_READ, PERMISSIONS.INVENTORY_BOM_MANAGE,
+ PERMISSIONS.DASHBOARD_READ,
+ PERMISSIONS.SALES_READ,
+ PERMISSIONS.PERFORMANCE_READ
 ],
  [APP.ROLES.FINANCE]: [
  PERMISSIONS.FINANCE_READ, PERMISSIONS.FINANCE_WRITE, PERMISSIONS.REPORTS_READ,
  PERMISSIONS.ORDERS_READ, PERMISSIONS.INVENTORY_READ, PERMISSIONS.SUPPLIERS_READ, PERMISSIONS.KPI_READ,
  PERMISSIONS.EXPENSES_READ, PERMISSIONS.EXPENSES_WRITE, PERMISSIONS.EXPENSES_APPROVE,
- PERMISSIONS.INVENTORY_BOM_READ
+ PERMISSIONS.EXPENSE_POST,
+ PERMISSIONS.INVENTORY_BOM_READ,
+ PERMISSIONS.SALES_READ
  ],
  [APP.ROLES.OPERATIONS]: [
- PERMISSIONS.TASKS_READ, PERMISSIONS.TASKS_WRITE,
+ PERMISSIONS.TASKS_READ, PERMISSIONS.TASKS_WRITE, PERMISSIONS.TASKS_APPROVE,
  PERMISSIONS.INVENTORY_READ, PERMISSIONS.INVENTORY_WRITE,
  PERMISSIONS.ORDERS_READ, PERMISSIONS.ORDERS_WRITE,
  PERMISSIONS.SUPPLIERS_READ, PERMISSIONS.SUPPLIERS_WRITE,
  PERMISSIONS.KPI_READ, PERMISSIONS.REPORTS_READ,
- PERMISSIONS.INVENTORY_BOM_READ, PERMISSIONS.INVENTORY_BOM_MANAGE
+ PERMISSIONS.INVENTORY_BOM_READ, PERMISSIONS.INVENTORY_BOM_MANAGE,
+ PERMISSIONS.DASHBOARD_READ,
+ PERMISSIONS.CUSTOMERS_READ,
+ PERMISSIONS.SALES_READ, PERMISSIONS.SALES_WRITE
  ],
  [APP.ROLES.MARKETING]: [
  PERMISSIONS.TASKS_READ, PERMISSIONS.TASKS_WRITE,
  PERMISSIONS.ORDERS_READ, PERMISSIONS.REPORTS_READ, PERMISSIONS.KPI_READ,
- PERMISSIONS.INVENTORY_BOM_READ
+ PERMISSIONS.INVENTORY_BOM_READ,
+ PERMISSIONS.MARKETING_READ, PERMISSIONS.MARKETING_WRITE,
+ PERMISSIONS.SOCIAL_READ, PERMISSIONS.SOCIAL_WRITE
  ],
  [APP.ROLES.DESIGNER]: [
  PERMISSIONS.TASKS_READ, PERMISSIONS.TASKS_WRITE,
@@ -273,11 +310,14 @@ function ensureAppConstants(){
  ],
  [APP.ROLES.CUSTOMER_SERVICE]: [
  PERMISSIONS.ORDERS_READ, PERMISSIONS.ORDERS_WRITE,
- PERMISSIONS.MEMBERS_READ, PERMISSIONS.TASKS_READ
+ PERMISSIONS.MEMBERS_READ, PERMISSIONS.TASKS_READ,
+ PERMISSIONS.CUSTOMERS_READ,
+ PERMISSIONS.SATISFACTION_READ, PERMISSIONS.SATISFACTION_WRITE,
+ PERMISSIONS.NPS_READ, PERMISSIONS.NPS_WRITE
  ]
  };
  _permissionMatrixCache = matrix;
- Logger.debug('Permissions', 'Permission matrix loaded');
+ console.log('[Permissions] Permission matrix loaded');
  return matrix;
  }
 
@@ -382,49 +422,68 @@ function ensureAppConstants(){
  try{
  email = Session.getActiveUser().getEmail();
  }catch(e1){
- try{ email = Session.getEffectiveUser().getEmail(); }catch(e2){ Logger.warn('Permissions', 'Session fallback failed', {error: String(e2)}); return null; }
+ try{ email = Session.getEffectiveUser().getEmail(); }catch(e2){ console.log('[AUTH] FAILED: Session fallback failed — ' + String(e2)); return null; }
  }
 
- // Normalize: trim whitespace, lowercase
  email = String(email || '').trim().toLowerCase();
- if(isEmpty(email)) return null;
-
- if (typeof getMembers !== 'function') {
- Logger.warn('Permissions', 'getMembers not available');
+ console.log('[AUTH] Email from session: ' + email);
+ if(isEmpty(email)) {
+ console.log('[AUTH] FAILED: Empty email from Session — check Web App deploy (Execute as: User accessing)');
  return null;
  }
 
- var members = getMembers();
+ // ── DIRECT SHEET READ — bypasses getMembers()/BaseRepository/MEMBER_SCHEMA ──
  var matchedMember = null;
  var matchCount = 0;
+ try {
+   var ss = SpreadsheetApp.getActiveSpreadsheet();
+   var sheet = ss.getSheetByName('Members');
+   if (!sheet) {
+     console.log('[AUTH] FAILED: No Members sheet found');
+     return null;
+   }
+   var lastRow = sheet.getLastRow();
+   if (lastRow <= 1) {
+     console.log('[AUTH] FAILED: Members sheet is empty (headers only)');
+     return null;
+   }
+   var totalCols = sheet.getLastColumn();
+   var headerRow = sheet.getRange(1, 1, 1, totalCols).getValues()[0];
+   console.log('[AUTH] Headers (' + totalCols + '): ' + headerRow.join(' | '));
+   var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+   console.log('[AUTH] Direct read: ' + data.length + ' rows, ' + totalCols + ' cols');
 
- for(var i = 0; i < members.length; i++){
- var memberEmail = String(members[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
- var memberStatus = String(members[i][MEMBER_COL.STATUS] || '').trim();
+   for (var i = 0; i < data.length; i++) {
+     var row = data[i];
+     var colEmail = String(row[MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+     var colStatus = String(row[MEMBER_COL.STATUS] || '').trim();
 
- if(memberEmail === email){
- matchCount++;
- // Only consider Active members
- if(memberStatus === 'Active'){
- matchedMember = members[i];
- }
- }
+     if (colEmail === email) {
+       matchCount++;
+       console.log('[AUTH] Match at row ' + (i+2) + ' | Status: "' + colStatus + '"');
+       if (colStatus.toLowerCase() === 'active') {
+         matchedMember = row;
+       }
+     }
+   }
+ } catch (readErr) {
+   console.log('[AUTH] FAILED: Sheet read error — ' + readErr.message);
+   return null;
  }
 
- // SECURITY: Duplicate email anomaly — deny access to prevent privilege escalation
  if(matchCount > 1){
- Logger.error('Permissions', 'Duplicate email detected in Members sheet', { email: email, count: matchCount });
+ console.log('[AUTH] FAILED: Duplicate email (' + matchCount + ' times) — security block');
  _currentMemberCache = null;
  return null;
  }
 
- // SECURITY: No active match found — deny access
  if(!matchedMember){
+ console.log('[AUTH] FAILED: No ACTIVE member found for ' + email + ' (matches: ' + matchCount + ', all inactive)');
  _currentMemberCache = null;
  return null;
  }
 
- // Cache for this execution context
+ console.log('[AUTH] SUCCESS: ' + matchedMember[MEMBER_COL.FULL_NAME] + ' (' + matchedMember[MEMBER_COL.ROLE] + ')');
  _currentMemberCache = matchedMember;
  return matchedMember;
  }
@@ -494,9 +553,9 @@ function ensureAppConstants(){
  oldValue: oldValue !== undefined ? String(oldValue) : '',
  newValue: newValue !== undefined ? String(newValue) : ''
  });
- Logger.debug('Permissions', 'Activity logged', { action: action, user: userName });
+ console.log('[Permissions] Activity logged: ' + action + ' by ' + userName);
  } catch (e) {
- Logger.error('Permissions', 'Failed to log activity', { error: e.message, action: action });
+ console.log('[Permissions] Failed to log activity: ' + e.message + ' | action: ' + action);
  }
  }
 
@@ -684,7 +743,7 @@ function ensureAppConstants(){
  }
  }
  }catch(e){
- Logger.error('Permissions', 'Auto-execute failed', { error: e.message, type: typeName });
+ console.log('[Permissions] Auto-execute failed: ' + e.message + ' | type: ' + typeName);
  }
  }
 

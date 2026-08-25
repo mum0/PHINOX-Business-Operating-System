@@ -103,7 +103,6 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 </style>
 <base target="_blank">
-<base target="_blank">
 </head>
 <body>
 <div class="app-container">
@@ -401,6 +400,7 @@ function escAttr(str) {
 
 // ─── GLOBALS ───
 var _currentUser = null;
+var _customerCache = [];
 var _inventoryCache = [];
 var _expenseCache = [];
 var _taskCache = [];
@@ -438,13 +438,10 @@ function callServer(action, payload) {
       });
     var fn = runner[action];
     if (typeof fn === 'function') {
-      if (payload !== undefined && payload !== null) {
-        fn.call(runner, payload);
-      } else {
-        fn.call(runner);
-      }
+      var args = Array.prototype.slice.call(arguments, 1);
+      fn.apply(runner, args);
     } else {
-      reject(new Error('دالة السيرفر "' + action + '" غير موجودة. تأكد من نشر UI_Server.js'));
+      reject(new Error('Server function "' + action + '" not found'));
     }
   });
 }
@@ -574,6 +571,10 @@ function initAuthSystem() {
     document.getElementById('userPermissions').textContent = perms.join(', ');
     hideAuthOverlay();
     showToast('مرحباً ' + displayName + ' (' + role + ')', 'success');
+    // Pre-load customers cache for NPS/Satisfaction dropdowns
+    callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
+      _customerCache = (cres.data && cres.data.data) || cres.data || [];
+    }).catch(function() {});
     navigateTo('dashboard');
   }).catch(function(err) {
     console.error('Auth error:', err);
@@ -601,7 +602,7 @@ function navigateTo(page) {
   window.scrollTo(0, 0);
 
   var loaders = {
-    dashboard: function() { loadKPIs(); },
+    dashboard: function() { if (typeof loadDashboard === "function") loadDashboard(); },
     kpi: function() { loadKPIs(); },
     customers: function() { if (typeof loadCustomers === 'function') loadCustomers(); },
     orders: function() { if (typeof loadOrders === 'function') loadOrders(); },
@@ -622,7 +623,31 @@ function navigateTo(page) {
   }
 }
 
-// ─── STUB LOADERS ───
+// ─── DASHBOARD LOADER ───
+function loadDashboard() {
+  callServer('uiGetDashboardKpis').then(function(res) {
+    var kpis = (res.data && res.data.data) || res.data || {};
+    var items = [
+      { label: 'Revenue', value: kpis.revenue || kpis.totalRevenue || 0, format: 'currency' },
+      { label: 'Expenses', value: kpis.expenses || kpis.totalExpenses || 0, format: 'currency' },
+      { label: 'Profit', value: kpis.profit || kpis.netProfit || 0, format: 'currency' },
+      { label: 'Customers', value: kpis.customers || kpis.totalCustomers || 0, format: 'number' },
+      { label: 'Inventory Items', value: kpis.inventory || kpis.totalItems || 0, format: 'number' }
+    ];
+    var html = '';
+    items.forEach(function(k) {
+      var fmt = k.format === 'currency' ? '$' + Number(k.value).toLocaleString() : Number(k.value).toLocaleString();
+      html += '<div class="kpi-card"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-value">' + fmt + '</div></div>';
+    });
+    var c = document.getElementById('dashboardKpis');
+    if (c) c.innerHTML = html;
+  }).catch(function(err) {
+    var c = document.getElementById('dashboardKpis');
+    if (c) c.innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
+  });
+}
+
+// ─── KPI PAGE LOADER ───
 function loadKPIs() {
   var period = document.getElementById('kpiPeriod') ? document.getElementById('kpiPeriod').value : 'monthly';
   var refDate = document.getElementById('kpiRefDate') ? document.getElementById('kpiRefDate').value : '';
@@ -806,7 +831,6 @@ function showOutOfStock() {
 
 function openAddInventoryModal() {
   openGenericModal('Add Inventory Item',
-    '<div class="form-row"><div class="form-group"><label class="form-label">SKU *</label><input type="text" class="form-input" id="invSku" placeholder="SKU-001"></div>' +
     '<div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" id="invName" placeholder="Product name"></div></div>' +
     '<div class="form-row"><div class="form-group"><label class="form-label">Category</label><input type="text" class="form-input" id="invCategory" placeholder="Category"></div>' +
     '<div class="form-group"><label class="form-label">Quantity</label><input type="number" class="form-input" id="invQty" value="0"></div></div>' +
@@ -819,7 +843,6 @@ function openAddInventoryModal() {
 
 function submitAddInventory() {
   var data = {
-    sku: document.getElementById('invSku').value,
     name: document.getElementById('invName').value,
     category: document.getElementById('invCategory').value,
     quantity: parseFloat(document.getElementById('invQty').value) || 0,
@@ -827,7 +850,7 @@ function submitAddInventory() {
     minStock: parseFloat(document.getElementById('invMinStock').value) || 0,
     description: document.getElementById('invDesc').value
   };
-  if (!data.sku || !data.name) { showToast('SKU and Name are required', 'error'); return; }
+  if (!data.name) { showToast('Name is required', 'error'); return; }
   callServer('uiCreateInventory', data).then(function() {
     showToast('Item added');
     closeModal();
@@ -1037,13 +1060,17 @@ function calculateCostMargin() {
 function loadFinance() {
   var from = document.getElementById('financeDateFrom').value;
   var to = document.getElementById('financeDateTo').value;
-  callServer('uiGetFinanceStats', { from: from, to: to }).then(function(res) {
+  callServer('uiGetFinanceStats', from, to).then(function(res) {
     var stats = res.data || {};
+    var pnl = stats.pnl || {};
+    var revenue = pnl.revenue || 0;
+    var expenses = pnl.expenses || 0;
+    var netProfit = revenue - expenses;
     var html = '';
     var items = [
-      { label: 'Total Revenue', value: stats.revenue || 0 },
-      { label: 'Total Expenses', value: stats.expenses || 0 },
-      { label: 'Net Profit', value: stats.profit || 0 }
+      { label: 'Total Revenue', value: revenue },
+      { label: 'Total Expenses', value: expenses },
+      { label: 'Net Profit', value: netProfit }
     ];
     items.forEach(function(k) {
       var colorClass = k.label === 'Net Profit' && k.value < 0 ? 'text-danger' : 'text-success';
@@ -1169,7 +1196,7 @@ function submitRejectExpense() {
   var id = document.getElementById('rejectExpenseId').value;
   var reason = document.getElementById('rejectExpenseReason').value;
   if (!reason) { showToast('Reason is required', 'error'); return; }
-  callServer('uiRejectExpense', { id: id, reason: reason }).then(function() {
+  callServer('uiRejectExpense', id, reason).then(function() {
     showToast('Expense rejected');
     closeModal('modalRejectExpense');
     loadExpenses();
@@ -1188,7 +1215,7 @@ function submitPostExpense() {
   var id = document.getElementById('postExpenseId').value;
   var account = document.getElementById('postExpenseAccount').value;
   if (!account) { showToast('Account is required', 'error'); return; }
-  callServer('uiPostExpense', { id: id, account: account }).then(function() {
+  callServer('uiPostExpense', id, account).then(function() {
     showToast('Expense posted to ledger');
     closeModal('modalPostExpense');
     loadExpenses();
@@ -1234,7 +1261,7 @@ function loadApprovals() {
 function loadTasks() {
   var from = document.getElementById('taskDateFrom').value;
   var to = document.getElementById('taskDateTo').value;
-  callServer('uiGetTasksByDateRange', { from: from, to: to }).then(function(res) {
+  callServer('uiGetTasksByDateRange', from, to).then(function(res) {
     _taskCache = (res.data && res.data.data) || res.data || [];
     renderTasks(_taskCache);
   }).catch(function(err) {
@@ -1303,11 +1330,11 @@ function submitAddTask() {
 function loadMarketing() {
   var from = document.getElementById('marketingDateFrom').value;
   var to = document.getElementById('marketingDateTo').value;
-  callServer('uiGetMarketingStats', { from: from, to: to }).then(function(res) {
+  callServer('uiGetMarketingStats', from, to).then(function(res) {
     var stats = res.data || {};
-    var html = '<div class="kpi-card"><div class="kpi-label">Campaigns</div><div class="kpi-value">' + esc(String(stats.campaigns || 0)) + '</div></div>';
+    var html = '<div class="kpi-card"><div class="kpi-label">Total Spend</div><div class="kpi-value">$' + esc(String(stats.spend || 0)) + '</div></div>';
     html += '<div class="kpi-card"><div class="kpi-label">Leads</div><div class="kpi-value">' + esc(String(stats.leads || 0)) + '</div></div>';
-    html += '<div class="kpi-card"><div class="kpi-label">Conversion</div><div class="kpi-value">' + esc(String(stats.conversion || 0)) + '%</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">ROAS</div><div class="kpi-value">' + esc(String(stats.roas || 0)) + 'x</div></div>';
     document.getElementById('marketingKpis').innerHTML = html;
   }).catch(function() {
     document.getElementById('marketingKpis').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value">-</div></div>';
@@ -1364,11 +1391,11 @@ function submitAddMarketing() {
 function loadSocial() {
   var from = document.getElementById('socialDateFrom').value;
   var to = document.getElementById('socialDateTo').value;
-  callServer('uiGetSocialStats', { from: from, to: to }).then(function(res) {
+  callServer('uiGetSocialStats', from, to).then(function(res) {
     var stats = res.data || {};
     var html = '<div class="kpi-card"><div class="kpi-label">Followers</div><div class="kpi-value">' + esc(String(stats.followers || 0)) + '</div></div>';
-    html += '<div class="kpi-card"><div class="kpi-label">Engagement</div><div class="kpi-value">' + esc(String(stats.engagement || 0)) + '%</div></div>';
-    html += '<div class="kpi-card"><div class="kpi-label">Posts</div><div class="kpi-value">' + esc(String(stats.posts || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Engagement</div><div class="kpi-value">' + esc(String(stats.engagementRate || 0)) + '%</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Reach</div><div class="kpi-value">' + esc(String(stats.reach || 0)) + '</div></div>';
     document.getElementById('socialKpis').innerHTML = html;
   }).catch(function() {
     document.getElementById('socialKpis').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value">-</div></div>';
@@ -1427,11 +1454,12 @@ function submitAddSocial() {
 function loadSatisfaction() {
   var from = document.getElementById('satisfactionDateFrom').value;
   var to = document.getElementById('satisfactionDateTo').value;
-  callServer('uiGetSatisfactionStats', { from: from, to: to }).then(function(res) {
+  callServer('uiGetSatisfactionStats', from, to).then(function(res) {
     var stats = res.data || {};
+    var satisfiedPct = stats.count > 0 ? Math.round(((stats.records || []).filter(function(r) { return (r.score || r.rating || 0) >= 4; }).length / stats.count) * 10000) / 100 : 0;
     var html = '<div class="grid-3"><div class="kpi-card"><div class="kpi-label">Avg Score</div><div class="kpi-value">' + esc(String(stats.average || 0)) + '/5</div></div>';
     html += '<div class="kpi-card"><div class="kpi-label">Responses</div><div class="kpi-value">' + esc(String(stats.count || 0)) + '</div></div>';
-    html += '<div class="kpi-card"><div class="kpi-label">Satisfied %</div><div class="kpi-value">' + esc(String(stats.satisfiedPercent || 0)) + '%</div></div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Satisfied %</div><div class="kpi-value">' + esc(String(satisfiedPct)) + '%</div></div></div>';
     document.getElementById('satisfactionStats').innerHTML = html;
   }).catch(function() {
     document.getElementById('satisfactionStats').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value">-</div></div>';
@@ -1487,11 +1515,12 @@ function submitAddSatisfaction() {
 function loadNPS() {
   var from = document.getElementById('npsDateFrom').value;
   var to = document.getElementById('npsDateTo').value;
-  callServer('uiGetNPSStats', { from: from, to: to }).then(function(res) {
+  callServer('uiGetNPSStats', from, to).then(function(res) {
     var stats = res.data || {};
-    var html = '<div class="grid-3"><div class="kpi-card"><div class="kpi-label">NPS Score</div><div class="kpi-value ' + (stats.nps >= 50 ? 'text-success' : stats.nps >= 0 ? 'text-warning' : 'text-danger') + '">' + esc(String(stats.nps || 0)) + '</div></div>';
-    html += '<div class="kpi-card"><div class="kpi-label">Promoters</div><div class="kpi-value">' + esc(String(stats.promoters || 0)) + '</div></div>';
-    html += '<div class="kpi-card"><div class="kpi-label">Detractors</div><div class="kpi-value text-danger">' + esc(String(stats.detractors || 0)) + '</div></div></div>';
+    var bd = stats.breakdown || {};
+    var html = '<div class="grid-3"><div class="kpi-card"><div class="kpi-label">NPS Score</div><div class="kpi-value ' + ((stats.nps || 0) >= 50 ? 'text-success' : (stats.nps || 0) >= 0 ? 'text-warning' : 'text-danger') + '">' + esc(String(stats.nps || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Promoters</div><div class="kpi-value">' + esc(String(bd.promoters || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Detractors</div><div class="kpi-value text-danger">' + esc(String(bd.detractors || 0)) + '</div></div></div>';
     document.getElementById('npsStats').innerHTML = html;
   }).catch(function() {
     document.getElementById('npsStats').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value">-</div></div>';
@@ -1560,14 +1589,15 @@ function renderMembers(list) {
     document.getElementById('membersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🧑‍💼</div><p>No members found</p></div>';
     return;
   }
-  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Position</th><th>Department</th><th>Status</th></tr></thead><tbody>';
+  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Position</th><th>Department</th><th>Status</th></tr></thead><tbody>';
   list.forEach(function(m) {
-    var role = m.role || m[3] || '-';
+    var role = m.role || (Array.isArray(m) ? m[2] : undefined) || '-';
     var badgeClass = role === 'CEO' ? 'badge-danger' : role === 'Admin' ? 'badge-warning' : 'badge-secondary';
-    html += '<tr><td>' + esc(m.name || m.fullName || m[1] || '-') + '</td><td>' + esc(m.email || m[2] || '-') + '</td>';
+    html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-') + '</td>';
+    html += '<td>' + esc(m.phone || '-') + '</td>';
     html += '<td><span class="badge ' + badgeClass + '">' + esc(role) + '</span></td>';
-    html += '<td>' + esc(m.position || m[8] || '-') + '</td><td>' + esc(m.department || m[5] || '-') + '</td>';
-    html += '<td><span class="badge ' + ((m.status || m[4] || 'Active') === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(m.status || m[4] || 'Active') + '</span></td></tr>';
+    html += '<td>' + esc(m.position || '-') + '</td><td>' + esc(m.department || '-') + '</td>';
+    html += '<td><span class="badge ' + ((m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active') === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(m.status || 'Active') + '</span></td></tr>';
   });
   html += '</tbody></table>';
   document.getElementById('membersTableContainer').innerHTML = html;
@@ -1577,7 +1607,7 @@ function openAddMemberModal() {
   // Count existing Admin/CEO for warnings
   var adminCount = 0, ceoCount = 0;
   _memberCache.forEach(function(m) {
-    var role = String(m.role || m[3] || '').trim();
+    var role = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
     if (role === 'Admin') adminCount++;
     if (role === 'CEO') ceoCount++;
   });
@@ -1594,7 +1624,7 @@ function openAddMemberModal() {
     '<div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="memName" placeholder="Full name"></div>' +
     '<div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="memEmail" placeholder="email@company.com"></div></div>' +
     '<div class="form-row"><div class="form-group"><label class="form-label">Role *</label><select class="form-select" id="memRole" onchange="updateRoleWarning()">' +
-    '<option value="User">User</option><option value="Manager">Manager</option><option value="Admin">Admin</option><option value="CEO">CEO</option><option value="Viewer">Viewer</option></select>' +
+    '<option value="Operations">Operations</option><option value="Finance">Finance</option><option value="Marketing">Marketing</option><option value="Designer">Designer</option><option value="Customer Service">Customer Service</option><option value="Partner">Partner</option><option value="Admin">Admin</option><option value="CEO">CEO</option></select>' +
     '<div id="roleWarningContainer">' + warningHtml + '</div></div>' +
     '<div class="form-group"><label class="form-label">Position</label><input type="text" class="form-input" id="memPosition" placeholder="e.g. Sales Manager"></div></div>' +
     '<div class="form-row"><div class="form-group"><label class="form-label">Department</label><input type="text" class="form-input" id="memDept" placeholder="e.g. Sales"></div>' +
@@ -1609,7 +1639,7 @@ function updateRoleWarning() {
   var container = document.getElementById('roleWarningContainer');
   var adminCount = 0, ceoCount = 0;
   _memberCache.forEach(function(m) {
-    var r = String(m.role || m[3] || '').trim();
+    var r = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
     if (r === 'Admin') adminCount++;
     if (r === 'CEO') ceoCount++;
   });
@@ -1642,7 +1672,7 @@ function submitAddMember() {
   // Client-side check for Admin/CEO
   var adminCount = 0, ceoCount = 0;
   _memberCache.forEach(function(m) {
-    var r = String(m.role || m[3] || '').trim();
+    var r = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
     if (r === 'Admin') adminCount++;
     if (r === 'CEO') ceoCount++;
   });
@@ -1661,85 +1691,9 @@ function submitAddMember() {
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════
-// NAVIGATION & INIT
-// ═══════════════════════════════════════════════════════
-function navigateTo(page) {
-  // Update sidebar active state
-  document.querySelectorAll('.nav-item').forEach(function(el) {
-    el.classList.remove('active');
-    if (el.getAttribute('data-page') === page) {
-      el.classList.add('active');
-    }
-  });
 
-  // Show target page section
-  document.querySelectorAll('.page-section').forEach(function(el) {
-    el.classList.remove('active');
-  });
-  var target = document.getElementById('page-' + page);
-  if (target) {
-    target.classList.add('active');
-  }
 
-  // Close mobile sidebar
-  document.getElementById('sidebar').classList.remove('open');
 
-  // Load page data if function exists
-  var loaders = {
-    dashboard: function() { if (typeof loadKPIs === 'function') loadKPIs(); },
-    kpi: function() { if (typeof loadKPIs === 'function') loadKPIs(); },
-    customers: function() { if (typeof loadCustomers === 'function') loadCustomers(); },
-    orders: function() { if (typeof loadOrders === 'function') loadOrders(); },
-    sales: function() { if (typeof loadSales === 'function') loadSales(); },
-    inventory: loadInventory,
-    finance: loadFinance,
-    expenses: loadExpenses,
-    approvals: loadApprovals,
-    tasks: loadTasks,
-    marketing: loadMarketing,
-    social: loadSocial,
-    satisfaction: loadSatisfaction,
-    nps: loadNPS,
-    members: loadMembers
-  };
-
-  if (loaders[page] && typeof loaders[page] === 'function') {
-    try {
-      loaders[page]();
-    } catch (e) {
-      console.log('Loader error for ' + page + ':', e);
-    }
-  }
-
-  // Scroll to top
-  window.scrollTo(0, 0);
-}
-
-function initAuthSystem() {
-  // Try to get current user from server
-  if (typeof callServer === 'function') {
-    callServer('uiGetCurrentUser', null).then(function(res) {
-      var user = res.data || {};
-      _currentUser = user;
-      document.getElementById('userName').textContent = user.name || user.fullName || 'User';
-      document.getElementById('userRole').textContent = user.role || 'User';
-      document.getElementById('userAvatar').textContent = (user.name || user.fullName || 'U').charAt(0).toUpperCase();
-      var perms = user.permissions || [];
-      document.getElementById('userPermissions').textContent = perms.join(', ');
-      // Load dashboard by default
-      navigateTo('dashboard');
-    }).catch(function() {
-      // Fallback: show unknown user
-      document.getElementById('userName').textContent = 'Guest';
-      document.getElementById('userRole').textContent = 'Not logged in';
-      document.getElementById('userAvatar').textContent = '?';
-    });
-  } else {
-    // callServer not available yet, just load dashboard
-    navigateTo('dashboard');
-  }
-}
 
 // ═══════════════════════════════════════════════════════
 // EVENT DELEGATION — PHINOX SECURITY PATCH
