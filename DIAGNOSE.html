@@ -1,95 +1,155 @@
 <!DOCTYPE html>
-<html>
+<html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>PHINOX BOS - Diagnostic Tool</title>
+  <title>🔬 PHINOX BOS — Diagnostics</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f5f5; padding: 20px; direction: ltr; }
-    .container { max-width: 700px; margin: 0 auto; }
-    h1 { font-size: 22px; color: #333; margin-bottom: 6px; }
-    .subtitle { color: #666; font-size: 14px; margin-bottom: 20px; }
-    .run-btn { display: inline-block; padding: 14px 40px; background: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 20px; }
-    .run-btn:hover { background: #1557b0; }
-    .run-btn:disabled { background: #ccc; cursor: not-allowed; }
-    .check { display: flex; align-items: center; padding: 12px 16px; background: white; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e0e0e0; }
-    .check.pass { border-left: 4px solid #34a853; }
-    .check.fail { border-left: 4px solid #ea4335; background: #fff5f5; }
-    .icon { font-size: 20px; margin-right: 12px; width: 24px; text-align: center; }
-    .check-name { font-weight: 600; font-size: 14px; min-width: 200px; }
-    .check-detail { font-size: 12px; color: #666; flex: 1; margin-left: 12px; word-break: break-all; }
-    .summary { padding: 16px; border-radius: 8px; margin-top: 16px; font-weight: bold; }
-    .summary.all-pass { background: #e6f4ea; color: #1e7e34; }
-    .summary.has-fail { background: #fce8e6; color: #c5221f; }
-    .loading { text-align: center; padding: 40px; color: #666; font-size: 16px; }
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+    body { background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }
+    h1 { text-align: center; color: #38bdf8; margin-bottom: 10px; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; transition: all 0.3s; }
+    .card:hover { border-color: #38bdf8; }
+    .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .icon { font-size: 22px; }
+    .card-title { font-size: 16px; font-weight: 600; color: #f1f5f9; }
+    .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-top: 8px; }
+    .status-pass { background: #064e3b; color: #34d399; }
+    .status-fail { background: #450a0a; color: #f87171; }
+    .status-warn { background: #451a03; color: #fbbf24; }
+    .status-loading { background: #1e3a5f; color: #60a5fa; }
+    .detail { font-size: 13px; color: #94a3b8; margin-top: 8px; line-height: 1.5; }
+    .detail code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #f472b6; }
+    #summary { max-width: 1200px; margin: 30px auto; padding: 20px; background: #1e293b; border-radius: 12px; border: 1px solid #334155; }
+    #summary h2 { color: #38bdf8; margin-top: 0; }
+    .progress-bar { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #34d399, #38bdf8); transition: width 0.5s; width: 0%; }
+    .action-box { max-width: 1200px; margin: 20px auto; padding: 20px; background: #451a03; border-radius: 12px; border: 1px solid #92400e; }
+    .action-box h3 { color: #fbbf24; margin-top: 0; }
+    .action-box ul { color: #fcd34d; line-height: 2; }
+    .action-box li code { background: #0f172a; padding: 2px 6px; border-radius: 4px; }
+    .refresh-btn { display: block; margin: 20px auto; padding: 12px 30px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+    .refresh-btn:hover { background: #1d4ed8; }
+    .timestamp { text-align: center; color: #64748b; font-size: 12px; margin-top: 20px; }
   </style>
+<base target="_blank">
 </head>
 <body>
-  <div class="container">
-    <h1>PHINOX BOS - Diagnostic Tool</h1>
-    <p class="subtitle">Run this to find exactly why login fails. Click the button, wait for results.</p>
-    <button class="run-btn" id="runBtn" onclick="runDiag()">⚡ Run Diagnostic</button>
-    <div id="results">
-      <div class="loading">Click the button above to start...</div>
-    </div>
+  <h1>🔬 PHINOX BOS — Diagnostics</h1>
+  <p class="subtitle">فحص شامل لـ 12 نقطة حرجة — فرع v5-enterprise</p>
+
+  <button class="refresh-btn" onclick="runDiagnostics()">🔄 إعادة الفحص</button>
+
+  <div class="grid" id="grid"></div>
+
+  <div id="summary" style="display:none;">
+    <h2>📊 ملخص النتائج</h2>
+    <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+    <p id="summary-text"></p>
   </div>
+
+  <div class="action-box" id="actions" style="display:none;">
+    <h3>⚡ إجراءات مطلوبة</h3>
+    <ul id="action-list"></ul>
+  </div>
+
+  <p class="timestamp" id="timestamp"></p>
+
   <script>
-    function runDiag() {
-      var btn = document.getElementById('runBtn');
-      var results = document.getElementById('results');
-      btn.disabled = true;
-      btn.textContent = 'Running...';
-      results.innerHTML = '<div class="loading">Checking system... please wait 10-30 seconds.</div>';
+    const checks = [
+      { id: 'session', icon: '👤', title: 'Session Email', desc: 'هل يستطيع GAS قراءة بريد المستخدم الحالي؟' },
+      { id: 'spreadsheet', icon: '📑', title: 'Spreadsheet Access', desc: 'هل النص البرمجي يستطيع الوصول إلى الـ Spreadsheet؟' },
+      { id: 'membersSheet', icon: '👥', title: 'Members Sheet', desc: 'هل يوجد شيت باسم "Members"؟' },
+      { id: 'membersHeaders', icon: '🏷️', title: 'Members Headers', desc: 'هل الأعمدة (email, role, status) موجودة؟' },
+      { id: 'emailMatch', icon: '✉️', title: 'Email Match', desc: 'هل بريد المستخدم مسجل في Members؟' },
+      { id: 'activeStatus', icon: '✅', title: 'Active Status', desc: 'هل حالة المستخدم "Active"؟' },
+      { id: 'roleResolved', icon: '🛡️', title: 'Role Resolved', desc: 'ما الدور المُرجَّع من Security.getUserRole()؟' },
+      { id: 'config', icon: '⚙️', title: 'CONFIG Object', desc: 'هل كائن CONFIG مُعرَّف وصالح؟' },
+      { id: 'baseRepo', icon: '📦', title: 'BaseRepository', desc: 'هل BaseRepository يعمل بدون أخطاء؟' },
+      { id: 'logger', icon: '📝', title: 'Logger.log()', desc: 'هل Logger.log() يعمل أم يرمي TypeError؟' },
+      { id: 'security', icon: '🔐', title: 'Security Module', desc: 'هل Security.js مُحمَّل ويعمل؟' },
+      { id: 'uiServer', icon: '🌐', title: 'UI_Server Response', desc: 'هل uiGetCurrentUser() تُرجع بيانات صالحة؟' }
+    ];
+
+    function renderGrid() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = checks.map(c => `
+        <div class="card" id="card-${c.id}">
+          <div class="card-header">
+            <span class="icon">${c.icon}</span>
+            <span class="card-title">${c.title}</span>
+          </div>
+          <div class="detail">${c.desc}</div>
+          <span class="status status-loading" id="status-${c.id}">⏳ جاري الفحص...</span>
+          <div class="detail" id="detail-${c.id}" style="margin-top:8px;"></div>
+        </div>
+      `).join('');
+    }
+
+    function setStatus(id, state, detail) {
+      const el = document.getElementById('status-' + id);
+      const det = document.getElementById('detail-' + id);
+      el.className = 'status status-' + state;
+      if (state === 'pass') el.textContent = '✅ ناجح';
+      else if (state === 'fail') el.textContent = '❌ فاشل';
+      else if (state === 'warn') el.textContent = '⚠️ تحذير';
+      else el.textContent = '⏳ جاري...';
+      if (detail) det.innerHTML = detail;
+    }
+
+    function runDiagnostics() {
+      renderGrid();
+      document.getElementById('summary').style.display = 'none';
+      document.getElementById('actions').style.display = 'none';
 
       google.script.run
-        .withSuccessHandler(function(data) {
-          btn.disabled = false;
-          btn.textContent = '\u26A1 Run Diagnostic Again';
-          renderResults(data);
-        })
-        .withFailureHandler(function(err) {
-          btn.disabled = false;
-          btn.textContent = '\u26A1 Run Diagnostic Again';
-          results.innerHTML = '<div class="check fail"><span class="icon">❌</span><span class="check-name">FATAL ERROR</span><span class="check-detail">The script crashed before running diagnostic. Error: ' + (err.message || err) + '<br><br>This means a file fails to load. Check the GAS Executions log.</span></div>';
-        })
+        .withSuccessHandler(handleResults)
+        .withFailureHandler(handleError)
         .uiDiagnose();
     }
 
-    function renderResults(data) {
-      var html = '';
-      var passCount = 0;
-      var failCount = 0;
+    function handleResults(results) {
+      let pass = 0, fail = 0, warn = 0;
+      const actions = [];
 
-      if (!data || !data.checks) {
-        html = '<div class="check fail"><span class="icon">❌</span><span class="check-name">No data returned</span></div>';
-        document.getElementById('results').innerHTML = html;
-        return;
-      }
-
-      data.checks.forEach(function(c) {
-        var isPass = c.pass;
-        if (isPass) passCount++; else failCount++;
-        html += '<div class="check ' + (isPass ? 'pass' : 'fail') + '">';
-        html += '<span class="icon">' + (isPass ? '\u2705' : '\u274C') + '</span>';
-        html += '<span class="check-name">' + esc(c.name) + '</span>';
-        if (c.detail) html += '<span class="check-detail">' + esc(c.detail) + '</span>';
-        html += '</div>';
+      results.forEach(r => {
+        setStatus(r.id, r.status, r.detail);
+        if (r.status === 'pass') pass++;
+        else if (r.status === 'fail') fail++;
+        else if (r.status === 'warn') warn++;
+        if (r.action) actions.push(r.action);
       });
 
-      if (failCount === 0) {
-        html += '<div class="summary all-pass">All ' + passCount + ' checks passed! Redeploy the web app and try again.</div>';
-      } else {
-        html += '<div class="summary has-fail">' + failCount + ' check(s) failed. Fix the red items above, then re-run.</div>';
+      const total = results.length;
+      const pct = Math.round((pass / total) * 100);
+      document.getElementById('progress').style.width = pct + '%';
+      document.getElementById('summary-text').innerHTML =
+        `<strong>${pass}</strong> ناجح &nbsp;|&nbsp; <strong style="color:#f87171">${fail}</strong> فاشل &nbsp;|&nbsp; <strong style="color:#fbbf24">${warn}</strong> تحذير &nbsp;—&nbsp; <strong>${pct}%</strong> صحة النظام`;
+      document.getElementById('summary').style.display = 'block';
+
+      if (actions.length > 0) {
+        document.getElementById('action-list').innerHTML = actions.map(a => `<li>${a}</li>`).join('');
+        document.getElementById('actions').style.display = 'block';
       }
 
-      document.getElementById('results').innerHTML = html;
+      document.getElementById('timestamp').textContent = 'آخر فحص: ' + new Date().toLocaleString('ar-EG');
     }
 
-    function esc(s) {
-      var d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
+    function handleError(err) {
+      document.getElementById('grid').innerHTML = `
+        <div class="card" style="grid-column:1/-1; text-align:center;">
+          <div class="icon" style="font-size:40px;">💥</div>
+          <h2 style="color:#f87171;">خطأ فادح في Diagnostics</h2>
+          <p class="detail">${err.message || JSON.stringify(err)}</p>
+          <p class="detail">ده معناه إن فيه TypeError في الكود الخلفي — غالباً <code>Logger.log is not a function</code></p>
+        </div>
+      `;
+      document.getElementById('timestamp').textContent = 'آخر فحص: ' + new Date().toLocaleString('ar-EG');
     }
+
+    // تشغيل تلقائي عند فتح الصفحة
+    window.onload = runDiagnostics;
   </script>
 </body>
 </html>

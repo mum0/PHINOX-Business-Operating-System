@@ -1,10 +1,9 @@
 // 09_Security.js — PHINOX BOS v5 Enterprise
 // ============================================
-// SECURITY FIX (2026-08-27):
-//   - Rebuilt RBAC: Members Sheet is single source of truth
-//   - Removed: setUserRole (public), UserProperties for roles
-//   - Added: isRoleAtLeast() for hierarchy comparison
-//   - All logging uses Logger module (03_Logger.js)
+// تم التعديل: جعل البحث عن headers غير حساس لحالة الأحرف
+// السبب: الشيت فيه 'Email' (Title Case) والكود بيدور على 'email' (lowercase)
+// النتيجة: كل المستخدمين بيطلعوا GUEST
+// تاريخ التعديل: 2026-08-27
 // ============================================
 
 var Security = (function() {
@@ -30,47 +29,66 @@ var Security = (function() {
     APPROVE: 'approve'
   };
 
-  // ─── Private helpers ───
+  // ✅ دالة جديدة: البحث عن العمود بدون حساسية لحالة الأحرف
+  function _findColIndex(headers, target) {
+    var targetLower = target.toLowerCase();
+    for (var i = 0; i < headers.length; i++) {
+      if (String(headers[i]).toLowerCase().trim() === targetLower) {
+        return i;
+      }
+    }
+    return -1;
+  }
 
   function _getRoleFromMembers(email) {
     if (!email) return 'GUEST';
 
     try {
       var ss = SpreadsheetApp.getActiveSpreadsheet();
-      var sheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+      var sheet = ss.getSheetByName('Members');
       if (!sheet) {
-        Logger.error('Security._getRoleFromMembers', 'Members sheet not found', { email: email });
+        Logger.log('[Security] Members sheet not found');
         return 'GUEST';
       }
 
       var data = sheet.getDataRange().getValues();
+      if (data.length < 2) return 'GUEST';
+
       var headers = data[0];
-      // FIX: case-insensitive header matching
-      var headersLower = headers.map(function(h) { return String(h).toLowerCase(); });
-      var emailIdx = headersLower.indexOf('email');
-      var roleIdx = headersLower.indexOf('role');
-      var statusIdx = headersLower.indexOf('status');
 
-      // FIX: fallback to known column indices if headers not found
-      if (emailIdx === -1) emailIdx = 3;  // 0-based: Email is always column 3
-      if (roleIdx === -1) roleIdx = 2;   // 0-based: Role is always column 2
-      if (statusIdx === -1) statusIdx = 5; // 0-based: Status is always column 5
+      // ✅ استخدام البحث غير الحساس لحالة الأحرف
+      var emailIdx = _findColIndex(headers, 'email');
+      var roleIdx  = _findColIndex(headers, 'role');
+      var statusIdx = _findColIndex(headers, 'status');
 
-      var emailNorm = email.toLowerCase().trim();
+      if (emailIdx === -1 || roleIdx === -1) {
+        Logger.log('[Security] Missing required columns. Found headers: ' + JSON.stringify(headers));
+        return 'GUEST';
+      }
 
       for (var i = 1; i < data.length; i++) {
-        var cellEmail = String(data[i][emailIdx] || '').toLowerCase().trim();
-        if (cellEmail === emailNorm) {
-          var status = String(data[i][statusIdx] || '').trim();
-          if (statusIdx !== -1 && status.toLowerCase() === 'inactive') {
-            return 'GUEST';
+        var rowEmail = String(data[i][emailIdx] || '').toLowerCase().trim();
+        var searchEmail = String(email).toLowerCase().trim();
+
+        if (rowEmail === searchEmail) {
+          // ✅ التحقق من الحالة
+          if (statusIdx !== -1) {
+            var status = String(data[i][statusIdx] || '').toLowerCase().trim();
+            if (status === 'inactive' || status === 'disabled') {
+              Logger.log('[Security] User ' + email + ' is inactive');
+              return 'GUEST';
+            }
           }
-          return data[i][roleIdx] || 'GUEST';
+          var role = String(data[i][roleIdx] || 'GUEST').toUpperCase().trim();
+          Logger.log('[Security] Role resolved for ' + email + ': ' + role);
+          return role;
         }
       }
+
+      Logger.log('[Security] Email not found in Members: ' + email);
       return 'GUEST';
     } catch (e) {
-      Logger.error('Security._getRoleFromMembers', e.message, { email: email, error: e.toString() });
+      Logger.log('[Security ERROR] ' + e.message);
       return 'GUEST';
     }
   }
@@ -78,47 +96,29 @@ var Security = (function() {
   function _hasPermission(userRole, requiredPermission) {
     var level = ROLE_HIERARCHY[userRole] || 0;
 
-    var permissionMap = {};
-    permissionMap[PERMISSIONS.READ] = 0;
-    permissionMap[PERMISSIONS.WRITE] = 1;
-    permissionMap[PERMISSIONS.DELETE] = 2;
-    permissionMap[PERMISSIONS.APPROVE] = 3;
-    permissionMap[PERMISSIONS.FINANCE] = 4;
-    permissionMap[PERMISSIONS.ADMIN] = 5;
+    var permissionMap = {
+      [PERMISSIONS.READ]: 0,
+      [PERMISSIONS.WRITE]: 1,
+      [PERMISSIONS.DELETE]: 2,
+      [PERMISSIONS.APPROVE]: 3,
+      [PERMISSIONS.FINANCE]: 4,
+      [PERMISSIONS.ADMIN]: 5
+    };
 
     var requiredLevel = permissionMap[requiredPermission] || 0;
     return level >= requiredLevel;
   }
 
-  // ─── Public API ───
-
   return {
-    /**
-     * Get current user role from Members Sheet
-     * @returns {string}
-     */
     getUserRole: function() {
       var email = Session.getActiveUser().getEmail();
       return _getRoleFromMembers(email);
     },
 
-    /**
-     * Get current user email
-     * @returns {string}
-     */
     currentUser: function() {
-      try {
-        return Session.getActiveUser().getEmail();
-      } catch (e) {
-        return 'anonymous';
-      }
+      return Session.getActiveUser().getEmail();
     },
 
-    /**
-     * Require permission — throws if denied
-     * @param {string} permission
-     * @throws {Error}
-     */
     requirePermission: function(permission) {
       var role = this.getUserRole();
       if (!_hasPermission(role, permission)) {
@@ -126,71 +126,47 @@ var Security = (function() {
         var err = new Error(
           'FORBIDDEN: User "' + email + '" with role "' + role + '" lacks permission "' + permission + '"'
         );
-        Logger.error('Security.requirePermission', err.message, { email: email, role: role, permission: permission });
+        Logger.log('[Security] ' + err.message);
         throw err;
       }
     },
 
-    /**
-     * Require admin permission
-     * @throws {Error}
-     */
     requireAdmin: function() {
       this.requirePermission(PERMISSIONS.ADMIN);
     },
 
-    /**
-     * Check permission without throwing
-     * @param {string} permission
-     * @returns {boolean}
-     */
     can: function(permission) {
       var role = this.getUserRole();
       return _hasPermission(role, permission);
     },
 
-    /**
-     * Get role hierarchy
-     * @returns {Object}
-     */
     getRoleHierarchy: function() {
       return Object.assign({}, ROLE_HIERARCHY);
     },
 
-    /**
-     * Get permissions list
-     * @returns {Object}
-     */
     getPermissions: function() {
       return Object.assign({}, PERMISSIONS);
     },
 
-    /**
-     * Compare two roles — is roleA >= roleB?
-     * @param {string} roleA
-     * @param {string} roleB
-     * @returns {boolean}
-     */
     isRoleAtLeast: function(roleA, roleB) {
       return (ROLE_HIERARCHY[roleA] || 0) >= (ROLE_HIERARCHY[roleB] || 0);
     }
   };
 })();
 
-// ─── Global wrappers (backward compatibility) ───
-
+// ─── Wrappers عامة ───
 function requirePermission(permission) {
-Security.requirePermission(permission);
+  Security.requirePermission(permission);
 }
 
 function requireAdmin() {
-Security.requireAdmin();
+  Security.requireAdmin();
 }
 
 function getUserRole() {
-return Security.getUserRole();
+  return Security.getUserRole();
 }
 
 function isCurrentUserAdmin() {
-return Security.can(Security.getPermissions().ADMIN);
+  return Security.can(Security.getPermissions().ADMIN);
 }

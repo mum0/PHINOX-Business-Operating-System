@@ -1,0 +1,262 @@
+// UI_Server_DIAGNOSE.js — PHINOX BOS v5 Enterprise
+// ============================================
+// جديد: دالة تشخيصية + إصلاح uiGetCurrentUser()
+// أضف هذا الملف في GAS IDE كملف .gs جديد
+// تاريخ الإنشاء: 2026-08-27
+// ============================================
+
+/**
+ * دالة تشخيصية شاملة — تُستدعى من DIAGNOSE.html
+ * تفحص 12 نقطة حرجة وتُرجع مصفوفة بالنتائج
+ * @returns {Array} [{id, status, detail, action}, ...]
+ */
+function uiDiagnose() {
+  var results = [];
+
+  // 1. Session Email
+  try {
+    var email = Session.getActiveUser().getEmail();
+    results.push({
+      id: 'session',
+      status: email ? 'pass' : 'warn',
+      detail: email ? 'البريد: <code>' + email + '</code>' : 'لا يوجد بريد (قد تكون في وضع Anonymous)',
+      action: email ? null : 'سجّل الدخول بحساب Google'
+    });
+  } catch (e) {
+    results.push({ id: 'session', status: 'fail', detail: 'خطأ: ' + e.message, action: 'تحقق من إعدادات النشر (Execute as: Me)' });
+  }
+
+  // 2. Spreadsheet Access
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ssName = ss.getName();
+    results.push({
+      id: 'spreadsheet',
+      status: 'pass',
+      detail: 'Spreadsheet: <code>' + ssName + '</code>',
+      action: null
+    });
+  } catch (e) {
+    results.push({ id: 'spreadsheet', status: 'fail', detail: 'لا يمكن الوصول إلى Spreadsheet', action: 'تحقق من الصلاحيات' });
+  }
+
+  // 3. Members Sheet exists
+  var membersSheet = null;
+  try {
+    membersSheet = ss.getSheetByName('Members');
+    results.push({
+      id: 'membersSheet',
+      status: membersSheet ? 'pass' : 'fail',
+      detail: membersSheet ? 'الشيت موجود — الصفوف: ' + membersSheet.getLastRow() : 'شيت Members غير موجود!',
+      action: membersSheet ? null : 'شغّل Setup أو أنشئ الشيت يدوياً'
+    });
+  } catch (e) {
+    results.push({ id: 'membersSheet', status: 'fail', detail: e.message, action: 'تحقق من Spreadsheet' });
+  }
+
+  // 4. Members Headers
+  var headers = [];
+  var emailCol = -1, roleCol = -1, statusCol = -1;
+  if (membersSheet) {
+    try {
+      headers = membersSheet.getRange(1, 1, 1, membersSheet.getLastColumn()).getValues()[0];
+      var headersLower = headers.map(function(h) { return String(h).toLowerCase().trim(); });
+      emailCol = headersLower.indexOf('email');
+      roleCol = headersLower.indexOf('role');
+      statusCol = headersLower.indexOf('status');
+
+      var missing = [];
+      if (emailCol === -1) missing.push('email');
+      if (roleCol === -1) missing.push('role');
+
+      results.push({
+        id: 'membersHeaders',
+        status: missing.length === 0 ? 'pass' : 'fail',
+        detail: 'Headers: <code>' + JSON.stringify(headers) + '</code><br>email@col:' + emailCol + ' | role@col:' + roleCol + ' | status@col:' + statusCol,
+        action: missing.length === 0 ? null : 'أضف الأعمدة المفقودة: ' + missing.join(', ')
+      });
+    } catch (e) {
+      results.push({ id: 'membersHeaders', status: 'fail', detail: e.message, action: 'تحقق من بيانات Members' });
+    }
+  } else {
+    results.push({ id: 'membersHeaders', status: 'fail', detail: 'لا يوجد شيت Members للفحص', action: 'أنشئ الشيت أولاً' });
+  }
+
+  // 5. Email Match
+  var userEmail = Session.getActiveUser().getEmail();
+  var foundRow = null;
+  if (membersSheet && emailCol !== -1 && userEmail) {
+    try {
+      var data = membersSheet.getDataRange().getValues();
+      var found = false;
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][emailCol]).toLowerCase().trim() === userEmail.toLowerCase().trim()) {
+          found = true;
+          foundRow = data[i];
+          break;
+        }
+      }
+      results.push({
+        id: 'emailMatch',
+        status: found ? 'pass' : 'fail',
+        detail: found ? 'تم العثور على البريد في الصف ' + (i) : 'البريد <code>' + userEmail + '</code> غير مسجل في Members',
+        action: found ? null : 'أضف بريدك إلى شيت Members (أو شغّل Setup)'
+      });
+    } catch (e) {
+      results.push({ id: 'emailMatch', status: 'fail', detail: e.message, action: 'تحقق من البيانات' });
+    }
+  } else {
+    results.push({ id: 'emailMatch', status: 'warn', detail: 'لا يمكن الفحص — بيانات ناقصة', action: 'أصلح المشاكل السابقة أولاً' });
+  }
+
+  // 6. Active Status
+  if (foundRow && statusCol !== -1) {
+    var status = String(foundRow[statusCol]).toLowerCase().trim();
+    results.push({
+      id: 'activeStatus',
+      status: status === 'active' ? 'pass' : 'warn',
+      detail: 'الحالة: <code>' + status + '</code>',
+      action: status === 'active' ? null : 'غيّر الحالة إلى "Active" في شيت Members'
+    });
+  } else {
+    results.push({ id: 'activeStatus', status: 'warn', detail: 'لا يوجد عمود status أو المستخدم غير موجود', action: null });
+  }
+
+  // 7. Role Resolved
+  try {
+    var role = Security.getUserRole();
+    results.push({
+      id: 'roleResolved',
+      status: role !== 'GUEST' ? 'pass' : 'warn',
+      detail: 'الدور المُرجَّع: <code>' + role + '</code>',
+      action: role !== 'GUEST' ? null : 'إذا كنت أدمن: تأكد من تطابق البريد + حالة Active + عمود role'
+    });
+  } catch (e) {
+    results.push({ id: 'roleResolved', status: 'fail', detail: 'خطأ: ' + e.message, action: 'تحقق من 09_Security.js — ربما TypeError' });
+  }
+
+  // 8. CONFIG
+  try {
+    var configOk = typeof CONFIG !== 'undefined' && CONFIG !== null;
+    results.push({
+      id: 'config',
+      status: configOk ? 'pass' : 'fail',
+      detail: configOk ? 'CONFIG مُعرَّف — الإصدار: ' + (CONFIG.VERSION || 'غير معروف') : 'CONFIG غير مُعرَّف',
+      action: configOk ? null : 'تأكد من تحميل 00_Config.js قبل الملفات الأخرى'
+    });
+  } catch (e) {
+    results.push({ id: 'config', status: 'fail', detail: e.message, action: 'تحقق من 00_Config.js' });
+  }
+
+  // 9. BaseRepository
+  try {
+    var repoOk = typeof BaseRepository !== 'undefined' && typeof BaseRepository.create === 'function';
+    results.push({
+      id: 'baseRepo',
+      status: repoOk ? 'pass' : 'fail',
+      detail: repoOk ? 'BaseRepository متاح' : 'BaseRepository غير متاح',
+      action: repoOk ? null : 'تأكد من تحميل 06_BaseRepository.js'
+    });
+  } catch (e) {
+    results.push({ id: 'baseRepo', status: 'fail', detail: e.message, action: 'تحقق من BaseRepository' });
+  }
+
+  // 10. Logger.log()
+  try {
+    Logger.log('DIAGNOSE_TEST_LOG');
+    results.push({
+      id: 'logger',
+      status: 'pass',
+      detail: 'Logger.log() يعمل',
+      action: null
+    });
+  } catch (e) {
+    results.push({
+      id: 'logger',
+      status: 'fail',
+      detail: 'Logger.log() يرمي خطأ: ' + e.message + '<br>ده السبب الرئيسي للـ loading!',
+      action: 'استبدل 03_Logger.js بالملف المُصلَّح (03_Logger_PATCHED.js)'
+    });
+  }
+
+  // 11. Security Module
+  try {
+    var secOk = typeof Security !== 'undefined' && typeof Security.getUserRole === 'function';
+    results.push({
+      id: 'security',
+      status: secOk ? 'pass' : 'fail',
+      detail: secOk ? 'Security.js مُحمَّل' : 'Security.js غير مُحمَّل',
+      action: secOk ? null : 'تأكد من وجود 09_Security.js وعدم وجود أخطاء فيه'
+    });
+  } catch (e) {
+    results.push({ id: 'security', status: 'fail', detail: e.message, action: 'تحقق من 09_Security.js' });
+  }
+
+  // 12. UI_Server Response (uiGetCurrentUser)
+  try {
+    var userData = uiGetCurrentUser();
+    var uiOk = userData && userData.email;
+    results.push({
+      id: 'uiServer',
+      status: uiOk ? 'pass' : 'fail',
+      detail: uiOk ? 'uiGetCurrentUser() تُرجع: ' + JSON.stringify(userData) : 'uiGetCurrentUser() تُرجع null أو فارغ',
+      action: uiOk ? null : 'ده نتيجة مباشرة لـ Bug #1 (Logger.log) أو Bug #2 (headers)'
+    });
+  } catch (e) {
+    results.push({
+      id: 'uiServer',
+      status: 'fail',
+      detail: 'uiGetCurrentUser() يرمي خطأ: ' + e.message,
+      action: 'تحقق من Console — غالباً TypeError: Logger.log is not a function'
+    });
+  }
+
+  return results;
+}
+
+/**
+ * إصلاح uiGetCurrentUser() — استبدل Logger.log بـ console.log
+ * ابحث عن هذه الدالة في UI_Server.js واستبدلها بهذه النسخة
+ */
+function uiGetCurrentUser_FIXED() {
+  try {
+    var email = Session.getActiveUser().getEmail();
+    // ✅ استخدم console.log بدلاً من Logger.log لتجنب TypeError
+    console.log('[uiGetCurrentUser] email=' + email);
+
+    if (!email) {
+      return { email: null, role: 'GUEST', member: null };
+    }
+
+    var member = null;
+    try {
+      if (typeof getCurrentMember === 'function') {
+        member = getCurrentMember();
+      }
+    } catch (e) {
+      console.warn('[uiGetCurrentUser] getCurrentMember failed: ' + e.message);
+    }
+
+    var role = 'GUEST';
+    try {
+      if (typeof Security !== 'undefined' && Security.getUserRole) {
+        role = Security.getUserRole();
+      }
+    } catch (e) {
+      console.warn('[uiGetCurrentUser] Security.getUserRole failed: ' + e.message);
+    }
+
+    console.log('[uiGetCurrentUser] resolved role=' + role);
+
+    return {
+      email: email,
+      role: role,
+      member: member,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (e) {
+    console.error('[uiGetCurrentUser] FATAL: ' + e.message);
+    return { email: null, role: 'GUEST', member: null, error: e.message };
+  }
+}

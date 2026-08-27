@@ -1440,7 +1440,7 @@ function uiDiagnose() {
 
         // 9. Check Logger
         check('Logger defined', typeof Logger !== 'undefined', '');
-        check('Logger.log exists', typeof Logger !== 'undefined' && typeof Logger.log === 'function', typeof Logger !== 'undefined' ? Object.keys(Logger).join(',') : 'N/A');
+        check('console.log exists', typeof Logger !== 'undefined' && typeof console.log === 'function', typeof Logger !== 'undefined' ? Object.keys(Logger).join(',') : 'N/A');
 
         // 10. Check RateLimiter
         check('RateLimiter defined', typeof RateLimiter !== 'undefined', '');

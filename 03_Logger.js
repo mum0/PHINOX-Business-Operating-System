@@ -1,91 +1,97 @@
-/**
- * Centralized Logger
- * Batched writes to 'Logs' sheet.
- */
+// 03_Logger.js — PHINOX BOS v5 Enterprise
+// ============================================
+// تم التعديل: إضافة Logger.log() المفقودة
+// السبب: IIFE القديمة حذفت .log() → TypeError في UI_Server.js
+// تاريخ التعديل: 2026-08-27
+// ============================================
 
-const Logger = (function() {
-    'use strict';
-    
-    const LEVELS = {
-      DEBUG: { value: 0, label: 'DEBUG' },
-      INFO:  { value: 1, label: 'INFO' },
-      WARN:  { value: 2, label: 'WARN' },
-      ERROR: { value: 3, label: 'ERROR' }
-    };
-    
-    let minLevel = LEVELS.INFO.value;
-    const buffer = [];
-    const BUFFER_SIZE = 20;
-    
-    function timestamp() {
-      return new Date().toISOString();
-    }
-    
-    function currentUser() {
-      try {
-        return Session.getActiveUser().getEmail() || 'system';
-      } catch (e) {
-        return 'system';
+var Logger = (function() {
+  'use strict';
+
+  var LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
+  var currentLevel = LOG_LEVELS.INFO;
+  var buffer = [];
+  var BUFFER_SIZE = 50;
+
+  function _write(level, context, message, data) {
+    var timestamp = new Date().toISOString();
+    var levelStr = Object.keys(LOG_LEVELS)[level] || 'INFO';
+    var entry = '[' + timestamp + '] [' + levelStr + ']';
+    if (context) entry += ' [' + context + ']';
+    entry += ' ' + message;
+    if (data) entry += ' | DATA: ' + JSON.stringify(data);
+
+    // ✅ الكتابة في شيت Logs (إن وجد)
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Logs');
+      if (sheet) {
+        sheet.appendRow([timestamp, levelStr, context || '', message, data ? JSON.stringify(data) : '']);
       }
+    } catch (e) {
+      // silent — Logs sheet might not exist
     }
-    
-    function log(level, module, message, context) {
-      if (level.value < minLevel) return;
-      
-      const entry = [
-        timestamp(),
-        level.label,
-        module,
-        currentUser(),
-        String(message).slice(0, 500),
-        context ? JSON.stringify(context).slice(0, 500) : ''
-      ];
-      
-      buffer.push(entry);
-      
-      if (buffer.length >= BUFFER_SIZE) {
-        flush();
+
+    // ✅ الكتابة في Stackdriver (الأصلي)
+    try {
+      if (level >= LOG_LEVELS.ERROR) {
+        console.error(entry);
+      } else if (level >= LOG_LEVELS.WARN) {
+        console.warn(entry);
+      } else {
+        console.log(entry);
       }
+    } catch (e) {
+      // fallback
     }
-    
-    function flush() {
-      if (buffer.length === 0) return;
-      
-      try {
-        const ss = CONFIG.SPREADSHEET.ID 
-          ? SpreadsheetApp.openById(CONFIG.SPREADSHEET.ID)
-          : SpreadsheetApp.getActiveSpreadsheet();
-          
-        let sheet = ss.getSheetByName(CONFIG.SHEETS.LOGS);
-        
-        if (!sheet) {
-          sheet = ss.insertSheet(CONFIG.SHEETS.LOGS);
-          sheet.appendRow(['Timestamp', 'Level', 'Module', 'User', 'Message', 'Context']);
-          sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
-        }
-        
-        const lastRow = sheet.getLastRow();
-        sheet.getRange(lastRow + 1, 1, buffer.length, 6).setValues(buffer);
-        buffer.length = 0;
-        
-      } catch (e) {
-        console.error('Logger flush failed:', e);
-        buffer.forEach(entry => console.log(JSON.stringify(entry)));
-        buffer.length = 0;
+
+    // ✅ التخزين المؤقت
+    buffer.push(entry);
+    if (buffer.length > BUFFER_SIZE) buffer.shift();
+  }
+
+  return {
+    // ✅ هذه الدالة كانت مفقودة — أضفناها
+    log: function(message) {
+      _write(LOG_LEVELS.INFO, null, String(message), null);
+    },
+
+    debug: function(context, message, data) {
+      if (currentLevel <= LOG_LEVELS.DEBUG) {
+        _write(LOG_LEVELS.DEBUG, context, message, data);
       }
+    },
+
+    info: function(context, message, data) {
+      if (currentLevel <= LOG_LEVELS.INFO) {
+        _write(LOG_LEVELS.INFO, context, message, data);
+      }
+    },
+
+    warn: function(context, message, data) {
+      if (currentLevel <= LOG_LEVELS.WARN) {
+        _write(LOG_LEVELS.WARN, context, message, data);
+      }
+    },
+
+    error: function(context, error, data) {
+      if (currentLevel <= LOG_LEVELS.ERROR) {
+        var msg = error && error.message ? error.message : String(error);
+        _write(LOG_LEVELS.ERROR, context, msg, data);
+      }
+    },
+
+    setLevel: function(levelName) {
+      var lvl = LOG_LEVELS[levelName.toUpperCase()];
+      if (lvl !== undefined) currentLevel = lvl;
+    },
+
+    flush: function() {
+      buffer = [];
+    },
+
+    getBuffer: function() {
+      return buffer.slice();
     }
-    
-    return {
-      debug: function(module, message, context) { log(LEVELS.DEBUG, module, message, context); },
-      info:  function(module, message, context) { log(LEVELS.INFO, module, message, context); },
-      warn:  function(module, message, context) { log(LEVELS.WARN, module, message, context); },
-      error: function(module, message, context) { log(LEVELS.ERROR, module, message, context); },
-      
-      setLevel: function(levelName) {
-        const level = LEVELS[levelName.toUpperCase()];
-        if (level) minLevel = level.value;
-      },
-      
-      flush: flush
-    };
-  })();
+  };
+})();
