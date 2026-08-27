@@ -45,15 +45,24 @@ var Security = (function() {
 
       var data = sheet.getDataRange().getValues();
       var headers = data[0];
-      var emailIdx = headers.indexOf('email');
-      var roleIdx = headers.indexOf('role');
-      var statusIdx = headers.indexOf('status');
+      // FIX: case-insensitive header matching
+      var headersLower = headers.map(function(h) { return String(h).toLowerCase(); });
+      var emailIdx = headersLower.indexOf('email');
+      var roleIdx = headersLower.indexOf('role');
+      var statusIdx = headersLower.indexOf('status');
 
-      if (emailIdx === -1 || roleIdx === -1) return 'GUEST';
+      // FIX: fallback to known column indices if headers not found
+      if (emailIdx === -1) emailIdx = 3;  // 0-based: Email is always column 3
+      if (roleIdx === -1) roleIdx = 2;   // 0-based: Role is always column 2
+      if (statusIdx === -1) statusIdx = 5; // 0-based: Status is always column 5
+
+      var emailNorm = email.toLowerCase().trim();
 
       for (var i = 1; i < data.length; i++) {
-        if (data[i][emailIdx] === email) {
-          if (statusIdx !== -1 && data[i][statusIdx] === 'inactive') {
+        var cellEmail = String(data[i][emailIdx] || '').toLowerCase().trim();
+        if (cellEmail === emailNorm) {
+          var status = String(data[i][statusIdx] || '').trim();
+          if (statusIdx !== -1 && status.toLowerCase() === 'inactive') {
             return 'GUEST';
           }
           return data[i][roleIdx] || 'GUEST';

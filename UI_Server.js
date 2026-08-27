@@ -95,7 +95,7 @@ function _auditLog(action, target, details, status) {
       AuditLog.log(action, target, details, status || "SUCCESS");
     }
   } catch (e) {
-    Logger.log("[AuditLog ERROR] " + e.message);
+    console.log("[AuditLog ERROR] " + e.message);
   }
 }
 
@@ -115,7 +115,7 @@ function uiGetCurrentUser() {
         var ss = SpreadsheetApp.getActiveSpreadsheet();
         var membersSheet = ss.getSheetByName("Members");
         if (membersSheet && membersSheet.getLastColumn() < 12) {
-          Logger.log("[AUTH] Members has " + membersSheet.getLastColumn() + " cols (need 12). Running migration...");
+          console.log("[AUTH] Members has " + membersSheet.getLastColumn() + " cols (need 12). Running migration...");
           if (typeof _migrateMembersIfNeeded === "function") {
             _migrateMembersIfNeeded();
             _currentMemberCache = null;
@@ -123,7 +123,7 @@ function uiGetCurrentUser() {
           }
         }
       } catch (migErr) {
-        Logger.log("[AUTH] Migration failed: " + migErr.message);
+        console.log("[AUTH] Migration failed: " + migErr.message);
       }
     }
 
@@ -143,12 +143,12 @@ function uiGetCurrentUser() {
             0, 0, 0, 0,
             "First user auto-registered"
           ]);
-          Logger.log("[AUTH] Auto-registered first Admin: " + email);
+          console.log("[AUTH] Auto-registered first Admin: " + email);
           _currentMemberCache = null;
           member = getCurrentMember();
         }
       } catch (autoErr) {
-        Logger.log("[AUTH] Auto-register failed: " + autoErr.message);
+        console.log("[AUTH] Auto-register failed: " + autoErr.message);
       }
     }
 
@@ -1369,4 +1369,107 @@ function _handleDoGetInternal(e) {
   return HtmlService.createHtmlOutputFromFile("UI_Index")
     .setTitle("PHINOX BOS")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ============================================================
+// DIAGNOSTIC API (temporary - remove after fixing)
+// ============================================================
+
+function uiDiagnose() {
+  var result = { checks: [] };
+  function check(name, pass, detail) {
+    result.checks.push({ name: name, pass: !!pass, detail: detail || '' });
+  }
+
+  try {
+    // 1. Session email
+    var email = '';
+    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
+    check('Session.getEmail', email.length > 0, email || 'empty');
+
+    // 2. Spreadsheet
+    var ss = null;
+    try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
+    check('ActiveSpreadsheet', ss !== null, ss ? ss.getName() : e.message);
+
+    // 3. Members sheet
+    if (ss) {
+      var ms = ss.getSheetByName('Members');
+      check('Members sheet exists', ms !== null, '');
+
+      if (ms) {
+        var lastRow = ms.getLastRow();
+        var lastCol = ms.getLastColumn();
+        check('Members data rows', lastRow > 1, 'rows=' + lastRow + ' (1=header)');
+        check('Members columns', lastCol >= 12, 'cols=' + lastCol + ' (need 12)');
+
+        // 4. Read headers
+        var headers = ms.getRange(1, 1, 1, lastCol).getValues()[0];
+        check('Members headers', headers.length > 0, headers.join(' | '));
+
+        // 5. Find current user
+        if (email && lastRow > 1) {
+          var data = ms.getRange(2, 1, lastRow - 1, lastCol).getValues();
+          var found = false;
+          var matchInfo = [];
+          for (var i = 0; i < data.length; i++) {
+            var rowEmail = String(data[i][3] || '').trim().toLowerCase();
+            var rowStatus = String(data[i][5] || '').trim();
+            if (rowEmail === email.toLowerCase()) {
+              found = true;
+              matchInfo.push({ row: i+2, status: rowStatus, name: data[i][1], role: data[i][2] });
+            }
+          }
+          check('Email match in Members', found, matchInfo.length > 0 ? JSON.stringify(matchInfo) : 'No match for: ' + email);
+
+          if (found) {
+            var isActive = matchInfo.some(function(m) { return m.status === 'Active'; });
+            check('Status is Active', isActive, JSON.stringify(matchInfo));
+          }
+        }
+
+        // 6. Check CONFIG
+        check('CONFIG defined', typeof CONFIG !== 'undefined', CONFIG ? 'v' + CONFIG.APP.VERSION : 'missing');
+        check('CONFIG.SHEETS.MEMBERS', CONFIG && CONFIG.SHEETS && CONFIG.SHEETS.MEMBERS === 'Members', '');
+
+        // 7. Check BaseRepository
+        check('BaseRepository defined', typeof BaseRepository !== 'undefined', '');
+
+        // 8. Check ErrorHandler
+        check('ErrorHandler defined', typeof ErrorHandler !== 'undefined', '');
+
+        // 9. Check Logger
+        check('Logger defined', typeof Logger !== 'undefined', '');
+        check('Logger.log exists', typeof Logger !== 'undefined' && typeof Logger.log === 'function', typeof Logger !== 'undefined' ? Object.keys(Logger).join(',') : 'N/A');
+
+        // 10. Check RateLimiter
+        check('RateLimiter defined', typeof RateLimiter !== 'undefined', '');
+
+        // 11. Check Security
+        check('Security defined', typeof Security !== 'undefined', '');
+        if (typeof Security !== 'undefined' && typeof Security.getUserRole === 'function') {
+          var role = 'ERROR';
+          try { role = Security.getUserRole(); } catch(e) { role = 'ERROR: ' + e.message; }
+          check('Security.getUserRole()', role !== 'GUEST' && role !== 'ERROR', 'role=' + role);
+        }
+
+        // 12. Check getCurrentMember
+        if (typeof getCurrentMember === 'function') {
+          var member = null;
+          try { member = getCurrentMember(); } catch(e) {
+            check('getCurrentMember()', false, e.message);
+          }
+          if (member) {
+            check('getCurrentMember()', true, 'name=' + member[1] + ' role=' + member[2]);
+          } else if (!result.checks.some(function(c) { return c.name === 'getCurrentMember()'; })) {
+            check('getCurrentMember()', false, 'returned null');
+          }
+        }
+      }
+    }
+  } catch (e) {
+    check('DIAGNOSTIC ERROR', false, e.message);
+  }
+
+  return result;
 }
