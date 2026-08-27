@@ -1,14 +1,16 @@
 // 09_Security.js — PHINOX BOS v5 Enterprise
 // ============================================
-// تم التعديل: إعادة بناء RBAC — Members Sheet هي مصدر الحقيقة الوحيد
-// تم إزالة: setUserRole العامة، UserProperties لتخزين الأدوار
-// تاريخ التعديل: 2026-08-27
+// SECURITY FIX (2026-08-27):
+//   - Rebuilt RBAC: Members Sheet is single source of truth
+//   - Removed: setUserRole (public), UserProperties for roles
+//   - Added: isRoleAtLeast() for hierarchy comparison
+//   - All logging uses Logger module (03_Logger.js)
 // ============================================
 
-const Security = (function() {
+var Security = (function() {
   'use strict';
 
-  const ROLE_HIERARCHY = {
+  var ROLE_HIERARCHY = {
     'GUEST': 0,
     'MEMBER': 1,
     'MANAGER': 2,
@@ -19,7 +21,7 @@ const Security = (function() {
     'OWNER': 7
   };
 
-  const PERMISSIONS = {
+  var PERMISSIONS = {
     READ: 'read',
     WRITE: 'write',
     DELETE: 'delete',
@@ -28,26 +30,28 @@ const Security = (function() {
     APPROVE: 'approve'
   };
 
+  // ─── Private helpers ───
+
   function _getRoleFromMembers(email) {
     if (!email) return 'GUEST';
 
     try {
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheetByName('Members');
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
       if (!sheet) {
-        AppLogger.error('Security._getRoleFromMembers', new Error('Members sheet not found'), email);
+        Logger.error('Security._getRoleFromMembers', 'Members sheet not found', { email: email });
         return 'GUEST';
       }
 
-      const data = sheet.getDataRange().getValues();
-      const headers = data[0];
-      const emailIdx = headers.indexOf('email');
-      const roleIdx = headers.indexOf('role');
-      const statusIdx = headers.indexOf('status');
+      var data = sheet.getDataRange().getValues();
+      var headers = data[0];
+      var emailIdx = headers.indexOf('email');
+      var roleIdx = headers.indexOf('role');
+      var statusIdx = headers.indexOf('status');
 
       if (emailIdx === -1 || roleIdx === -1) return 'GUEST';
 
-      for (let i = 1; i < data.length; i++) {
+      for (var i = 1; i < data.length; i++) {
         if (data[i][emailIdx] === email) {
           if (statusIdx !== -1 && data[i][statusIdx] === 'inactive') {
             return 'GUEST';
@@ -57,84 +61,127 @@ const Security = (function() {
       }
       return 'GUEST';
     } catch (e) {
-      AppLogger.error('Security._getRoleFromMembers', e, email);
+      Logger.error('Security._getRoleFromMembers', e.message, { email: email, error: e.toString() });
       return 'GUEST';
     }
   }
 
   function _hasPermission(userRole, requiredPermission) {
-    const level = ROLE_HIERARCHY[userRole] || 0;
+    var level = ROLE_HIERARCHY[userRole] || 0;
 
-    const permissionMap = {
-      [PERMISSIONS.READ]: 0,
-      [PERMISSIONS.WRITE]: 1,
-      [PERMISSIONS.DELETE]: 2,
-      [PERMISSIONS.APPROVE]: 3,
-      [PERMISSIONS.FINANCE]: 4,
-      [PERMISSIONS.ADMIN]: 5
-    };
+    var permissionMap = {};
+    permissionMap[PERMISSIONS.READ] = 0;
+    permissionMap[PERMISSIONS.WRITE] = 1;
+    permissionMap[PERMISSIONS.DELETE] = 2;
+    permissionMap[PERMISSIONS.APPROVE] = 3;
+    permissionMap[PERMISSIONS.FINANCE] = 4;
+    permissionMap[PERMISSIONS.ADMIN] = 5;
 
-    const requiredLevel = permissionMap[requiredPermission] || 0;
+    var requiredLevel = permissionMap[requiredPermission] || 0;
     return level >= requiredLevel;
   }
 
+  // ─── Public API ───
+
   return {
+    /**
+     * Get current user role from Members Sheet
+     * @returns {string}
+     */
     getUserRole: function() {
-      const email = Session.getActiveUser().getEmail();
+      var email = Session.getActiveUser().getEmail();
       return _getRoleFromMembers(email);
     },
 
+    /**
+     * Get current user email
+     * @returns {string}
+     */
     currentUser: function() {
-      return Session.getActiveUser().getEmail();
+      try {
+        return Session.getActiveUser().getEmail();
+      } catch (e) {
+        return 'anonymous';
+      }
     },
 
+    /**
+     * Require permission — throws if denied
+     * @param {string} permission
+     * @throws {Error}
+     */
     requirePermission: function(permission) {
-      const role = this.getUserRole();
+      var role = this.getUserRole();
       if (!_hasPermission(role, permission)) {
-        const email = this.currentUser();
-        const err = new Error(
-          `FORBIDDEN: User "${email}" with role "${role}" lacks permission "${permission}"`
+        var email = this.currentUser();
+        var err = new Error(
+          'FORBIDDEN: User "' + email + '" with role "' + role + '" lacks permission "' + permission + '"'
         );
-        AppLogger.error('Security.requirePermission', err, email);
+        Logger.error('Security.requirePermission', err.message, { email: email, role: role, permission: permission });
         throw err;
       }
     },
 
+    /**
+     * Require admin permission
+     * @throws {Error}
+     */
     requireAdmin: function() {
       this.requirePermission(PERMISSIONS.ADMIN);
     },
 
+    /**
+     * Check permission without throwing
+     * @param {string} permission
+     * @returns {boolean}
+     */
     can: function(permission) {
-      const role = this.getUserRole();
+      var role = this.getUserRole();
       return _hasPermission(role, permission);
     },
 
+    /**
+     * Get role hierarchy
+     * @returns {Object}
+     */
     getRoleHierarchy: function() {
       return Object.assign({}, ROLE_HIERARCHY);
     },
 
+    /**
+     * Get permissions list
+     * @returns {Object}
+     */
     getPermissions: function() {
       return Object.assign({}, PERMISSIONS);
     },
 
+    /**
+     * Compare two roles — is roleA >= roleB?
+     * @param {string} roleA
+     * @param {string} roleB
+     * @returns {boolean}
+     */
     isRoleAtLeast: function(roleA, roleB) {
       return (ROLE_HIERARCHY[roleA] || 0) >= (ROLE_HIERARCHY[roleB] || 0);
     }
   };
 })();
 
+// ─── Global wrappers (backward compatibility) ───
+
 function requirePermission(permission) {
-  Security.requirePermission(permission);
+Security.requirePermission(permission);
 }
 
 function requireAdmin() {
-  Security.requireAdmin();
+Security.requireAdmin();
 }
 
 function getUserRole() {
-  return Security.getUserRole();
+return Security.getUserRole();
 }
 
 function isCurrentUserAdmin() {
-  return Security.can(Security.getPermissions().ADMIN);
+return Security.can(Security.getPermissions().ADMIN);
 }

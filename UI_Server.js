@@ -1356,8 +1356,17 @@ function showPhinoxDashboardSidebar() {
     .setWidth(350);
   SpreadsheetApp.getUi().showSidebar(html);
 }
-
-// ============================================================
-// ⚠️ تم إزالة doGet من هذا الملف
-// doGet موجود الآن في doGet.js فقط (Entry Point وحيد)
-// ============================================================
+function _handleDoGetInternal(e) {
+  var page = e.parameter ? (e.parameter.page || "index") : "index";
+  if (page === "index" || page === "dashboard") {
+    return HtmlService.createHtmlOutputFromFile("UI_Index")
+      .setTitle("PHINOX BOS")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+  if (page === "login") {
+    return HtmlService.createHtmlOutput("<h2>Login Page</h2>");
+  }
+  return HtmlService.createHtmlOutputFromFile("UI_Index")
+    .setTitle("PHINOX BOS")
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
