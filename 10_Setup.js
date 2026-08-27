@@ -4,14 +4,12 @@
 // CRITICAL: Members headers MUST match MEMBER_COL in 13_Permissions.js exactly.
 // Any column order change here MUST be reflected in MEMBER_COL constants.
 // Also includes auto-migration from old 9-column to new 12-column Members format.
+// UPDATE (2026-08-27): Added menu refresh after setup completes.
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 var SHEET_CONFIGS = {
   'Members': {
     headers: ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes'],
-    //  Index:    0      1         2      3       4       5        6          7          8               9           10               11
-    //  Matches MEMBER_COL in 13_Permissions.js:
-    //  MEMBER_ID=0, FULL_NAME=1, ROLE=2, EMAIL=3, PHONE=4, STATUS=5, JOIN_DATE=6, KPI_SCORE=7, TASKS_COMPLETED=8, TASKS_LATE=9, AVERAGE_QUALITY=10, NOTES=11
     widths: [22, 20, 14, 28, 16, 12, 16, 10, 12, 10, 12, 30]
   },
   'Tasks': {
@@ -93,13 +91,16 @@ var SHEET_CONFIGS = {
   'Expenses': {
     headers: ['id','date','category','amount','description','submittedBy','status','approvedBy','approvedAt','postedToAccount','account','receiptUrl','notes'],
     widths: [22, 14, 16, 14, 30, 22, 14, 22, 16, 18, 18, 25, 30]
+  },
+  // NEW (2026-08-27): AuditLog sheet for security logging
+  'AuditLog': {
+    headers: ['timestamp','userEmail','userRole','action','target','details','status','ip'],
+    widths: [20, 25, 14, 20, 25, 40, 12, 20]
   }
 };
 
 /**
  * Auto-migrate Members sheet from old 9-column format to new 12-column format.
- * Detects column mismatch, maps old data, recreates sheet with correct structure.
- * If Members sheet is empty, seeds the current user as Admin.
  */
 function _migrateMembersIfNeeded(opt_ss) {
   var ss = opt_ss || SpreadsheetApp.getActiveSpreadsheet();
@@ -118,7 +119,6 @@ function _migrateMembersIfNeeded(opt_ss) {
   var existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   var expected = SHEET_CONFIGS['Members'].headers;
 
-  // Check if already correct (12 columns, right order)
   if (existingHeaders.length >= expected.length) {
     var isCorrect = true;
     for (var i = 0; i < expected.length; i++) {
@@ -130,10 +130,8 @@ function _migrateMembersIfNeeded(opt_ss) {
     }
   }
 
-  // ── Old or mismatched format detected — perform migration ──
   console.log('[SETUP] Members migration needed. Old headers: ' + JSON.stringify(existingHeaders));
 
-  // Read all existing data
   var lastRow = sheet.getLastRow();
   var oldData = [];
   if (lastRow > 1) {
@@ -141,7 +139,6 @@ function _migrateMembersIfNeeded(opt_ss) {
   }
   console.log('[SETUP] Read ' + oldData.length + ' existing member rows.');
 
-  // Detect old column positions by header name
   var oldIdx = {};
   for (var h = 0; h < existingHeaders.length; h++) {
     var hdr = String(existingHeaders[h]).toLowerCase().trim();
@@ -156,7 +153,6 @@ function _migrateMembersIfNeeded(opt_ss) {
   }
   console.log('[SETUP] Detected old column map: ' + JSON.stringify(oldIdx));
 
-  // Map each old row → new 12-column row (MEMBER_COL order)
   var newRows = [];
   for (var r = 0; r < oldData.length; r++) {
     var row = oldData[r];
@@ -174,7 +170,6 @@ function _migrateMembersIfNeeded(opt_ss) {
     ]);
   }
 
-  // If sheet had no data rows, seed current user as Admin
   if (newRows.length === 0) {
     var currentUser = Session.getActiveUser().getEmail();
     newRows.push([
@@ -191,18 +186,14 @@ function _migrateMembersIfNeeded(opt_ss) {
     console.log('[SETUP] No existing data. Seeded default Admin: ' + currentUser);
   }
 
-  // Recreate sheet with correct structure
   ss.deleteSheet(sheet);
   var newSheet = ss.insertSheet('Members');
 
-  // Write headers
   newSheet.getRange(1, 1, 1, expected.length).setValues([expected])
     .setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
 
-  // Write migrated data
   newSheet.getRange(2, 1, newRows.length, expected.length).setValues(newRows);
 
-  // Set column widths
   var widths = SHEET_CONFIGS['Members'].widths;
   for (var w = 0; w < widths.length; w++) {
     newSheet.setColumnWidth(w + 1, widths[w]);
@@ -231,7 +222,6 @@ function run() {
       console.log('[SETUP] Created sheet: ' + name);
     }
 
-    // Set headers if first row is empty or different
     var headerRow = sheet.getRange(1, 1, 1, config.headers.length);
     var existingHeaders = headerRow.getValues()[0];
     var needsUpdate = false;
@@ -249,7 +239,6 @@ function run() {
       console.log('[SETUP] Headers set for: ' + name + ' (' + config.headers.length + ' columns)');
     }
 
-    // Set column widths
     if (config.widths) {
       for (var j = 0; j < config.widths.length; j++) {
         sheet.setColumnWidth(j + 1, config.widths[j]);
@@ -258,4 +247,23 @@ function run() {
   }
 
   console.log('[SETUP] Done. ' + sheetNames.length + ' sheets verified.');
+
+  // ── Step 3: Refresh menu so new items appear immediately ──
+  try {
+    if (typeof onOpen === 'function') {
+      onOpen();
+      console.log('[SETUP] Menu refreshed successfully.');
+    }
+  } catch (e) {
+    console.log('[SETUP] Menu refresh skipped: ' + e.message);
+  }
+
+  // ── Step 4: Show completion message ──
+  try {
+    SpreadsheetApp.getUi().alert('PHINOX BOS Setup Complete', 'All sheets verified and menu refreshed.\n\nNew security features active:\n• Rate Limiting\n• Audit Logging\n• Input Validation\n• Security Tests', SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (e) {
+    console.log('[SETUP] ' + e.message);
+  }
+
+  return 'Setup complete. ' + sheetNames.length + ' sheets verified.';
 }

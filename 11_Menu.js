@@ -16,6 +16,7 @@ function onOpen(e) {
   menu.addItem('▶️ Initialize System', 'menuInitialize');
   menu.addItem('🧪 Run Core Tests', 'menuRunTests');
   menu.addItem('📊 Open Dashboard', 'showPhinoxDashboard');
+  menu.addItem('➕ Add Member', 'menuAddMember');
   menu.addSeparator();
 
   menu.addSubMenu(
@@ -97,6 +98,7 @@ function onOpen(e) {
   if (isAdminRole(currentRole)) {
     menu.addSubMenu(
       ui.createMenu('⚙️ Admin')
+        .addItem('➕ Add Member', 'menuAddMember')
         .addItem('📊 View Logs', 'menuViewLogs')
         .addItem('🔄 Flush Logger', 'menuFlushLogger')
         .addItem('📜 Audit Log', 'showAuditLog')
@@ -130,7 +132,17 @@ function getCurrentMemberRole() {
     var email = Session.getActiveUser().getEmail();
     if (!email) return 'GUEST';
 
+    // Spreadsheet owner is always treated as Admin
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    try {
+      var owner = ss.getOwner().getEmail();
+      if (owner && owner === email) {
+        return 'ADMIN';
+      }
+    } catch (e) {
+      // getOwner may fail in some contexts — continue
+    }
+
     var sheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
     if (!sheet) return 'GUEST';
 
@@ -152,7 +164,7 @@ function getCurrentMemberRole() {
     }
     return 'GUEST';
   } catch (e) {
-    Logger.error('Menu.getCurrentMemberRole', e.message, { error: e.toString() });
+    console.log('[Menu.getCurrentMemberRole] ERROR: ' + e.message);
     return 'GUEST';
   }
 }
@@ -163,6 +175,7 @@ function getCurrentMemberRole() {
  * @returns {boolean}
  */
 function isAdminRole(role) {
+  if (!role) return false;
   var adminRoles = ['CEO', 'ADMIN', 'SUPER_ADMIN', 'OWNER'];
   return adminRoles.indexOf(role) !== -1;
 }
@@ -400,5 +413,160 @@ function menuRunMktSocTests() {
     SpreadsheetApp.getUi().alert('Marketing/Social tests passed.');
   } catch(e) {
     SpreadsheetApp.getUi().alert('Mkt/Soc test failed: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// ADD MEMBER HANDLER
+// ═══════════════════════════════════════════════════
+
+function menuAddMember() {
+  var ui = SpreadsheetApp.getUi();
+
+  var currentRole = getCurrentMemberRole();
+  if (!isAdminRole(currentRole)) {
+    ui.alert('Access Denied: Admin only');
+    return;
+  }
+
+  var htmlContent = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
+    'body{font-family:Arial,sans-serif;padding:20px;max-width:360px;margin:0 auto;}' +
+    'label{display:block;margin-top:14px;font-weight:bold;font-size:13px;color:#333;}' +
+    'input,select{width:100%;padding:10px;margin-top:6px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;font-size:14px;}' +
+    'input:focus,select:focus{outline:none;border-color:#4285f4;}' +
+    'button{margin-top:20px;padding:12px 24px;background:#1a73e8;color:white;border:none;border-radius:6px;cursor:pointer;font-size:15px;width:100%;}' +
+    'button:hover{background:#1557b0;}' +
+    'button:disabled{background:#ccc;cursor:not-allowed;}' +
+    '#result{margin-top:14px;padding:10px;border-radius:6px;font-size:13px;display:none;}' +
+    '#result.error{background:#fce8e6;color:#d93025;border:1px solid #f5c6cb;}' +
+    '#result.success{background:#e6f4ea;color:#188038;border:1px solid #c6e7cf;}' +
+    '</style></head><body>' +
+    '<h2 style="margin-top:0;color:#1a73e8;">Add New Member</h2>' +
+    '<div><label>Full Name *</label><input type="text" id="fullName" placeholder="Enter full name"></div>' +
+    '<div><label>Email *</label><input type="email" id="email" placeholder="Enter email address"></div>' +
+    '<div><label>Role *</label><select id="role"><option value="MEMBER">MEMBER</option><option value="MANAGER">MANAGER</option><option value="PARTNER">PARTNER</option><option value="ADMIN">ADMIN</option><option value="CEO">CEO</option></select></div>' +
+    '<div><label>Phone</label><input type="text" id="phone" placeholder="Optional"></div>' +
+    '<div><label>Department</label><input type="text" id="department" placeholder="Optional"></div>' +
+    '<div><label>Notes</label><input type="text" id="notes" placeholder="Optional"></div>' +
+    '<button id="submitBtn" onclick="submitForm()">Add Member</button>' +
+    '<div id="result"></div>' +
+    '<script>' +
+    'function showResult(msg, isError){' +
+    '  var el=document.getElementById("result");' +
+    '  el.textContent=msg;' +
+    '  el.className=isError?"error":"success";' +
+    '  el.style.display="block";' +
+    '}' +
+    'function submitForm(){' +
+    '  var btn=document.getElementById("submitBtn");' +
+    '  btn.disabled=true;btn.textContent="Adding...";' +
+    '  var fullName=document.getElementById("fullName").value.trim();' +
+    '  var email=document.getElementById("email").value.trim();' +
+    '  var role=document.getElementById("role").value;' +
+    '  var phone=document.getElementById("phone").value.trim();' +
+    '  var department=document.getElementById("department").value.trim();' +
+    '  var notes=document.getElementById("notes").value.trim();' +
+    '  if(!fullName||!email){showResult("Full Name and Email are required",true);btn.disabled=false;btn.textContent="Add Member";return;}' +
+    '  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showResult("Invalid email format",true);btn.disabled=false;btn.textContent="Add Member";return;}' +
+    '  google.script.run' +
+    '    .withSuccessHandler(function(res){showResult("Member added successfully! ID: "+res.id,false);document.getElementById("fullName").value="";document.getElementById("email").value="";document.getElementById("phone").value="";document.getElementById("department").value="";document.getElementById("notes").value="";btn.disabled=false;btn.textContent="Add Member";})' +
+    '    .withFailureHandler(function(err){showResult("Error: "+err.message,true);btn.disabled=false;btn.textContent="Add Member";})' +
+    '    .menuAddMemberSubmit({fullName:fullName,email:email,role:role,phone:phone,department:department,notes:notes});' +
+    '}' +
+    '</script></body></html>';
+
+  ui.showModalDialog(HtmlService.createHtmlOutput(htmlContent).setWidth(420).setHeight(580), 'Add New Member');
+}
+
+function menuAddMemberSubmit(data) {
+  try {
+    // Sanitize inputs
+    var fullName = data.fullName ? String(data.fullName).trim().substring(0, 100) : "";
+    var email = data.email ? String(data.email).trim().toLowerCase() : "";
+    var role = data.role ? String(data.role).trim().toUpperCase() : "MEMBER";
+    var phone = data.phone ? String(data.phone).trim().substring(0, 50) : "";
+    var department = data.department ? String(data.department).trim().substring(0, 50) : "";
+    var notes = data.notes ? String(data.notes).trim().substring(0, 500) : "";
+
+    // Validate email
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error("Invalid email address");
+    }
+    if (!fullName) {
+      throw new Error("Full Name is required");
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheetName = (typeof CONFIG !== "undefined" && CONFIG.SHEETS && CONFIG.SHEETS.MEMBERS) ? CONFIG.SHEETS.MEMBERS : "Members";
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      throw new Error("Members sheet not found. Please run Setup first.");
+    }
+
+    // Check for duplicate email
+    var members = sheet.getDataRange().getValues();
+    var headers = members[0];
+    var emailCol = headers.indexOf("email");
+    var roleCol = headers.indexOf("role");
+
+    if (emailCol !== -1) {
+      for (var i = 1; i < members.length; i++) {
+        if (String(members[i][emailCol]).toLowerCase() === email) {
+          throw new Error("Email already exists: " + email);
+        }
+      }
+    }
+
+    // Check Admin/CEO limit (max 1 each)
+    if (role === "ADMIN" || role === "CEO") {
+      if (roleCol !== -1) {
+        var count = 0;
+        for (var j = 1; j < members.length; j++) {
+          if (String(members[j][roleCol]).toUpperCase() === role) count++;
+        }
+        if (count >= 1) {
+          throw new Error("Only one " + role + " is allowed. Please remove existing " + role + " first.");
+        }
+      }
+    }
+
+    // Generate ID
+    var id = "MEM-" + String(members.length).padStart(3, "0");
+
+    // Build row based on headers
+    var row = [];
+    for (var h = 0; h < headers.length; h++) {
+      var col = headers[h];
+      if (col === "id") row.push(id);
+      else if (col === "fullName") row.push(fullName);
+      else if (col === "email") row.push(email);
+      else if (col === "role") row.push(role);
+      else if (col === "phone") row.push(phone);
+      else if (col === "department") row.push(department);
+      else if (col === "status") row.push("Active");
+      else if (col === "joinDate") row.push(new Date().toISOString().split("T")[0]);
+      else if (col === "kpiScore") row.push(0);
+      else if (col === "tasksCompleted") row.push(0);
+      else if (col === "tasksLate") row.push(0);
+      else if (col === "averageQuality") row.push(0);
+      else if (col === "notes") row.push(notes);
+      else row.push("");
+    }
+
+    sheet.appendRow(row);
+
+    // Audit log
+    try {
+      if (typeof AuditLog !== "undefined" && AuditLog.log) {
+        AuditLog.log("MEMBER_ADD", id, { email: email, role: role }, "SUCCESS");
+      }
+    } catch (e) {
+      console.log("[AuditLog] " + e.message);
+    }
+
+    return { success: true, id: id };
+  } catch (e) {
+    console.log("[menuAddMemberSubmit] ERROR: " + e.message);
+    throw new Error("Failed to add member: " + e.message);
   }
 }
