@@ -1,86 +1,140 @@
-/**
- * RBAC middleware. Permission check with role inheritance.
- */
+// 09_Security.js — PHINOX BOS v5 Enterprise
+// ============================================
+// تم التعديل: إعادة بناء RBAC — Members Sheet هي مصدر الحقيقة الوحيد
+// تم إزالة: setUserRole العامة، UserProperties لتخزين الأدوار
+// تاريخ التعديل: 2026-08-27
+// ============================================
 
 const Security = (function() {
-    'use strict';
-    
-    const ROLES = Object.freeze({
-      admin:     { level: 100, inherits: [], perms: ['*'] },
-      ceo:       { level: 90,  inherits: ['manager'], perms: ['read_all','write_strategy','approve_budget'] },
-      manager:   { level: 70,  inherits: ['sales'], perms: ['read_department','write_department','read_team'] },
-      finance:   { level: 60,  inherits: ['viewer'], perms: ['read_finance','write_finance','read_invoices'] },
-      marketing: { level: 60,  inherits: ['viewer'], perms: ['read_marketing','write_campaigns','read_leads'] },
-      warehouse: { level: 50,  inherits: ['viewer'], perms: ['read_inventory','write_inventory','read_orders'] },
-      sales:     { level: 50,  inherits: ['viewer'], perms: ['read_sales','write_orders','read_customers'] },
-      viewer:    { level: 10,  inherits: [], perms: ['read_limited'] }
-    });
-    
-    function resolvePerms(roleName, visited) {
-      visited = visited || {};
-      if (visited[roleName]) return [];
-      visited[roleName] = true;
-      
-      const role = ROLES[roleName];
-      if (!role) return [];
-      
-      let perms = role.perms.slice();
-      role.inherits.forEach(function(r) {
-        perms = perms.concat(resolvePerms(r, visited));
-      });
-      return [...new Set(perms)];
-    }
-    
-    const PERM_CACHE = {};
-    Object.keys(ROLES).forEach(function(r) {
-      PERM_CACHE[r] = resolvePerms(r);
-    });
-    
-    return {
-      ROLES: ROLES,
-      
-      currentUser: function() {
-        try { return Session.getActiveUser().getEmail(); } 
-        catch (e) { return 'anonymous'; }
-      },
-      
-      getUserRole: function() {
-        // TODO: اربط بورقة Users عند بناء Module المستخدمين
-        const email = this.currentUser();
-        const props = PropertiesService.getUserProperties();
-        const role = props.getProperty('BOS_ROLE_' + email);
-        return role || 'viewer';
-      },
-      
-      setUserRole: function(email, role) {
-        if (!ROLES[role]) throw ErrorHandler.validation('Invalid role', { role: role }, 'Security');
-        PropertiesService.getUserProperties().setProperty('BOS_ROLE_' + email, role);
-        Logger.info('Security', 'Role assigned', { email: email, role: role });
-      },
-      
-      hasPermission: function(perm) {
-        const role = this.getUserRole();
-        const perms = PERM_CACHE[role] || [];
-        return perms.includes('*') || perms.includes(perm);
-      },
-      
-      require: function(perm) {
-        if (!this.hasPermission(perm)) {
-          throw ErrorHandler.permission(perm, 'resource', 'Security');
-        }
-      },
-      
-      requireAny: function(perms) {
-        const ok = perms.some(function(p) { return this.hasPermission(p); }, this);
-        if (!ok) throw ErrorHandler.permission(perms.join('|'), 'resource', 'Security');
-      },
-      
-      requireLevel: function(minLevel) {
-        const role = this.getUserRole();
-        const level = (ROLES[role] || {}).level || 0;
-        if (level < minLevel) {
-          throw ErrorHandler.permission('level ' + minLevel, 'resource', 'Security');
+  'use strict';
+
+  const ROLE_HIERARCHY = {
+    'GUEST': 0,
+    'MEMBER': 1,
+    'MANAGER': 2,
+    'PARTNER': 3,
+    'ADMIN': 4,
+    'CEO': 5,
+    'SUPER_ADMIN': 6,
+    'OWNER': 7
+  };
+
+  const PERMISSIONS = {
+    READ: 'read',
+    WRITE: 'write',
+    DELETE: 'delete',
+    ADMIN: 'admin',
+    FINANCE: 'finance',
+    APPROVE: 'approve'
+  };
+
+  function _getRoleFromMembers(email) {
+    if (!email) return 'GUEST';
+
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('Members');
+      if (!sheet) {
+        AppLogger.error('Security._getRoleFromMembers', new Error('Members sheet not found'), email);
+        return 'GUEST';
+      }
+
+      const data = sheet.getDataRange().getValues();
+      const headers = data[0];
+      const emailIdx = headers.indexOf('email');
+      const roleIdx = headers.indexOf('role');
+      const statusIdx = headers.indexOf('status');
+
+      if (emailIdx === -1 || roleIdx === -1) return 'GUEST';
+
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][emailIdx] === email) {
+          if (statusIdx !== -1 && data[i][statusIdx] === 'inactive') {
+            return 'GUEST';
+          }
+          return data[i][roleIdx] || 'GUEST';
         }
       }
+      return 'GUEST';
+    } catch (e) {
+      AppLogger.error('Security._getRoleFromMembers', e, email);
+      return 'GUEST';
+    }
+  }
+
+  function _hasPermission(userRole, requiredPermission) {
+    const level = ROLE_HIERARCHY[userRole] || 0;
+
+    const permissionMap = {
+      [PERMISSIONS.READ]: 0,
+      [PERMISSIONS.WRITE]: 1,
+      [PERMISSIONS.DELETE]: 2,
+      [PERMISSIONS.APPROVE]: 3,
+      [PERMISSIONS.FINANCE]: 4,
+      [PERMISSIONS.ADMIN]: 5
     };
-  })();
+
+    const requiredLevel = permissionMap[requiredPermission] || 0;
+    return level >= requiredLevel;
+  }
+
+  return {
+    getUserRole: function() {
+      const email = Session.getActiveUser().getEmail();
+      return _getRoleFromMembers(email);
+    },
+
+    currentUser: function() {
+      return Session.getActiveUser().getEmail();
+    },
+
+    requirePermission: function(permission) {
+      const role = this.getUserRole();
+      if (!_hasPermission(role, permission)) {
+        const email = this.currentUser();
+        const err = new Error(
+          `FORBIDDEN: User "${email}" with role "${role}" lacks permission "${permission}"`
+        );
+        AppLogger.error('Security.requirePermission', err, email);
+        throw err;
+      }
+    },
+
+    requireAdmin: function() {
+      this.requirePermission(PERMISSIONS.ADMIN);
+    },
+
+    can: function(permission) {
+      const role = this.getUserRole();
+      return _hasPermission(role, permission);
+    },
+
+    getRoleHierarchy: function() {
+      return Object.assign({}, ROLE_HIERARCHY);
+    },
+
+    getPermissions: function() {
+      return Object.assign({}, PERMISSIONS);
+    },
+
+    isRoleAtLeast: function(roleA, roleB) {
+      return (ROLE_HIERARCHY[roleA] || 0) >= (ROLE_HIERARCHY[roleB] || 0);
+    }
+  };
+})();
+
+function requirePermission(permission) {
+  Security.requirePermission(permission);
+}
+
+function requireAdmin() {
+  Security.requireAdmin();
+}
+
+function getUserRole() {
+  return Security.getUserRole();
+}
+
+function isCurrentUserAdmin() {
+  return Security.can(Security.getPermissions().ADMIN);
+}

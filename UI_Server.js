@@ -1,12 +1,12 @@
 // ═══════════════════════════════════════════════════════════════════════
 // PHINOX BOS v5 — UI Server (Google Apps Script)
 // ═══════════════════════════════════════════════════════════════════════
+// تم التعديل: إزالة doGet المكرر، إضافة RequestValidator + RateLimiter + AuditLog
+// تاريخ التعديل: 2026-08-27
+// ═══════════════════════════════════════════════════════════════════════
 
 // ─── PERMISSIONS ───
-// PERMISSIONS — extend the authoritative object from 13_Permissions.js
-// Do NOT re-declare with var — it would shadow the global and break
-// Permissions.checkPermission() which uses the original values.
-if (typeof PERMISSIONS === 'undefined' || !PERMISSIONS) var PERMISSIONS = {};
+if (typeof PERMISSIONS === "undefined" || !PERMISSIONS) var PERMISSIONS = {};
 (function() {
   var extras = {
     DASHBOARD_READ: "dashboard:read",
@@ -37,12 +37,12 @@ if (typeof PERMISSIONS === 'undefined' || !PERMISSIONS) var PERMISSIONS = {};
 function _requireAuth(permission) {
   var member = getCurrentMember();
   if (!member) {
-    var email = '';
+    var email = "";
     try { email = Session.getActiveUser().getEmail(); } catch(e) {}
     throw new Error("المستخدم غير مسجّل في النظام. البريد: " + email);
   }
-  var role = member[MEMBER_COL.ROLE] || '';
-  if (role === 'Admin' || role === 'CEO') return member;
+  var role = member[MEMBER_COL.ROLE] || "";
+  if (role === "Admin" || role === "CEO") return member;
   var hasPerm = hasPermission(member, permission);
   if (!hasPerm) {
     try { logActivity(member, "Access Denied", "UI_Server", permission, "", "Unauthorized attempt"); } catch(e) {}
@@ -51,57 +51,104 @@ function _requireAuth(permission) {
   return member;
 }
 
+// ─── INPUT SANITIZATION HELPER ───
+function _sanitizeInput(value) {
+  if (value === null || value === undefined) return "";
+  var str = String(value).trim();
+  var dangerous = ["=", "+", "-", "@", "\t", "\r"];
+  if (str.length > 0 && dangerous.indexOf(str[0]) !== -1) {
+    str = "'" + str;
+  }
+  if (str.length > 5000) str = str.substring(0, 5000);
+  return str;
+}
+
+function _sanitizeId(value) {
+  if (!value) return null;
+  var id = String(value).trim();
+  if (!/^[a-zA-Z0-9-_]+$/.test(id)) return null;
+  return id;
+}
+
+function _sanitizeEmail(value) {
+  if (!value) return null;
+  var email = String(value).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  return email;
+}
+
+// ─── RATE LIMIT HELPER ───
+function _checkRateLimit(action) {
+  try {
+    if (typeof RateLimiter !== "undefined" && RateLimiter.check) {
+      RateLimiter.check(action || "ui_api", { maxRequests: 200, windowSeconds: 3600 });
+    }
+  } catch (e) {
+    throw new Error("RATE_LIMIT_EXCEEDED: " + e.message);
+  }
+}
+
+// ─── AUDIT LOG HELPER ───
+function _auditLog(action, target, details, status) {
+  try {
+    if (typeof AuditLog !== "undefined" && AuditLog.log) {
+      AuditLog.log(action, target, details, status || "SUCCESS");
+    }
+  } catch (e) {
+    Logger.log("[AuditLog ERROR] " + e.message);
+  }
+}
+
 // ============================================================
 // USER AUTH API
 // ============================================================
 
 function uiGetCurrentUser() {
   try {
-    var email = '';
+    _checkRateLimit("uiGetCurrentUser");
+    var email = "";
     try { email = Session.getActiveUser().getEmail(); } catch(e) {}
     var member = getCurrentMember();
 
-    // ── SELF-HEAL: auto-migrate Members if columns are wrong ──
     if (!member && email) {
       try {
         var ss = SpreadsheetApp.getActiveSpreadsheet();
-        var membersSheet = ss.getSheetByName('Members');
+        var membersSheet = ss.getSheetByName("Members");
         if (membersSheet && membersSheet.getLastColumn() < 12) {
-          console.log('[AUTH] Members has ' + membersSheet.getLastColumn() + ' cols (need 12). Running migration...');
-          if (typeof _migrateMembersIfNeeded === 'function') {
+          Logger.log("[AUTH] Members has " + membersSheet.getLastColumn() + " cols (need 12). Running migration...");
+          if (typeof _migrateMembersIfNeeded === "function") {
             _migrateMembersIfNeeded();
             _currentMemberCache = null;
             member = getCurrentMember();
           }
         }
       } catch (migErr) {
-        console.log('[AUTH] Migration failed: ' + migErr.message);
+        Logger.log("[AUTH] Migration failed: " + migErr.message);
       }
     }
 
-    // ── AUTO-REGISTER FIRST USER ──
     if (!member && email) {
       try {
         var ss2 = SpreadsheetApp.getActiveSpreadsheet();
-        var ms = ss2.getSheetByName('Members');
+        var ms = ss2.getSheetByName("Members");
         if (ms && ms.getLastRow() <= 1) {
           ms.appendRow([
-            'MEM-001',
-            email.split('@')[0],
-            'Admin',
+            "MEM-001",
+            email.split("@")[0],
+            "Admin",
             email,
-            '',
-            'Active',
-            new Date().toISOString().split('T')[0],
+            "",
+            "Active",
+            new Date().toISOString().split("T")[0],
             0, 0, 0, 0,
-            'First user auto-registered'
+            "First user auto-registered"
           ]);
-          console.log('[AUTH] Auto-registered first Admin: ' + email);
+          Logger.log("[AUTH] Auto-registered first Admin: " + email);
           _currentMemberCache = null;
           member = getCurrentMember();
         }
       } catch (autoErr) {
-        console.log('[AUTH] Auto-register failed: ' + autoErr.message);
+        Logger.log("[AUTH] Auto-register failed: " + autoErr.message);
       }
     }
 
@@ -133,6 +180,7 @@ function uiGetCurrentUser() {
 
 function uiGetDashboardKpis() {
   try {
+    _checkRateLimit("uiGetDashboardKpis");
     _requireAuth(PERMISSIONS.KPI_READ);
     var dashboard = KpiService.getDashboardKpis();
     return { success: true, data: dashboard };
@@ -143,6 +191,7 @@ function uiGetDashboardKpis() {
 
 function uiGetKpiHistory(kpiId, limit) {
   try {
+    _checkRateLimit("uiGetKpiHistory");
     _requireAuth(PERMISSIONS.KPI_READ);
     var history = KpiService.getKpiHistory(kpiId, limit || 12);
     return { success: true, data: history };
@@ -153,6 +202,7 @@ function uiGetKpiHistory(kpiId, limit) {
 
 function uiCalculateCategory(category, periodType, refDate) {
   try {
+    _checkRateLimit("uiCalculateCategory");
     _requireAuth(PERMISSIONS.KPI_READ);
     var results = KpiService.calculateCategory(category, periodType, refDate);
     return { success: true, data: results };
@@ -163,6 +213,7 @@ function uiCalculateCategory(category, periodType, refDate) {
 
 function uiCalculateAll(periodType, refDate) {
   try {
+    _checkRateLimit("uiCalculateAll");
     _requireAuth(PERMISSIONS.KPI_READ);
     var results = KpiService.calculateAll(periodType, refDate);
     return { success: true, data: results };
@@ -177,6 +228,7 @@ function uiCalculateAll(periodType, refDate) {
 
 function uiGetCustomers(options) {
   try {
+    _checkRateLimit("uiGetCustomers");
     _requireAuth(PERMISSIONS.MEMBERS_READ);
     var result = CustomerService.getCustomers(options || { limit: 1000 });
     return { success: true, data: result };
@@ -187,8 +239,11 @@ function uiGetCustomers(options) {
 
 function uiGetCustomer(id) {
   try {
+    _checkRateLimit("uiGetCustomer");
     _requireAuth(PERMISSIONS.MEMBERS_READ);
-    var customer = CustomerService.getCustomer(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid customer ID");
+    var customer = CustomerService.getCustomer(safeId);
     return { success: true, data: customer };
   } catch (e) {
     return { success: false, error: e.message };
@@ -197,6 +252,7 @@ function uiGetCustomer(id) {
 
 function uiGetCustomerStats() {
   try {
+    _checkRateLimit("uiGetCustomerStats");
     _requireAuth(PERMISSIONS.MEMBERS_READ);
     var stats = CustomerService.getCustomerStats();
     return { success: true, data: stats };
@@ -207,40 +263,64 @@ function uiGetCustomerStats() {
 
 function uiCreateCustomer(data) {
   try {
+    _checkRateLimit("uiCreateCustomer");
     _requireAuth(PERMISSIONS.MEMBERS_WRITE);
+    if (data && data.name) data.name = _sanitizeInput(data.name);
+    if (data && data.email) data.email = _sanitizeEmail(data.email);
+    if (data && data.phone) data.phone = _sanitizeInput(data.phone);
+    if (data && data.notes) data.notes = _sanitizeInput(data.notes);
     var id = CustomerService.createCustomer(data);
+    _auditLog("CUSTOMER_CREATE", id, { name: data && data.name }, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("CUSTOMER_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiUpdateCustomer(id, data) {
   try {
+    _checkRateLimit("uiUpdateCustomer");
     _requireAuth(PERMISSIONS.MEMBERS_WRITE);
-    var updated = CustomerService.updateCustomer(id, data);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid customer ID");
+    if (data && data.name) data.name = _sanitizeInput(data.name);
+    if (data && data.email) data.email = _sanitizeEmail(data.email);
+    if (data && data.phone) data.phone = _sanitizeInput(data.phone);
+    if (data && data.notes) data.notes = _sanitizeInput(data.notes);
+    var updated = CustomerService.updateCustomer(safeId, data);
+    _auditLog("CUSTOMER_UPDATE", safeId, { name: data && data.name }, "SUCCESS");
     return { success: true, data: updated };
   } catch (e) {
+    _auditLog("CUSTOMER_UPDATE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiDeleteCustomer(id) {
   try {
+    _checkRateLimit("uiDeleteCustomer");
     _requireAuth(PERMISSIONS.MEMBERS_DELETE);
-    CustomerService.deleteCustomer(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid customer ID");
+    CustomerService.deleteCustomer(safeId);
+    _auditLog("CUSTOMER_DELETE", safeId, {}, "SUCCESS");
     return { success: true };
   } catch (e) {
+    _auditLog("CUSTOMER_DELETE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiSyncCustomers() {
   try {
+    _checkRateLimit("uiSyncCustomers");
     _requireAuth(PERMISSIONS.MEMBERS_WRITE);
     var result = CustomerService.syncFromOrders();
+    _auditLog("CUSTOMER_SYNC", "", { count: result && result.length }, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("CUSTOMER_SYNC", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -251,6 +331,7 @@ function uiSyncCustomers() {
 
 function uiGetSatisfactionRecords(options) {
   try {
+    _checkRateLimit("uiGetSatisfactionRecords");
     _requireAuth(PERMISSIONS.REPORTS_READ);
     var result = SatisfactionService.getRecords(options || { limit: 1000 });
     return { success: true, data: result };
@@ -261,6 +342,7 @@ function uiGetSatisfactionRecords(options) {
 
 function uiGetSatisfactionStats(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetSatisfactionStats");
     _requireAuth(PERMISSIONS.REPORTS_READ);
     var avg = SatisfactionService.getAverageScore(startDate, endDate);
     var count = SatisfactionService.getCount(startDate, endDate);
@@ -273,10 +355,14 @@ function uiGetSatisfactionStats(startDate, endDate) {
 
 function uiCreateSatisfaction(data) {
   try {
+    _checkRateLimit("uiCreateSatisfaction");
     _requireAuth(PERMISSIONS.REPORTS_WRITE);
+    if (data && data.notes) data.notes = _sanitizeInput(data.notes);
     var id = SatisfactionService.createSatisfaction(data);
+    _auditLog("SATISFACTION_CREATE", id, {}, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("SATISFACTION_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -287,6 +373,7 @@ function uiCreateSatisfaction(data) {
 
 function uiGetNPSRecords(options) {
   try {
+    _checkRateLimit("uiGetNPSRecords");
     _requireAuth(PERMISSIONS.REPORTS_READ);
     var result = NPSService.getRecords(options || { limit: 1000 });
     return { success: true, data: result };
@@ -297,6 +384,7 @@ function uiGetNPSRecords(options) {
 
 function uiGetNPSStats(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetNPSStats");
     _requireAuth(PERMISSIONS.REPORTS_READ);
     var nps = NPSService.getNPS(startDate, endDate);
     var breakdown = NPSService.getBreakdown(startDate, endDate);
@@ -309,10 +397,14 @@ function uiGetNPSStats(startDate, endDate) {
 
 function uiCreateNPS(data) {
   try {
+    _checkRateLimit("uiCreateNPS");
     _requireAuth(PERMISSIONS.REPORTS_WRITE);
+    if (data && data.feedback) data.feedback = _sanitizeInput(data.feedback);
     var id = NPSService.createNPS(data);
+    _auditLog("NPS_CREATE", id, {}, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("NPS_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -323,6 +415,7 @@ function uiCreateNPS(data) {
 
 function uiGetTasks(options) {
   try {
+    _checkRateLimit("uiGetTasks");
     _requireAuth(PERMISSIONS.TASKS_READ);
     var result = TaskService.getTasks(options || { limit: 1000 });
     return { success: true, data: result };
@@ -333,6 +426,7 @@ function uiGetTasks(options) {
 
 function uiGetTasksByDateRange(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetTasksByDateRange");
     _requireAuth(PERMISSIONS.TASKS_READ);
     var result = TaskService.getTasksByDateRange(startDate, endDate);
     return { success: true, data: result };
@@ -343,6 +437,7 @@ function uiGetTasksByDateRange(startDate, endDate) {
 
 function uiGetTaskStats(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetTaskStats");
     _requireAuth(PERMISSIONS.TASKS_READ);
     var completed = TaskService.getCompletedTasksByDateRange(startDate, endDate);
     var overdue = TaskService.getOverdueTasks(startDate, endDate);
@@ -368,51 +463,78 @@ function uiGetTaskStats(startDate, endDate) {
 
 function uiCreateTask(data) {
   try {
+    _checkRateLimit("uiCreateTask");
     _requireAuth(PERMISSIONS.TASKS_WRITE);
+    if (data && data.title) data.title = _sanitizeInput(data.title);
+    if (data && data.description) data.description = _sanitizeInput(data.description);
     var id = TaskService.createTask(data);
+    _auditLog("TASK_CREATE", id, { title: data && data.title }, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("TASK_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiUpdateTask(id, data) {
   try {
+    _checkRateLimit("uiUpdateTask");
     _requireAuth(PERMISSIONS.TASKS_WRITE);
-    var updated = TaskService.updateTask(id, data);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid task ID");
+    if (data && data.title) data.title = _sanitizeInput(data.title);
+    if (data && data.description) data.description = _sanitizeInput(data.description);
+    var updated = TaskService.updateTask(safeId, data);
+    _auditLog("TASK_UPDATE", safeId, { title: data && data.title }, "SUCCESS");
     return { success: true, data: updated };
   } catch (e) {
+    _auditLog("TASK_UPDATE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiDeleteTask(id) {
   try {
+    _checkRateLimit("uiDeleteTask");
     _requireAuth(PERMISSIONS.TASKS_DELETE);
-    TaskService.deleteTask(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid task ID");
+    TaskService.deleteTask(safeId);
+    _auditLog("TASK_DELETE", safeId, {}, "SUCCESS");
     return { success: true };
   } catch (e) {
+    _auditLog("TASK_DELETE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
-// ── PHINOX PATCH: Task Approve / Reject ──
 function uiApproveTask(id) {
   try {
+    _checkRateLimit("uiApproveTask");
     _requireAuth(PERMISSIONS.TASKS_APPROVE);
-    var result = TaskService.approveTask(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid task ID");
+    var result = TaskService.approveTask(safeId);
+    _auditLog("TASK_APPROVE", safeId, {}, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("TASK_APPROVE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiRejectTask(id, reason) {
   try {
+    _checkRateLimit("uiRejectTask");
     _requireAuth(PERMISSIONS.TASKS_APPROVE);
-    var result = TaskService.rejectTask(id, reason);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid task ID");
+    var safeReason = _sanitizeInput(reason);
+    var result = TaskService.rejectTask(safeId, safeReason);
+    _auditLog("TASK_REJECT", safeId, { reason: safeReason }, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("TASK_REJECT", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -423,6 +545,7 @@ function uiRejectTask(id, reason) {
 
 function uiGetMembers() {
   try {
+    _checkRateLimit("uiGetMembers");
     _requireAuth(PERMISSIONS.MEMBERS_READ);
     var members = Members.getMembers();
     return { success: true, data: members };
@@ -433,6 +556,7 @@ function uiGetMembers() {
 
 function uiGetMemberStats() {
   try {
+    _checkRateLimit("uiGetMemberStats");
     _requireAuth(PERMISSIONS.MEMBERS_READ);
     var total = Members.totalMembers();
     var active = Members.activeMembers();
@@ -444,41 +568,57 @@ function uiGetMemberStats() {
 
 function uiAddMember(data) {
   try {
+    _checkRateLimit("uiAddMember");
     _requireAuth(PERMISSIONS.MEMBERS_WRITE);
-    // PHINOX PATCH: prevent duplicate Admin/CEO
+    if (data && data.fullName) data.fullName = _sanitizeInput(data.fullName);
+    if (data && data.email) data.email = _sanitizeEmail(data.email);
+    if (data && data.phone) data.phone = _sanitizeInput(data.phone);
     var limitErr = _checkAdminCEOLimit(data.role, null);
     if (limitErr) throw new Error(limitErr);
     var id = Members.addMember(data);
+    _auditLog("MEMBER_ADD", id, { email: data && data.email, role: data && data.role }, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("MEMBER_ADD", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiUpdateMember(id, data) {
   try {
+    _checkRateLimit("uiUpdateMember");
     _requireAuth(PERMISSIONS.MEMBERS_WRITE);
-    // PHINOX PATCH: prevent duplicate Admin/CEO
-    var limitErr = _checkAdminCEOLimit(data.role, id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid member ID");
+    if (data && data.fullName) data.fullName = _sanitizeInput(data.fullName);
+    if (data && data.email) data.email = _sanitizeEmail(data.email);
+    if (data && data.phone) data.phone = _sanitizeInput(data.phone);
+    var limitErr = _checkAdminCEOLimit(data.role, safeId);
     if (limitErr) throw new Error(limitErr);
-    Members.updateMember(id, data);
+    Members.updateMember(safeId, data);
+    _auditLog("MEMBER_UPDATE", safeId, { role: data && data.role }, "SUCCESS");
     return { success: true };
   } catch (e) {
+    _auditLog("MEMBER_UPDATE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiDeleteMember(id) {
   try {
+    _checkRateLimit("uiDeleteMember");
     _requireAuth(PERMISSIONS.MEMBERS_DELETE);
-    Members.deleteMember(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid member ID");
+    Members.deleteMember(safeId);
+    _auditLog("MEMBER_DELETE", safeId, {}, "SUCCESS");
     return { success: true };
   } catch (e) {
+    _auditLog("MEMBER_DELETE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
-// ── PHINOX PATCH: Admin/CEO limit ──
 function _checkAdminCEOLimit(role, excludeId) {
   if (role !== "Admin" && role !== "CEO") return null;
   var all = Members.getMembers();
@@ -496,6 +636,7 @@ function _checkAdminCEOLimit(role, excludeId) {
 
 function uiGetSales(options) {
   try {
+    _checkRateLimit("uiGetSales");
     _requireAuth(PERMISSIONS.ORDERS_READ);
     var result = SaleService.getSales(options || { limit: 1000 });
     return { success: true, data: result };
@@ -506,6 +647,7 @@ function uiGetSales(options) {
 
 function uiGetSalesByDateRange(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetSalesByDateRange");
     _requireAuth(PERMISSIONS.ORDERS_READ);
     var result = SaleService.getSalesByDateRange(startDate, endDate);
     return { success: true, data: result };
@@ -516,10 +658,14 @@ function uiGetSalesByDateRange(startDate, endDate) {
 
 function uiCreateSale(data) {
   try {
+    _checkRateLimit("uiCreateSale");
     _requireAuth(PERMISSIONS.ORDERS_WRITE);
+    if (data && data.notes) data.notes = _sanitizeInput(data.notes);
     var id = SaleService.createSale(data);
+    _auditLog("SALE_CREATE", id, {}, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("SALE_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -530,6 +676,7 @@ function uiCreateSale(data) {
 
 function uiGetOrders(options) {
   try {
+    _checkRateLimit("uiGetOrders");
     _requireAuth(PERMISSIONS.ORDERS_READ);
     var result = OrderService.getOrders(options || { limit: 1000 });
     return { success: true, data: result };
@@ -540,6 +687,7 @@ function uiGetOrders(options) {
 
 function uiGetOrdersByDateRange(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetOrdersByDateRange");
     _requireAuth(PERMISSIONS.ORDERS_READ);
     var result = OrderService.getOrdersByDateRange(startDate, endDate);
     return { success: true, data: result };
@@ -550,25 +698,35 @@ function uiGetOrdersByDateRange(startDate, endDate) {
 
 function uiCreateOrder(data) {
   try {
+    _checkRateLimit("uiCreateOrder");
     _requireAuth(PERMISSIONS.ORDERS_WRITE);
+    if (data && data.notes) data.notes = _sanitizeInput(data.notes);
     var id = OrderService.createOrder(data);
+    _auditLog("ORDER_CREATE", id, {}, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("ORDER_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiUpdateOrderStatus(id, status) {
   try {
+    _checkRateLimit("uiUpdateOrderStatus");
     _requireAuth(PERMISSIONS.ORDERS_WRITE);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid order ID");
+    var safeStatus = _sanitizeInput(status);
     var result;
-    if (status === "Confirmed") result = OrderService.confirmOrder(id);
-    else if (status === "Shipped") result = OrderService.shipOrder(id);
-    else if (status === "Delivered") result = OrderService.deliverOrder(id);
-    else if (status === "Cancelled") result = OrderService.cancelOrder(id);
-    else throw new Error("Invalid status: " + status);
+    if (safeStatus === "Confirmed") result = OrderService.confirmOrder(safeId);
+    else if (safeStatus === "Shipped") result = OrderService.shipOrder(safeId);
+    else if (safeStatus === "Delivered") result = OrderService.deliverOrder(safeId);
+    else if (safeStatus === "Cancelled") result = OrderService.cancelOrder(safeId);
+    else throw new Error("Invalid status: " + safeStatus);
+    _auditLog("ORDER_STATUS_UPDATE", safeId, { status: safeStatus }, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("ORDER_STATUS_UPDATE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -579,6 +737,7 @@ function uiUpdateOrderStatus(id, status) {
 
 function uiGetFinanceStats(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetFinanceStats");
     _requireAuth(PERMISSIONS.FINANCE_READ);
     var pnl = FinanceService.getProfitAndLoss(startDate, endDate);
     var cashFlow = FinanceService.getCashFlow(startDate, endDate);
@@ -591,6 +750,7 @@ function uiGetFinanceStats(startDate, endDate) {
 
 function uiGetLedger(options) {
   try {
+    _checkRateLimit("uiGetLedger");
     _requireAuth(PERMISSIONS.FINANCE_READ);
     var result = FinanceService.getLedger(options || { limit: 1000 });
     return { success: true, data: result };
@@ -605,6 +765,7 @@ function uiGetLedger(options) {
 
 function uiGetInventory(options) {
   try {
+    _checkRateLimit("uiGetInventory");
     _requireAuth(PERMISSIONS.INVENTORY_READ);
     var result = InventoryService.getItems(options || { limit: 1000 });
     return { success: true, data: result };
@@ -615,6 +776,7 @@ function uiGetInventory(options) {
 
 function uiGetInventoryStats() {
   try {
+    _checkRateLimit("uiGetInventoryStats");
     _requireAuth(PERMISSIONS.INVENTORY_READ);
     var total = InventoryService.totalItems();
     var lowStock = InventoryService.getLowStockItems();
@@ -638,10 +800,16 @@ function uiGetInventoryStats() {
 
 function uiCreateInventoryItem(data) {
   try {
+    _checkRateLimit("uiCreateInventoryItem");
     _requireAuth(PERMISSIONS.INVENTORY_WRITE);
+    if (data && data.name) data.name = _sanitizeInput(data.name);
+    if (data && data.sku) data.sku = _sanitizeInput(data.sku);
+    if (data && data.description) data.description = _sanitizeInput(data.description);
     var id = InventoryService.createItem(data);
+    _auditLog("INVENTORY_CREATE", id, { sku: data && data.sku }, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("INVENTORY_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -656,9 +824,11 @@ function uiCreateInventory(data) {
 
 function uiGetStockMovements(sku, options) {
   try {
+    _checkRateLimit("uiGetStockMovements");
     _requireAuth(PERMISSIONS.INVENTORY_READ);
     if (!sku) throw new Error("SKU required");
-    var movements = StockMovementService.getMovementsBySku(sku);
+    var safeSku = _sanitizeInput(sku);
+    var movements = StockMovementService.getMovementsBySku(safeSku);
     return { success: true, data: movements };
   } catch (e) {
     return { success: false, error: e.message };
@@ -667,29 +837,39 @@ function uiGetStockMovements(sku, options) {
 
 function uiAdjustStock(data) {
   try {
+    _checkRateLimit("uiAdjustStock");
     _requireAuth(PERMISSIONS.INVENTORY_WRITE);
     if (!data || !data.inventoryId || data.newQuantity === undefined || !data.reason) {
       throw new Error("inventoryId, newQuantity, and reason required");
     }
+    var safeReason = _sanitizeInput(data.reason);
+    var safeNotes = data.notes ? _sanitizeInput(data.notes) : "";
     var result = InventoryService.adjustStock(
       data.inventoryId,
       data.newQuantity,
-      data.reason,
-      data.notes || ""
+      safeReason,
+      safeNotes
     );
+    _auditLog("STOCK_ADJUST", data.inventoryId, { qty: data.newQuantity, reason: safeReason }, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("STOCK_ADJUST", data && data.inventoryId, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiRestockStock(data) {
   try {
+    _checkRateLimit("uiRestockStock");
     _requireAuth(PERMISSIONS.INVENTORY_WRITE);
     if (!data || !data.sku || !data.qty) throw new Error("SKU and quantity required");
-    InventoryService.restock(data.sku, data.qty, "UI_RESTOCK", data.referenceId || "");
+    var safeSku = _sanitizeInput(data.sku);
+    var refId = data.referenceId ? _sanitizeInput(data.referenceId) : "";
+    InventoryService.restock(safeSku, data.qty, "UI_RESTOCK", refId);
+    _auditLog("STOCK_RESTOCK", safeSku, { qty: data.qty }, "SUCCESS");
     return { success: true };
   } catch (e) {
+    _auditLog("STOCK_RESTOCK", data && data.sku, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -700,9 +880,11 @@ function uiRestockStock(data) {
 
 function uiGetBOM(sku) {
   try {
+    _checkRateLimit("uiGetBOM");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_READ);
     if (!sku) throw new Error("SKU required");
-    var bom = BOMService.getBOMByFinishedProductSku(sku);
+    var safeSku = _sanitizeInput(sku);
+    var bom = BOMService.getBOMByFinishedProductSku(safeSku);
     return { success: true, data: bom };
   } catch (e) {
     return { success: false, error: e.message };
@@ -711,9 +893,12 @@ function uiGetBOM(sku) {
 
 function uiGetBOMItems(bomId) {
   try {
+    _checkRateLimit("uiGetBOMItems");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_READ);
     if (!bomId) throw new Error("bomId required");
-    var items = BOMService.getBOMItems(bomId);
+    var safeId = _sanitizeId(bomId);
+    if (!safeId) throw new Error("Invalid bomId");
+    var items = BOMService.getBOMItems(safeId);
     return { success: true, data: items };
   } catch (e) {
     return { success: false, error: e.message };
@@ -722,75 +907,109 @@ function uiGetBOMItems(bomId) {
 
 function uiCreateBOM(data) {
   try {
+    _checkRateLimit("uiCreateBOM");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
     if (!data) throw new Error("BOM data required");
+    if (data.name) data.name = _sanitizeInput(data.name);
+    if (data.sku) data.sku = _sanitizeInput(data.sku);
     var id = BOMService.createBOM(data);
+    _auditLog("BOM_CREATE", id, { name: data.name }, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("BOM_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiUpdateBOM(id, data) {
   try {
+    _checkRateLimit("uiUpdateBOM");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
     if (!id) throw new Error("BOM ID required");
-    var updated = BOMService.updateBOM(id, data);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid BOM ID");
+    if (data && data.name) data.name = _sanitizeInput(data.name);
+    var updated = BOMService.updateBOM(safeId, data);
+    _auditLog("BOM_UPDATE", safeId, {}, "SUCCESS");
     return { success: true, data: updated };
   } catch (e) {
+    _auditLog("BOM_UPDATE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiDeleteBOM(id) {
   try {
+    _checkRateLimit("uiDeleteBOM");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
     if (!id) throw new Error("BOM ID required");
-    BOMService.deleteBOM(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid BOM ID");
+    BOMService.deleteBOM(safeId);
+    _auditLog("BOM_DELETE", safeId, {}, "SUCCESS");
     return { success: true };
   } catch (e) {
+    _auditLog("BOM_DELETE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiAddBOMItem(bomId, data) {
   try {
+    _checkRateLimit("uiAddBOMItem");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
     if (!bomId) throw new Error("bomId required");
-    var id = BOMService.addBOMItem(bomId, data);
+    var safeId = _sanitizeId(bomId);
+    if (!safeId) throw new Error("Invalid bomId");
+    var id = BOMService.addBOMItem(safeId, data);
+    _auditLog("BOM_ITEM_ADD", safeId, {}, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("BOM_ITEM_ADD", bomId, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiUpdateBOMItem(id, data) {
   try {
+    _checkRateLimit("uiUpdateBOMItem");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
     if (!id) throw new Error("BOM Item ID required");
-    var updated = BOMService.updateBOMItem(id, data);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid BOM Item ID");
+    var updated = BOMService.updateBOMItem(safeId, data);
+    _auditLog("BOM_ITEM_UPDATE", safeId, {}, "SUCCESS");
     return { success: true, data: updated };
   } catch (e) {
+    _auditLog("BOM_ITEM_UPDATE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiRemoveBOMItem(id) {
   try {
+    _checkRateLimit("uiRemoveBOMItem");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_MANAGE);
     if (!id) throw new Error("BOM Item ID required");
-    BOMService.removeBOMItem(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid BOM Item ID");
+    BOMService.removeBOMItem(safeId);
+    _auditLog("BOM_ITEM_REMOVE", safeId, {}, "SUCCESS");
     return { success: true };
   } catch (e) {
+    _auditLog("BOM_ITEM_REMOVE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiCalculateCost(productId) {
   try {
+    _checkRateLimit("uiCalculateCost");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_READ);
     if (!productId) throw new Error("productId required");
-    var result = BOMService.calculateUnitCost(productId);
+    var safeId = _sanitizeId(productId);
+    if (!safeId) throw new Error("Invalid productId");
+    var result = BOMService.calculateUnitCost(safeId);
     return { success: true, data: result };
   } catch (e) {
     return { success: false, error: e.message };
@@ -799,9 +1018,12 @@ function uiCalculateCost(productId) {
 
 function uiCalculateMargin(productId) {
   try {
+    _checkRateLimit("uiCalculateMargin");
     _requireAuth(PERMISSIONS.INVENTORY_BOM_READ);
     if (!productId) throw new Error("productId required");
-    var result = BOMService.calculateGrossMargin(productId);
+    var safeId = _sanitizeId(productId);
+    if (!safeId) throw new Error("Invalid productId");
+    var result = BOMService.calculateGrossMargin(safeId);
     return { success: true, data: result };
   } catch (e) {
     return { success: false, error: e.message };
@@ -810,6 +1032,7 @@ function uiCalculateMargin(productId) {
 
 function uiGetLowStock() {
   try {
+    _checkRateLimit("uiGetLowStock");
     _requireAuth(PERMISSIONS.INVENTORY_READ);
     var result = InventoryService.getLowStockItems();
     return { success: true, data: result };
@@ -820,6 +1043,7 @@ function uiGetLowStock() {
 
 function uiGetOutOfStock() {
   try {
+    _checkRateLimit("uiGetOutOfStock");
     _requireAuth(PERMISSIONS.INVENTORY_READ);
     var result = InventoryService.getOutOfStockItems();
     return { success: true, data: result };
@@ -834,6 +1058,7 @@ function uiGetOutOfStock() {
 
 function uiGetExpenses(options) {
   try {
+    _checkRateLimit("uiGetExpenses");
     _requireAuth(PERMISSIONS.EXPENSES_READ);
     var result = FinanceRepository.findAllExpenses(options || { limit: 1000 });
     return { success: true, data: result };
@@ -844,8 +1069,11 @@ function uiGetExpenses(options) {
 
 function uiGetExpense(id) {
   try {
+    _checkRateLimit("uiGetExpense");
     _requireAuth(PERMISSIONS.EXPENSES_READ);
-    var result = FinanceRepository.findExpenseById(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid expense ID");
+    var result = FinanceRepository.findExpenseById(safeId);
     return { success: true, data: result };
   } catch (e) {
     return { success: false, error: e.message };
@@ -854,60 +1082,92 @@ function uiGetExpense(id) {
 
 function uiCreateExpense(data) {
   try {
+    _checkRateLimit("uiCreateExpense");
     _requireAuth(PERMISSIONS.EXPENSES_WRITE);
+    if (data && data.description) data.description = _sanitizeInput(data.description);
+    if (data && data.notes) data.notes = _sanitizeInput(data.notes);
     var id = FinanceService.createExpenseRequest(data);
+    _auditLog("EXPENSE_CREATE", id, {}, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("EXPENSE_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiSubmitExpense(id) {
   try {
+    _checkRateLimit("uiSubmitExpense");
     _requireAuth(PERMISSIONS.EXPENSES_WRITE);
-    var result = FinanceService.submitExpenseRequest(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid expense ID");
+    var result = FinanceService.submitExpenseRequest(safeId);
+    _auditLog("EXPENSE_SUBMIT", safeId, {}, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("EXPENSE_SUBMIT", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiApproveExpense(id) {
   try {
+    _checkRateLimit("uiApproveExpense");
     _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
-    var result = FinanceService.approveExpenseRequest(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid expense ID");
+    var result = FinanceService.approveExpenseRequest(safeId);
+    _auditLog("EXPENSE_APPROVE", safeId, {}, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("EXPENSE_APPROVE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiRejectExpense(id, reason) {
   try {
+    _checkRateLimit("uiRejectExpense");
     _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
-    var result = FinanceService.rejectExpenseRequest(id, reason);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid expense ID");
+    var safeReason = _sanitizeInput(reason);
+    var result = FinanceService.rejectExpenseRequest(safeId, safeReason);
+    _auditLog("EXPENSE_REJECT", safeId, { reason: safeReason }, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("EXPENSE_REJECT", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiPostExpense(id, account) {
   try {
+    _checkRateLimit("uiPostExpense");
     _requireAuth(PERMISSIONS.EXPENSES_APPROVE);
-    var result = FinanceService.postExpenseToLedger(id, account);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid expense ID");
+    var safeAccount = _sanitizeInput(account);
+    var result = FinanceService.postExpenseToLedger(safeId, safeAccount);
+    _auditLog("EXPENSE_POST", safeId, { account: safeAccount }, "SUCCESS");
     return { success: true, data: result };
   } catch (e) {
+    _auditLog("EXPENSE_POST", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
 function uiDeleteExpense(id) {
   try {
+    _checkRateLimit("uiDeleteExpense");
     _requireAuth(PERMISSIONS.EXPENSES_DELETE);
-    FinanceService.deleteExpenseRequest(id);
+    var safeId = _sanitizeId(id);
+    if (!safeId) throw new Error("Invalid expense ID");
+    FinanceService.deleteExpenseRequest(safeId);
+    _auditLog("EXPENSE_DELETE", safeId, {}, "SUCCESS");
     return { success: true };
   } catch (e) {
+    _auditLog("EXPENSE_DELETE", id, { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -918,6 +1178,7 @@ function uiDeleteExpense(id) {
 
 function uiGetMarketingRecords(options) {
   try {
+    _checkRateLimit("uiGetMarketingRecords");
     _requireAuth(PERMISSIONS.REPORTS_READ);
     var result = MktService.getRecords(options || { limit: 1000 });
     return { success: true, data: result };
@@ -928,6 +1189,7 @@ function uiGetMarketingRecords(options) {
 
 function uiGetMarketingStats(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetMarketingStats");
     _requireAuth(PERMISSIONS.REPORTS_READ);
     var spend = MktService.getTotalSpend(startDate, endDate);
     var impressions = MktService.getTotalImpressions(startDate, endDate);
@@ -960,10 +1222,15 @@ function uiGetMarketingStats(startDate, endDate) {
 
 function uiCreateMarketingRecord(data) {
   try {
+    _checkRateLimit("uiCreateMarketingRecord");
     _requireAuth(PERMISSIONS.REPORTS_WRITE);
+    if (data && data.campaignName) data.campaignName = _sanitizeInput(data.campaignName);
+    if (data && data.notes) data.notes = _sanitizeInput(data.notes);
     var id = MktService.createRecord(data);
+    _auditLog("MARKETING_CREATE", id, {}, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("MARKETING_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -974,6 +1241,7 @@ function uiCreateMarketingRecord(data) {
 
 function uiGetSocialRecords(options) {
   try {
+    _checkRateLimit("uiGetSocialRecords");
     _requireAuth(PERMISSIONS.REPORTS_READ);
     var result = SocService.getRecords(options || { limit: 1000 });
     return { success: true, data: result };
@@ -984,6 +1252,7 @@ function uiGetSocialRecords(options) {
 
 function uiGetSocialStats(startDate, endDate) {
   try {
+    _checkRateLimit("uiGetSocialStats");
     _requireAuth(PERMISSIONS.REPORTS_READ);
     var followers = SocService.getFollowersAtDate(endDate);
     var reach = SocService.getTotalReach(startDate, endDate);
@@ -1026,10 +1295,15 @@ function uiGetSocialStats(startDate, endDate) {
 
 function uiCreateSocialRecord(data) {
   try {
+    _checkRateLimit("uiCreateSocialRecord");
     _requireAuth(PERMISSIONS.REPORTS_WRITE);
+    if (data && data.caption) data.caption = _sanitizeInput(data.caption);
+    if (data && data.notes) data.notes = _sanitizeInput(data.notes);
     var id = SocService.createRecord(data);
+    _auditLog("SOCIAL_CREATE", id, {}, "SUCCESS");
     return { success: true, id: id };
   } catch (e) {
+    _auditLog("SOCIAL_CREATE", "", { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
@@ -1040,6 +1314,7 @@ function uiCreateSocialRecord(data) {
 
 function uiGetKPIs(params) {
   try {
+    _checkRateLimit("uiGetKPIs");
     _requireAuth(PERMISSIONS.KPI_READ);
     var p = params || {};
     var period = (p.period || "MONTHLY").toUpperCase();
@@ -1065,8 +1340,6 @@ function uiGetKPIs(params) {
 
 // ============================================================
 // LAUNCH UI — NO BUSINESS PERMISSIONS REQUIRED
-// These are UI/bootstrap functions. Authorization is enforced
-// at the data layer (all business functions above).
 // ============================================================
 
 function showPhinoxDashboard() {
@@ -1085,23 +1358,6 @@ function showPhinoxDashboardSidebar() {
 }
 
 // ============================================================
-// WEB APP ENTRY POINT — NO BUSINESS PERMISSIONS REQUIRED
-// Authorization enforced at data layer.
+// ⚠️ تم إزالة doGet من هذا الملف
+// doGet موجود الآن في doGet.js فقط (Entry Point وحيد)
 // ============================================================
-
-function doGet(e) {
-  try {
-    var html = HtmlService.createHtmlOutputFromFile("UI_Index")
-      .setTitle("PHINOX BOS v5")
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    return html;
-  } catch (err) {
-    return HtmlService.createHtmlOutput(
-      "<div style=\"padding:40px;font-family:sans-serif;text-align:center;\">" +
-      "<h2>Failed to load UI_Index.html</h2>" +
-      "<p>Error: " + err.message + "</p>" +
-      "<p>Please verify that UI_Index.html exists in the project.</p>" +
-      "</div>"
-    ).setTitle("PHINOX BOS v5 — Error");
-  }
-}
