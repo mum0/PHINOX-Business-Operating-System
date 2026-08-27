@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PHINOX BOS - Diagnostic Tool</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f5f5; padding: 20px; direction: ltr; }
+    .container { max-width: 700px; margin: 0 auto; }
+    h1 { font-size: 22px; color: #333; margin-bottom: 6px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 20px; }
+    .run-btn { display: inline-block; padding: 14px 40px; background: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 20px; }
+    .run-btn:hover { background: #1557b0; }
+    .run-btn:disabled { background: #ccc; cursor: not-allowed; }
+    .check { display: flex; align-items: center; padding: 12px 16px; background: white; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e0e0e0; }
+    .check.pass { border-left: 4px solid #34a853; }
+    .check.fail { border-left: 4px solid #ea4335; background: #fff5f5; }
+    .icon { font-size: 20px; margin-right: 12px; width: 24px; text-align: center; }
+    .check-name { font-weight: 600; font-size: 14px; min-width: 200px; }
+    .check-detail { font-size: 12px; color: #666; flex: 1; margin-left: 12px; word-break: break-all; }
+    .summary { padding: 16px; border-radius: 8px; margin-top: 16px; font-weight: bold; }
+    .summary.all-pass { background: #e6f4ea; color: #1e7e34; }
+    .summary.has-fail { background: #fce8e6; color: #c5221f; }
+    .loading { text-align: center; padding: 40px; color: #666; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PHINOX BOS - Diagnostic Tool</h1>
+    <p class="subtitle">Run this to find exactly why login fails. Click the button, wait for results.</p>
+    <button class="run-btn" id="runBtn" onclick="runDiag()">⚡ Run Diagnostic</button>
+    <div id="results">
+      <div class="loading">Click the button above to start...</div>
+    </div>
+  </div>
+  <script>
+    function runDiag() {
+      var btn = document.getElementById('runBtn');
+      var results = document.getElementById('results');
+      btn.disabled = true;
+      btn.textContent = 'Running...';
+      results.innerHTML = '<div class="loading">Checking system... please wait 10-30 seconds.</div>';
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          btn.disabled = false;
+          btn.textContent = '\u26A1 Run Diagnostic Again';
+          renderResults(data);
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = '\u26A1 Run Diagnostic Again';
+          results.innerHTML = '<div class="check fail"><span class="icon">❌</span><span class="check-name">FATAL ERROR</span><span class="check-detail">The script crashed before running diagnostic. Error: ' + (err.message || err) + '<br><br>This means a file fails to load. Check the GAS Executions log.</span></div>';
+        })
+        .uiDiagnose();
+    }
+
+    function renderResults(data) {
+      var html = '';
+      var passCount = 0;
+      var failCount = 0;
+
+      if (!data || !data.checks) {
+        html = '<div class="check fail"><span class="icon">❌</span><span class="check-name">No data returned</span></div>';
+        document.getElementById('results').innerHTML = html;
+        return;
+      }
+
+      data.checks.forEach(function(c) {
+        var isPass = c.pass;
+        if (isPass) passCount++; else failCount++;
+        html += '<div class="check ' + (isPass ? 'pass' : 'fail') + '">';
+        html += '<span class="icon">' + (isPass ? '\u2705' : '\u274C') + '</span>';
+        html += '<span class="check-name">' + esc(c.name) + '</span>';
+        if (c.detail) html += '<span class="check-detail">' + esc(c.detail) + '</span>';
+        html += '</div>';
+      });
+
+      if (failCount === 0) {
+        html += '<div class="summary all-pass">All ' + passCount + ' checks passed! Redeploy the web app and try again.</div>';
+      } else {
+        html += '<div class="summary has-fail">' + failCount + ' check(s) failed. Fix the red items above, then re-run.</div>';
+      }
+
+      document.getElementById('results').innerHTML = html;
+    }
+
+    function esc(s) {
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>
