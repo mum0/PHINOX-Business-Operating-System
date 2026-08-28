@@ -103,77 +103,135 @@ function _auditLog(action, target, details, status) {
 // USER AUTH API
 // ============================================================
 
+
+/**
+ * Get current user data — FIXED version
+ * Uses getCurrentMember_SAFE() instead of getCurrentMember() to avoid Error objects
+ */
 function uiGetCurrentUser() {
   try {
-    _checkRateLimit("uiGetCurrentUser");
-    var email = "";
-    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
-    var member = getCurrentMember();
+    var email = Session.getActiveUser().getEmail();
+    console.log('[uiGetCurrentUser] email=' + (email || 'null'));
 
-    if (!member && email) {
-      try {
-        var ss = SpreadsheetApp.getActiveSpreadsheet();
-        var membersSheet = ss.getSheetByName("Members");
-        if (membersSheet && membersSheet.getLastColumn() < 12) {
-          console.log("[AUTH] Members has " + membersSheet.getLastColumn() + " cols (need 12). Running migration...");
-          if (typeof _migrateMembersIfNeeded === "function") {
-            _migrateMembersIfNeeded();
-            _currentMemberCache = null;
-            member = getCurrentMember();
-          }
+    if (!email) {
+      return { email: null, role: 'GUEST', member: null, error: null };
+    }
+
+    // ✅ Use SAFE version that sanitizes Error objects
+    var member = null;
+    try {
+      if (typeof getCurrentMember_SAFE === 'function') {
+        member = getCurrentMember_SAFE();
+      } else if (typeof getCurrentMember === 'function') {
+        member = getCurrentMember();
+        // Sanitize if it returned an Error
+        if (member instanceof Error) {
+          console.warn('[uiGetCurrentUser] getCurrentMember returned Error');
+          member = null;
         }
-      } catch (migErr) {
-        console.log("[AUTH] Migration failed: " + migErr.message);
       }
+    } catch (e) {
+      console.warn('[uiGetCurrentUser] getCurrentMember failed: ' + e.message);
+      member = null;
     }
 
-    if (!member && email) {
-      try {
-        var ss2 = SpreadsheetApp.getActiveSpreadsheet();
-        var ms = ss2.getSheetByName("Members");
-        if (ms && ms.getLastRow() <= 1) {
-          ms.appendRow([
-            "MEM-001",
-            email.split("@")[0],
-            "Admin",
-            email,
-            "",
-            "Active",
-            new Date().toISOString().split("T")[0],
-            0, 0, 0, 0,
-            "First user auto-registered"
-          ]);
-          console.log("[AUTH] Auto-registered first Admin: " + email);
-          _currentMemberCache = null;
-          member = getCurrentMember();
-        }
-      } catch (autoErr) {
-        console.log("[AUTH] Auto-register failed: " + autoErr.message);
+    var role = 'GUEST';
+    try {
+      if (typeof Security !== 'undefined' && Security.getUserRole) {
+        role = Security.getUserRole();
+      } else if (member && member[2]) {
+        role = String(member[2] || 'GUEST').toUpperCase().trim();
       }
+    } catch (e) {
+      console.warn('[uiGetCurrentUser] role resolution failed: ' + e.message);
     }
 
-    if (!member) {
-      return {
-        success: false,
-        error: "المستخدم غير مسجّل في النظام. " +
-               "البريد: " + email +
-               ". تحقق: (1) الإيميل موجود في Members, (2) Status=Active, (3) لا تكرار."
-      };
-    }
-    return {
-      success: true,
-      data: {
-        email: member[MEMBER_COL.EMAIL],
-        name: member[MEMBER_COL.FULL_NAME],
-        role: member[MEMBER_COL.ROLE],
-        permissions: getRolePermissions(member[MEMBER_COL.ROLE])
-      }
+    console.log('[uiGetCurrentUser] role=' + role);
+
+    // Build result — ensure NO Error objects anywhere
+    var result = {
+      email: String(email),
+      role: String(role),
+      member: member,
+      timestamp: new Date().toISOString(),
+      error: null
     };
+
+    // Final safety: convert any remaining Error objects
+    for (var key in result) {
+      if (result[key] instanceof Error) {
+        result[key] = '#ERROR:' + result[key].message;
+      }
+    }
+
+    return result;
+
   } catch (e) {
-    return { success: false, error: e.message };
+    console.error('[uiGetCurrentUser] FATAL: ' + e.message);
+    return {
+      email: null,
+      role: 'GUEST',
+      member: null,
+      timestamp: new Date().toISOString(),
+      error: String(e.message)
+    };
   }
 }
 
+/**
+ * SAFE version of getCurrentMember — reads Members sheet directly
+ * Sanitizes all values to prevent "illegal value in property" errors
+ */
+function getCurrentMember_SAFE() {
+  try {
+    var email = Session.getActiveUser().getEmail();
+    if (!email) return null;
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) return null;
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length < 2) return null;
+
+    var headers = data[0];
+    var emailIdx = -1;
+    for (var i = 0; i < headers.length; i++) {
+      if (String(headers[i] || '').toLowerCase().trim() === 'email') {
+        emailIdx = i;
+        break;
+      }
+    }
+    if (emailIdx === -1) return null;
+
+    for (var j = 1; j < data.length; j++) {
+      var rowEmail = String(data[j][emailIdx] || '').toLowerCase().trim();
+      if (rowEmail === email.toLowerCase().trim()) {
+        // Sanitize entire row
+        var sanitized = [];
+        for (var k = 0; k < data[j].length; k++) {
+          var val = data[j][k];
+          if (val instanceof Error) {
+            sanitized.push('#ERROR');
+          } else if (val instanceof Date) {
+            try {
+              sanitized.push(Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd'));
+            } catch (e) {
+              sanitized.push(String(val));
+            }
+          } else {
+            sanitized.push(String(val !== null && val !== undefined ? val : ''));
+          }
+        }
+        return sanitized;
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error('[getCurrentMember_SAFE] ' + e.message);
+    return null;
+  }
+}
 // ============================================================
 // KPI APIs
 // ============================================================

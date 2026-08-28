@@ -1,335 +1,380 @@
-/**
- * ============================================================
- * PHINOX BOS — Members Module (Migrated v5.0)
- * Old File: Members.gs
- * Replaces: Direct sheet access → BaseRepository
- * Benefits: O(1) lookup, no array mutation, standardized errors
- * Breaking: None. All public APIs preserved.
- * Depends: Core Layer (Phase 1), Permissions (Phase 2 Unit 1)
- * UPDATED: Phase 8A — added department (13), getMemberByEmail, getMembersByDepartment, getMemberTaskStats
- * ============================================================
- */
+// ═══════════════════════════════════════════════════════════════════════
+// PHINOX BOS v5 — Members Module (Rewritten & Fixed 2026-08-28)
+// ═══════════════════════════════════════════════════════════════════════
+// Self-contained: defines its own MEMBER_COL, no dependency on 13_Permissions.js
+// ═══════════════════════════════════════════════════════════════════════
 
 /* ───────────────────────────────────────────
- 0. SCHEMA & REPOSITORY
+ 0. SCHEMA & COLUMN INDICES (self-contained)
  ─────────────────────────────────────────── */
 
- var MEMBER_SCHEMA = {
- id: 1, name: 2, role: 3, email: 4, phone: 5, status: 6,
- joinDate: 7, kpiScore: 8, tasksCompleted: 9, tasksLate: 10,
- averageQuality: 11, notes: 12, department: 13
- };
+ var MEMBER_COL = {
+  ID: 0, FULL_NAME: 1, ROLE: 2, EMAIL: 3, PHONE: 4, STATUS: 5,
+  JOIN_DATE: 6, KPI_SCORE: 7, TASKS_COMPLETED: 8, TASKS_LATE: 9,
+  AVERAGE_QUALITY: 10, NOTES: 11
+};
 
- var _memberRepo = null;
+var MEMBER_SCHEMA = {
+  id: 1, fullName: 2, role: 3, email: 4, phone: 5, status: 6,
+  joinDate: 7, kpiScore: 8, tasksCompleted: 9, tasksLate: 10,
+  averageQuality: 11, notes: 12
+};
 
- function _ensureMemberSheet() {
- var ss = SpreadsheetApp.getActiveSpreadsheet();
- var sheet = ss.getSheetByName('Members');
- if (!sheet) {
- sheet = ss.insertSheet('Members');
- var headers = ['id','name','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes','department'];
- sheet.appendRow(headers);
- sheet.getRange(1, 1, 1, headers.length)
- .setFontWeight('bold')
- .setBackground('#1a237e')
- .setFontColor('#ffffff');
- for (var i = 1; i <= headers.length; i++) sheet.setColumnWidth(i, 20);
- Logger.info('Members', 'Members sheet created with 13 columns');
- }
- return sheet;
- }
+var _memberRepo = null;
 
- function _getMemberRepo() {
- if (!_memberRepo) {
- _ensureMemberSheet();
- _memberRepo = BaseRepository.create('Members', MEMBER_SCHEMA, { eventName: 'member' });
- }
- return _memberRepo;
- }
-
- function _memberObjectToArray(obj) {
- var arr = new Array(13).fill('');
- arr[0] = obj.id || '';
- arr[1] = obj.name || '';
- arr[2] = obj.role || '';
- arr[3] = obj.email || '';
- arr[4] = obj.phone || '';
- arr[5] = obj.status || '';
- arr[6] = obj.joinDate || '';
- arr[7] = obj.kpiScore !== undefined ? obj.kpiScore : 0;
- arr[8] = obj.tasksCompleted !== undefined ? obj.tasksCompleted : 0;
- arr[9] = obj.tasksLate !== undefined ? obj.tasksLate : 0;
- arr[10] = obj.averageQuality !== undefined ? obj.averageQuality : 0;
- arr[11] = obj.notes || '';
- arr[12] = obj.department || '';
- return arr;
- }
-
- /* ───────────────────────────────────────────
- 1. CRUD OPERATIONS
+/* ───────────────────────────────────────────
+ 1. SAFE STRING HELPER (prevents "illegal value in property: 0")
  ─────────────────────────────────────────── */
 
- function addMember(member) {
- if (!member || !member.name) {
- throw ErrorHandler.validation('Member name is required', {}, 'Members');
- }
- if (!member.email) {
- throw ErrorHandler.validation('Member email is required', {}, 'Members');
- }
+function _safeString(value) {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Error) return "#ERROR";
+  if (value instanceof Date) {
+    try {
+      return Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
+    } catch (e) {
+      return String(value);
+    }
+  }
+  return String(value).trim();
+}
 
- var data = {
- name: member.name,
- role: member.role || 'viewer',
- email: member.email,
- phone: member.phone || '',
- status: 'Active',
- joinDate: new Date().toISOString(),
- kpiScore: 0,
- tasksCompleted: 0,
- tasksLate: 0,
- averageQuality: 0,
- notes: member.notes || '',
- department: member.department || 'General'
- };
+function _safeNumber(value) {
+  var n = Number(value);
+  return isNaN(n) ? 0 : n;
+}
 
- var created = _getMemberRepo().create(data);
- Logger.info('Members', 'Member created', { id: created.id, name: created.name });
- return created.id;
- }
-
- function getMembers() {
- var all = [];
- var offset = 0;
- var page;
- do {
- page = _getMemberRepo().findAll({ limit: 1000, offset: offset });
- all = all.concat(page.data.map(_memberObjectToArray));
- offset += 1000;
- } while (page.hasMore);
- return all;
- }
-
- function getMember(name) {
- var found = _getMemberRepo().findOne(function(m) { return m.name === name; });
- return found ? _memberObjectToArray(found) : null;
- }
-
- function getMemberById(id) {
- var found = _getMemberRepo().findById(id);
- return found ? _memberObjectToArray(found) : null;
- }
-
- function updateMember(id, data) {
- var updates = {};
- if (data.name !== undefined) updates.name = data.name;
- if (data.role !== undefined) updates.role = data.role;
- if (data.email !== undefined) updates.email = data.email;
- if (data.phone !== undefined) updates.phone = data.phone;
- if (data.status !== undefined) updates.status = data.status;
- if (data.notes !== undefined) updates.notes = data.notes;
- if (data.kpiScore !== undefined) updates.kpiScore = data.kpiScore;
- if (data.tasksCompleted !== undefined) updates.tasksCompleted = data.tasksCompleted;
- if (data.tasksLate !== undefined) updates.tasksLate = data.tasksLate;
- if (data.averageQuality !== undefined) updates.averageQuality = data.averageQuality;
- if (data.department !== undefined) updates.department = data.department;
-
- _getMemberRepo().update(id, updates);
- Logger.info('Members', 'Member updated', { id: id });
- return true;
- }
-
- function deleteMember(id) {
- _getMemberRepo().delete(id);
- Logger.info('Members', 'Member deleted', { id: id });
- return true;
- }
-
- /* ───────────────────────────────────────────
- 2. QUERIES & FILTERS
+/* ───────────────────────────────────────────
+ 2. SHEET & REPOSITORY
  ─────────────────────────────────────────── */
 
- function activeMembers() {
- return getMembers().filter(function(m) { return m[MEMBER_COL.STATUS] === 'Active'; });
- }
+function _ensureMemberSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Members');
+  if (!sheet) {
+    sheet = ss.insertSheet('Members');
+    var headers = ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes'];
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold')
+      .setBackground('#1a237e')
+      .setFontColor('#ffffff');
+    for (var i = 1; i <= headers.length; i++) sheet.setColumnWidth(i, 20);
+    console.log('[Members] Sheet created with 12 columns');
+  }
+  return sheet;
+}
 
- function inactiveMembers() {
- return getMembers().filter(function(m) { return m[MEMBER_COL.STATUS] !== 'Active'; });
- }
+function _getMemberRepo() {
+  if (!_memberRepo) {
+    _ensureMemberSheet();
+    _memberRepo = BaseRepository.create('Members', MEMBER_SCHEMA, { eventName: 'member' });
+  }
+  return _memberRepo;
+}
 
- function totalMembers() {
- return _getMemberRepo().count();
- }
-
- // Phase 8A: New query methods
- function getMembersByDepartment(dept) {
- if (!dept) return [];
- var idx = MEMBER_SCHEMA.department - 1; // 0-based index
- return getMembers().filter(function(m) { return m[idx] === dept; });
- }
-
- function getMemberByEmail(email) {
- if (!email) return null;
- var found = _getMemberRepo().findOne(function(m) { return m.email === email; });
- return found ? _memberObjectToArray(found) : null;
- }
-
- /* ───────────────────────────────────────────
- 3. WORKLOAD & PERFORMANCE
+/* ───────────────────────────────────────────
+ 3. ARRAY ↔ OBJECT MAPPING (with sanitization)
  ─────────────────────────────────────────── */
 
- function memberTaskCount(member) {
- var name = Array.isArray(member) ? member[MEMBER_COL.FULL_NAME] : member;
- if (typeof getMemberTasks === 'function') {
- try { return getMemberTasks(name).length; } catch(e) {}
- }
- if (Array.isArray(member)) return member[MEMBER_COL.TASKS_COMPLETED] || 0;
- return 0;
- }
+function _memberObjectToArray(obj) {
+  var arr = new Array(12).fill('');
+  arr[MEMBER_COL.ID] = _safeString(obj.id);
+  arr[MEMBER_COL.FULL_NAME] = _safeString(obj.fullName || obj.name);
+  arr[MEMBER_COL.ROLE] = _safeString(obj.role);
+  arr[MEMBER_COL.EMAIL] = _safeString(obj.email);
+  arr[MEMBER_COL.PHONE] = _safeString(obj.phone);
+  arr[MEMBER_COL.STATUS] = _safeString(obj.status || 'Active');
+  arr[MEMBER_COL.JOIN_DATE] = _safeString(obj.joinDate || new Date().toISOString().split('T')[0]);
+  arr[MEMBER_COL.KPI_SCORE] = _safeNumber(obj.kpiScore);
+  arr[MEMBER_COL.TASKS_COMPLETED] = _safeNumber(obj.tasksCompleted);
+  arr[MEMBER_COL.TASKS_LATE] = _safeNumber(obj.tasksLate);
+  arr[MEMBER_COL.AVERAGE_QUALITY] = _safeNumber(obj.averageQuality);
+  arr[MEMBER_COL.NOTES] = _safeString(obj.notes);
+  return arr;
+}
 
- function memberActiveTasks(member) {
- var name = Array.isArray(member) ? member[MEMBER_COL.FULL_NAME] : member;
- if (typeof getMemberTasks === 'function') {
- try {
- return getMemberTasks(name).filter(function(task) {
- return task[6] === 'In Progress' || task[6] === 'Waiting Review' || task[6] === 'Not Started';
- }).length;
- } catch(e) {}
- }
- return 0;
- }
+function _sanitizeMemberArray(arr) {
+  if (!arr || !Array.isArray(arr)) return arr;
+  var out = new Array(arr.length);
+  for (var i = 0; i < arr.length; i++) {
+    out[i] = _safeString(arr[i]);
+  }
+  return out;
+}
 
- function memberWorkload(member) {
- var active = memberActiveTasks(member);
- var capacity = 10;
- return Math.round((active / capacity) * 100);
- }
-
- function isMemberAvailable(member) {
- return memberWorkload(member) < 100;
- }
-
- function getAvailableMember() {
- var members = activeMembers();
- var selected = null;
- var minWorkload = 999;
-
- members.forEach(function(m) {
- var wl = memberWorkload(m);
- if (wl < minWorkload) {
- minWorkload = wl;
- selected = m;
- }
- });
-
- return selected;
- }
-
- function autoAssignTask(taskId) {
- var member = getAvailableMember();
- if (!member) return false;
- if (typeof assignTask === 'function') {
- try {
- assignTask(taskId, member[MEMBER_COL.FULL_NAME]);
- return true;
- } catch(e) {
- Logger.warn('Members', 'autoAssignTask failed', { error: e.message, taskId: taskId });
- }
- }
- return false;
- }
-
- // Phase 8A: Member task stats using TaskService (not legacy getMemberTasks)
- function getMemberTaskStats(memberName, startDate, endDate) {
- var result;
- if (startDate || endDate) {
- result = TaskService.getTasksByAssigneeAndDateRange(memberName, startDate, endDate);
- } else {
- result = TaskService.getTasksByMember(memberName);
- }
- var tasks = result && result.data ? result.data : [];
- var total = tasks.length;
- var approved = 0, active = 0, totalWeightedScore = 0, totalQuality = 0;
- tasks.forEach(function(t) {
- if (t.status === 'Approved') approved++;
- if (t.status === 'In Progress') active++;
- totalWeightedScore += Number(t.weightedScore || 0);
- totalQuality += Number(t.quality || 0);
- });
- return {
- name: memberName,
- totalTasks: total,
- approvedTasks: approved,
- activeTasks: active,
- averageWeightedScore: total > 0 ? Math.round((totalWeightedScore / total) * 100) / 100 : 0,
- averageQuality: total > 0 ? Math.round((totalQuality / total) * 100) / 100 : 0
- };
- }
-
- /* ───────────────────────────────────────────
- 4. RANKINGS (fixed: no mutation of original arrays)
+/* ───────────────────────────────────────────
+ 4. CRUD OPERATIONS
  ─────────────────────────────────────────── */
 
- function topProductiveMembers(limit) {
- limit = limit || 5;
- var members = getMembers().slice();
- members.sort(function(a, b) { return b[MEMBER_COL.KPI_SCORE] - a[MEMBER_COL.KPI_SCORE]; });
- return members.slice(0, limit);
- }
+function addMember(member) {
+  if (!member || !member.name) {
+    throw new Error("Member name is required");
+  }
+  if (!member.email) {
+    throw new Error("Member email is required");
+  }
 
- function mostLateMembers(limit) {
- limit = limit || 5;
- var members = getMembers().slice();
- members.sort(function(a, b) { return b[MEMBER_COL.TASKS_LATE] - a[MEMBER_COL.TASKS_LATE]; });
- return members.slice(0, limit);
- }
-
- function lowestQualityMembers(limit) {
- limit = limit || 5;
- var members = getMembers().slice();
- members.sort(function(a, b) { return a[MEMBER_COL.AVERAGE_QUALITY] - b[MEMBER_COL.AVERAGE_QUALITY]; });
- return members.slice(0, limit);
- }
-
- /* ───────────────────────────────────────────
- 5. DASHBOARD & REFRESH
- ─────────────────────────────────────────── */
-
- function refreshMembersDashboard() {
- return [
- ["Members", totalMembers()],
- ["Active Members", activeMembers().length],
- ["Average Team KPI", typeof teamAverageKPI === 'function' ? teamAverageKPI() : 0]
- ];
- }
-
- function refreshMembers() {
- refreshMembersDashboard();
- }
-
-// ─── GLOBAL EXPORT (Phase 8A) ───
-var Members = {
-    addMember: addMember,
-    getMembers: getMembers,
-    getMember: getMember,
-    getMemberById: getMemberById,
-    getMemberByEmail: getMemberByEmail,
-    updateMember: updateMember,
-    deleteMember: deleteMember,
-    activeMembers: activeMembers,
-    inactiveMembers: inactiveMembers,
-    totalMembers: totalMembers,
-    getMembersByDepartment: getMembersByDepartment,
-    getMemberTaskStats: getMemberTaskStats,
-    topProductiveMembers: topProductiveMembers,
-    mostLateMembers: mostLateMembers,
-    lowestQualityMembers: lowestQualityMembers,
-    getAvailableMember: getAvailableMember,
-    memberWorkload: memberWorkload,
-    isMemberAvailable: isMemberAvailable,
-    autoAssignTask: autoAssignTask,
-    refreshMembers: refreshMembers,
-    refreshMembersDashboard: refreshMembersDashboard,
-    memberTaskCount: memberTaskCount,
-    memberActiveTasks: memberActiveTasks,
-    SCHEMA: MEMBER_SCHEMA
+  var data = {
+    name: member.name,
+    role: member.role || 'viewer',
+    email: member.email,
+    phone: member.phone || '',
+    status: 'Active',
+    joinDate: new Date().toISOString(),
+    kpiScore: 0,
+    tasksCompleted: 0,
+    tasksLate: 0,
+    averageQuality: 0,
+    notes: member.notes || ''
   };
+
+  var created = _getMemberRepo().create(data);
+  console.log('[Members] Member created: ' + created.id + ' / ' + created.name);
+  return created.id;
+}
+
+function getMembers() {
+  var all = [];
+  var offset = 0;
+  var page;
+  do {
+    page = _getMemberRepo().findAll({ limit: 1000, offset: offset });
+    all = all.concat(page.data.map(_memberObjectToArray).map(_sanitizeMemberArray));
+    offset += 1000;
+  } while (page.hasMore);
+  return all;
+}
+
+function getMember(name) {
+  var found = _getMemberRepo().findOne(function(m) { return m.name === name; });
+  return found ? _sanitizeMemberArray(_memberObjectToArray(found)) : null;
+}
+
+function getMemberById(id) {
+  var found = _getMemberRepo().findById(id);
+  return found ? _sanitizeMemberArray(_memberObjectToArray(found)) : null;
+}
+
+function updateMember(id, data) {
+  var updates = {};
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.role !== undefined) updates.role = data.role;
+  if (data.email !== undefined) updates.email = data.email;
+  if (data.phone !== undefined) updates.phone = data.phone;
+  if (data.status !== undefined) updates.status = data.status;
+  if (data.notes !== undefined) updates.notes = data.notes;
+  if (data.kpiScore !== undefined) updates.kpiScore = data.kpiScore;
+  if (data.tasksCompleted !== undefined) updates.tasksCompleted = data.tasksCompleted;
+  if (data.tasksLate !== undefined) updates.tasksLate = data.tasksLate;
+  if (data.averageQuality !== undefined) updates.averageQuality = data.averageQuality;
+
+  _getMemberRepo().update(id, updates);
+  console.log('[Members] Member updated: ' + id);
+  return true;
+}
+
+function deleteMember(id) {
+  _getMemberRepo().delete(id);
+  console.log('[Members] Member deleted: ' + id);
+  return true;
+}
+
+/* ───────────────────────────────────────────
+ 5. QUERIES & FILTERS
+ ─────────────────────────────────────────── */
+
+function activeMembers() {
+  return getMembers().filter(function(m) {
+    return _safeString(m[MEMBER_COL.STATUS]).toLowerCase() === 'active';
+  });
+}
+
+function inactiveMembers() {
+  return getMembers().filter(function(m) {
+    return _safeString(m[MEMBER_COL.STATUS]).toLowerCase() !== 'active';
+  });
+}
+
+function totalMembers() {
+  return _getMemberRepo().count();
+}
+
+function getMemberByEmail(email) {
+  if (!email) return null;
+  var search = _safeString(email).toLowerCase();
+  var found = _getMemberRepo().findOne(function(m) {
+    return _safeString(m.email).toLowerCase() === search;
+  });
+  return found ? _sanitizeMemberArray(_memberObjectToArray(found)) : null;
+}
+
+/* ───────────────────────────────────────────
+ 6. WORKLOAD & PERFORMANCE
+ ─────────────────────────────────────────── */
+
+function memberTaskCount(member) {
+  var name = Array.isArray(member) ? _safeString(member[MEMBER_COL.FULL_NAME]) : member;
+  if (typeof getMemberTasks === 'function') {
+    try { return getMemberTasks(name).length; } catch(e) {}
+  }
+  if (Array.isArray(member)) return _safeNumber(member[MEMBER_COL.TASKS_COMPLETED]);
+  return 0;
+}
+
+function memberActiveTasks(member) {
+  var name = Array.isArray(member) ? _safeString(member[MEMBER_COL.FULL_NAME]) : member;
+  if (typeof getMemberTasks === 'function') {
+    try {
+      return getMemberTasks(name).filter(function(task) {
+        var status = _safeString(task[6]);
+        return status === 'In Progress' || status === 'Waiting Review' || status === 'Not Started';
+      }).length;
+    } catch(e) {}
+  }
+  return 0;
+}
+
+function memberWorkload(member) {
+  var active = memberActiveTasks(member);
+  var capacity = 10;
+  return Math.round((active / capacity) * 100);
+}
+
+function isMemberAvailable(member) {
+  return memberWorkload(member) < 100;
+}
+
+function getAvailableMember() {
+  var members = activeMembers();
+  var selected = null;
+  var minWorkload = 999;
+
+  members.forEach(function(m) {
+    var wl = memberWorkload(m);
+    if (wl < minWorkload) {
+      minWorkload = wl;
+      selected = m;
+    }
+  });
+
+  return selected;
+}
+
+function autoAssignTask(taskId) {
+  var member = getAvailableMember();
+  if (!member) return false;
+  if (typeof assignTask === 'function') {
+    try {
+      assignTask(taskId, _safeString(member[MEMBER_COL.FULL_NAME]));
+      return true;
+    } catch(e) {
+      console.log('[Members] autoAssignTask failed: ' + e.message);
+    }
+  }
+  return false;
+}
+
+function getMemberTaskStats(memberName, startDate, endDate) {
+  var result;
+  if (startDate || endDate) {
+    result = TaskService.getTasksByAssigneeAndDateRange(memberName, startDate, endDate);
+  } else {
+    result = TaskService.getTasksByMember(memberName);
+  }
+  var tasks = result && result.data ? result.data : [];
+  var total = tasks.length;
+  var approved = 0, active = 0, totalWeightedScore = 0, totalQuality = 0;
+  tasks.forEach(function(t) {
+    if (t.status === 'Approved') approved++;
+    if (t.status === 'In Progress') active++;
+    totalWeightedScore += _safeNumber(t.weightedScore);
+    totalQuality += _safeNumber(t.quality);
+  });
+  return {
+    name: memberName,
+    totalTasks: total,
+    approvedTasks: approved,
+    activeTasks: active,
+    averageWeightedScore: total > 0 ? Math.round((totalWeightedScore / total) * 100) / 100 : 0,
+    averageQuality: total > 0 ? Math.round((totalQuality / total) * 100) / 100 : 0
+  };
+}
+
+/* ───────────────────────────────────────────
+ 7. RANKINGS (fixed: no mutation of original arrays)
+ ─────────────────────────────────────────── */
+
+function topProductiveMembers(limit) {
+  limit = limit || 5;
+  var members = getMembers().slice();
+  members.sort(function(a, b) {
+    return _safeNumber(b[MEMBER_COL.KPI_SCORE]) - _safeNumber(a[MEMBER_COL.KPI_SCORE]);
+  });
+  return members.slice(0, limit).map(_sanitizeMemberArray);
+}
+
+function mostLateMembers(limit) {
+  limit = limit || 5;
+  var members = getMembers().slice();
+  members.sort(function(a, b) {
+    return _safeNumber(b[MEMBER_COL.TASKS_LATE]) - _safeNumber(a[MEMBER_COL.TASKS_LATE]);
+  });
+  return members.slice(0, limit).map(_sanitizeMemberArray);
+}
+
+function lowestQualityMembers(limit) {
+  limit = limit || 5;
+  var members = getMembers().slice();
+  members.sort(function(a, b) {
+    return _safeNumber(a[MEMBER_COL.AVERAGE_QUALITY]) - _safeNumber(b[MEMBER_COL.AVERAGE_QUALITY]);
+  });
+  return members.slice(0, limit).map(_sanitizeMemberArray);
+}
+
+/* ───────────────────────────────────────────
+ 8. DASHBOARD & REFRESH
+ ─────────────────────────────────────────── */
+
+function refreshMembersDashboard() {
+  return [
+    ["Members", totalMembers()],
+    ["Active Members", activeMembers().length],
+    ["Average Team KPI", typeof teamAverageKPI === 'function' ? teamAverageKPI() : 0]
+  ];
+}
+
+function refreshMembers() {
+  refreshMembersDashboard();
+}
+
+/* ───────────────────────────────────────────
+ 9. GLOBAL EXPORT
+ ─────────────────────────────────────────── */
+
+var Members = {
+  addMember: addMember,
+  getMembers: getMembers,
+  getMember: getMember,
+  getMemberById: getMemberById,
+  getMemberByEmail: getMemberByEmail,
+  updateMember: updateMember,
+  deleteMember: deleteMember,
+  activeMembers: activeMembers,
+  inactiveMembers: inactiveMembers,
+  totalMembers: totalMembers,
+  getMemberTaskStats: getMemberTaskStats,
+  topProductiveMembers: topProductiveMembers,
+  mostLateMembers: mostLateMembers,
+  lowestQualityMembers: lowestQualityMembers,
+  getAvailableMember: getAvailableMember,
+  memberWorkload: memberWorkload,
+  isMemberAvailable: isMemberAvailable,
+  autoAssignTask: autoAssignTask,
+  refreshMembers: refreshMembers,
+  refreshMembersDashboard: refreshMembersDashboard,
+  memberTaskCount: memberTaskCount,
+  memberActiveTasks: memberActiveTasks,
+  SCHEMA: MEMBER_SCHEMA,
+  COL: MEMBER_COL
+};
