@@ -35,7 +35,13 @@ if (typeof PERMISSIONS === "undefined" || !PERMISSIONS) var PERMISSIONS = {};
 
 // ─── AUTH HELPERS ───
 function _requireAuth(permission) {
-  var member = getCurrentMember();
+  var member = null;
+try { 
+  member = getCurrentMember(); 
+  if (member instanceof Error) member = null;
+} catch(e) { 
+  member = null; 
+}
   if (!member) {
     var email = "";
     try { email = Session.getActiveUser().getEmail(); } catch(e) {}
