@@ -440,6 +440,11 @@
       for (var j = 1; j < data.length; j++) {
         var rowEmail = String(data[j][emailIdx] || '').toLowerCase().trim();
         if (rowEmail === email.toLowerCase().trim()) {
+                    // ✅ Check status — only Active members allowed
+                    if (statusIdx !== -1) {
+                      var rowStatus = String(data[j][statusIdx] || '').toLowerCase().trim();
+                      if (rowStatus !== 'active') return null;
+                    }
           // ✅ sanitize: convert any Error objects to safe strings
           var sanitized = [];
           for (var k = 0; k < data[j].length; k++) {
@@ -462,58 +467,6 @@
       return null;
     } catch (e) {
       console.error('[getCurrentMember_PATCH] ' + e.message);
-      return null;
-    }
-  }
- 
-  function getCurrentMember_SAFE() {
-    try {
-      var email = Session.getActiveUser().getEmail();
-      if (!email) return null;
-  
-      var ss = SpreadsheetApp.getActiveSpreadsheet();
-      var sheet = ss.getSheetByName('Members');
-      if (!sheet) return null;
-  
-      var data = sheet.getDataRange().getValues();
-      if (data.length < 2) return null;
-  
-      var headers = data[0];
-      var emailIdx = -1, roleIdx = -1, nameIdx = -1;
-      for (var i = 0; i < headers.length; i++) {
-        var h = String(headers[i] || '').toLowerCase().trim();
-        if (h === 'email') emailIdx = i;
-        if (h === 'role') roleIdx = i;
-        if (h === 'fullname' || h === 'full_name' || h === 'name') nameIdx = i;
-      }
-  
-      if (emailIdx === -1) return null;
-  
-      for (var j = 1; j < data.length; j++) {
-        var rowEmail = String(data[j][emailIdx] || '').toLowerCase().trim();
-        if (rowEmail === email.toLowerCase().trim()) {
-          // ✅ sanitize: convert any Error objects to strings
-          var sanitized = [];
-          for (var k = 0; k < data[j].length; k++) {
-            var val = data[j][k];
-            if (val instanceof Error) {
-              sanitized.push('#ERROR');
-            } else if (val instanceof Date) {
-              try {
-                sanitized.push(Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd'));
-              } catch (e) {
-                sanitized.push(String(val));
-              }
-            } else {
-              sanitized.push(String(val || ''));
-            }
-          }
-          return sanitized;
-        }
-      }
-      return null;
-    } catch (e) {
-      console.error('[getCurrentMember_SAFE] ' + e.message);
       return null;
     }
   }

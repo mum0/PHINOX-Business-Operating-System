@@ -132,34 +132,39 @@ function getCurrentMemberRole() {
     var email = Session.getActiveUser().getEmail();
     if (!email) return 'GUEST';
 
-    // Spreadsheet owner is always treated as Admin
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     try {
       var owner = ss.getOwner().getEmail();
       if (owner && owner === email) {
         return 'ADMIN';
       }
-    } catch (e) {
-      // getOwner may fail in some contexts — continue
-    }
+    } catch (e) {}
 
     var sheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
     if (!sheet) return 'GUEST';
 
     var data = sheet.getDataRange().getValues();
     var headers = data[0];
-    var emailCol = headers.indexOf('email');
-    var roleCol = headers.indexOf('role');
-    var statusCol = headers.indexOf('status');
+
+    // ✅ Case-insensitive header search
+    var emailCol = -1, roleCol = -1, statusCol = -1;
+    for (var h = 0; h < headers.length; h++) {
+      var hdr = String(headers[h] || '').toLowerCase().trim();
+      if (hdr === 'email') emailCol = h;
+      if (hdr === 'role') roleCol = h;
+      if (hdr === 'status') statusCol = h;
+    }
 
     if (emailCol === -1 || roleCol === -1) return 'GUEST';
 
     for (var i = 1; i < data.length; i++) {
-      if (data[i][emailCol] === email) {
-        if (statusCol !== -1 && data[i][statusCol] === 'inactive') {
-          return 'GUEST';
+      var rowEmail = String(data[i][emailCol] || '').toLowerCase().trim();
+      if (rowEmail === email.toLowerCase().trim()) {
+        if (statusCol !== -1) {
+          var st = String(data[i][statusCol] || '').toLowerCase().trim();
+          if (st === 'inactive' || st === 'disabled') return 'GUEST';
         }
-        return data[i][roleCol] || 'GUEST';
+        return String(data[i][roleCol] || 'GUEST').toUpperCase().trim();
       }
     }
     return 'GUEST';

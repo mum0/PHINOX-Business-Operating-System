@@ -109,135 +109,68 @@ function _auditLog(action, target, details, status) {
 // USER AUTH API
 // ============================================================
 
-
-/**
- * Get current user data — FIXED version
- * Uses getCurrentMember_SAFE() instead of getCurrentMember() to avoid Error objects
- */
 function uiGetCurrentUser() {
   try {
     var email = Session.getActiveUser().getEmail();
-    console.log('[uiGetCurrentUser] email=' + (email || 'null'));
-
     if (!email) {
-      return { email: null, role: 'GUEST', member: null, error: null };
+      return { email: '', role: 'GUEST', member: null, ts: '' };
     }
 
-    // ✅ Use SAFE version that sanitizes Error objects
-    var member = null;
+    var rawMember = null;
     try {
-      if (typeof getCurrentMember_SAFE === 'function') {
-        member = getCurrentMember_SAFE();
-      } else if (typeof getCurrentMember === 'function') {
-        member = getCurrentMember();
-        // Sanitize if it returned an Error
-        if (member instanceof Error) {
-          console.warn('[uiGetCurrentUser] getCurrentMember returned Error');
-          member = null;
-        }
+      if (typeof getCurrentMember === 'function') {
+        rawMember = getCurrentMember();
       }
     } catch (e) {
       console.warn('[uiGetCurrentUser] getCurrentMember failed: ' + e.message);
-      member = null;
+    }
+
+    // ✅ Convert array to plain object — prevents "illegal value in property: 0"
+    var member = null;
+    if (rawMember && Array.isArray(rawMember) && rawMember.length > 0) {
+      member = {
+        id:     String(rawMember[0] != null ? rawMember[0] : ''),
+        name:   String(rawMember[1] != null ? rawMember[1] : ''),
+        role:   String(rawMember[2] != null ? rawMember[2] : 'GUEST'),
+        email:  String(rawMember[3] != null ? rawMember[3] : ''),
+        phone:  String(rawMember[4] != null ? rawMember[4] : ''),
+        status: String(rawMember[5] != null ? rawMember[5] : '')
+      };
     }
 
     var role = 'GUEST';
     try {
-      if (typeof Security !== 'undefined' && Security.getUserRole) {
+      if (typeof Security !== 'undefined' && typeof Security.getUserRole === 'function') {
         role = Security.getUserRole();
-      } else if (member && member[2]) {
-        role = String(member[2] || 'GUEST').toUpperCase().trim();
+      } else if (member && member.role) {
+        role = String(member.role).toUpperCase().trim();
       }
     } catch (e) {
-      console.warn('[uiGetCurrentUser] role resolution failed: ' + e.message);
-    }
-
-    console.log('[uiGetCurrentUser] role=' + role);
-
-    // Build result — ensure NO Error objects anywhere
-    var result = {
-      email: String(email),
-      role: String(role),
-      member: member,
-      timestamp: new Date().toISOString(),
-      error: null
-    };
-
-    // Final safety: convert any remaining Error objects
-    for (var key in result) {
-      if (result[key] instanceof Error) {
-        result[key] = '#ERROR:' + result[key].message;
+      if (member && member.role) {
+        role = String(member.role).toUpperCase().trim();
       }
     }
+    role = String(role || 'GUEST').toUpperCase().trim();
 
-    return result;
+    // ✅ NO arrays, NO null error property, NO Date objects in return
+    return {
+      email:  String(email || ''),
+      role:   String(role),
+      member: member,
+      ts:     new Date().toISOString()
+    };
 
   } catch (e) {
     console.error('[uiGetCurrentUser] FATAL: ' + e.message);
     return {
-      email: null,
-      role: 'GUEST',
+      email: '',
+      role:  'GUEST',
       member: null,
-      timestamp: new Date().toISOString(),
-      error: String(e.message)
+      ts:     new Date().toISOString()
     };
   }
 }
 
-/**
- * SAFE version of getCurrentMember — reads Members sheet directly
- * Sanitizes all values to prevent "illegal value in property" errors
- */
-function getCurrentMember_SAFE() {
-  try {
-    var email = Session.getActiveUser().getEmail();
-    if (!email) return null;
-
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName('Members');
-    if (!sheet) return null;
-
-    var data = sheet.getDataRange().getValues();
-    if (data.length < 2) return null;
-
-    var headers = data[0];
-    var emailIdx = -1;
-    for (var i = 0; i < headers.length; i++) {
-      if (String(headers[i] || '').toLowerCase().trim() === 'email') {
-        emailIdx = i;
-        break;
-      }
-    }
-    if (emailIdx === -1) return null;
-
-    for (var j = 1; j < data.length; j++) {
-      var rowEmail = String(data[j][emailIdx] || '').toLowerCase().trim();
-      if (rowEmail === email.toLowerCase().trim()) {
-        // Sanitize entire row
-        var sanitized = [];
-        for (var k = 0; k < data[j].length; k++) {
-          var val = data[j][k];
-          if (val instanceof Error) {
-            sanitized.push('#ERROR');
-          } else if (val instanceof Date) {
-            try {
-              sanitized.push(Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd'));
-            } catch (e) {
-              sanitized.push(String(val));
-            }
-          } else {
-            sanitized.push(String(val !== null && val !== undefined ? val : ''));
-          }
-        }
-        return sanitized;
-      }
-    }
-    return null;
-  } catch (e) {
-    console.error('[getCurrentMember_SAFE] ' + e.message);
-    return null;
-  }
-}
 // ============================================================
 // KPI APIs
 // ============================================================
@@ -1433,107 +1366,4 @@ function _handleDoGetInternal(e) {
   return HtmlService.createHtmlOutputFromFile("UI_Index")
     .setTitle("PHINOX BOS")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-// ============================================================
-// DIAGNOSTIC API (temporary - remove after fixing)
-// ============================================================
-
-function uiDiagnose() {
-  var result = { checks: [] };
-  function check(name, pass, detail) {
-    result.checks.push({ name: name, pass: !!pass, detail: detail || '' });
-  }
-
-  try {
-    // 1. Session email
-    var email = '';
-    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
-    check('Session.getEmail', email.length > 0, email || 'empty');
-
-    // 2. Spreadsheet
-    var ss = null;
-    try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
-    check('ActiveSpreadsheet', ss !== null, ss ? ss.getName() : e.message);
-
-    // 3. Members sheet
-    if (ss) {
-      var ms = ss.getSheetByName('Members');
-      check('Members sheet exists', ms !== null, '');
-
-      if (ms) {
-        var lastRow = ms.getLastRow();
-        var lastCol = ms.getLastColumn();
-        check('Members data rows', lastRow > 1, 'rows=' + lastRow + ' (1=header)');
-        check('Members columns', lastCol >= 12, 'cols=' + lastCol + ' (need 12)');
-
-        // 4. Read headers
-        var headers = ms.getRange(1, 1, 1, lastCol).getValues()[0];
-        check('Members headers', headers.length > 0, headers.join(' | '));
-
-        // 5. Find current user
-        if (email && lastRow > 1) {
-          var data = ms.getRange(2, 1, lastRow - 1, lastCol).getValues();
-          var found = false;
-          var matchInfo = [];
-          for (var i = 0; i < data.length; i++) {
-            var rowEmail = String(data[i][3] || '').trim().toLowerCase();
-            var rowStatus = String(data[i][5] || '').trim();
-            if (rowEmail === email.toLowerCase()) {
-              found = true;
-              matchInfo.push({ row: i+2, status: rowStatus, name: data[i][1], role: data[i][2] });
-            }
-          }
-          check('Email match in Members', found, matchInfo.length > 0 ? JSON.stringify(matchInfo) : 'No match for: ' + email);
-
-          if (found) {
-            var isActive = matchInfo.some(function(m) { return m.status === 'Active'; });
-            check('Status is Active', isActive, JSON.stringify(matchInfo));
-          }
-        }
-
-        // 6. Check CONFIG
-        check('CONFIG defined', typeof CONFIG !== 'undefined', CONFIG ? 'v' + CONFIG.APP.VERSION : 'missing');
-        check('CONFIG.SHEETS.MEMBERS', CONFIG && CONFIG.SHEETS && CONFIG.SHEETS.MEMBERS === 'Members', '');
-
-        // 7. Check BaseRepository
-        check('BaseRepository defined', typeof BaseRepository !== 'undefined', '');
-
-        // 8. Check ErrorHandler
-        check('ErrorHandler defined', typeof ErrorHandler !== 'undefined', '');
-
-        // 9. Check Logger
-        check('Logger defined', typeof Logger !== 'undefined', '');
-        check('console.log exists', typeof Logger !== 'undefined' && typeof console.log === 'function', typeof Logger !== 'undefined' ? Object.keys(Logger).join(',') : 'N/A');
-
-        // 10. Check RateLimiter
-        check('RateLimiter defined', typeof RateLimiter !== 'undefined', '');
-
-        // 11. Check Security
-        check('Security defined', typeof Security !== 'undefined', '');
-        if (typeof Security !== 'undefined' && typeof Security.getUserRole === 'function') {
-          var role = 'ERROR';
-          try { role = Security.getUserRole(); } catch(e) { role = 'ERROR: ' + e.message; }
-          check('Security.getUserRole()', role !== 'GUEST' && role !== 'ERROR', 'role=' + role);
-        }
-
-        // 12. Check getCurrentMember
-        if (typeof getCurrentMember === 'function') {
-          var member = null;
-          try { member = getCurrentMember(); } catch(e) {
-            check('getCurrentMember()', false, e.message);
-          }
-          if (member) {
-            check('getCurrentMember()', true, 'name=' + member[1] + ' role=' + member[2]);
-          } else if (!result.checks.some(function(c) { return c.name === 'getCurrentMember()'; })) {
-            check('getCurrentMember()', false, 'returned null');
-          }
-        }
-      }
-    }
-  } catch (e) {
-    check('DIAGNOSTIC ERROR', false, e.message);
-  }
-
-  return result;
 }
