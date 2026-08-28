@@ -1,19 +1,25 @@
-# Dependencies
+#Dependencies
 node_modules/
-
-# Environment
+#Environment
 .env
 .env.*
-
-# Google Clasp credentials
+#Google Clasp credentials
 .clasprc.json
-
-# OS
+.clasp.json
+#OS
 .DS_Store
 Thumbs.db
-
-# Logs
+#Logs
 *.log
-
-# Temporary files
+#Temporary files
 *.tmp
+#IDE
+.vscode/
+.idea/
+Backups
+backups/
+*.backup.gs
+#AI / Docs
+ai/
+plain
+ai/
