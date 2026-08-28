@@ -266,7 +266,7 @@ function saveBOM() {
     
     // Step 2: Add components one by one
     var promises = _bomComponents.map(function(c) {
-      return callServer('uiAddBOMItem', { bomId: bom.id, data: { componentSku: c.componentSku, quantity: c.qty, unit: c.unit } });
+      return callServer('uiAddBOMItem', bom.id, { componentSku: c.componentSku, quantity: c.qty, unit: c.unit });
     });
     
     return Promise.all(promises);
@@ -313,4 +313,5 @@ function calculateCostMargin() {
     document.getElementById('costResultContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
   });
 }
+
 </script>

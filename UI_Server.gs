@@ -35,13 +35,7 @@ if (typeof PERMISSIONS === "undefined" || !PERMISSIONS) var PERMISSIONS = {};
 
 // ─── AUTH HELPERS ───
 function _requireAuth(permission) {
-  var member = null;
-try { 
-  member = getCurrentMember(); 
-  if (member instanceof Error) member = null;
-} catch(e) { 
-  member = null; 
-}
+  var member = getCurrentMember();
   if (!member) {
     var email = "";
     try { email = Session.getActiveUser().getEmail(); } catch(e) {}
@@ -111,66 +105,46 @@ function _auditLog(action, target, details, status) {
 
 function uiGetCurrentUser() {
   try {
-    var email = Session.getActiveUser().getEmail();
-    if (!email) {
-      return { email: '', role: 'GUEST', member: null, ts: '' };
-    }
+    _checkRateLimit("uiGetCurrentUser");
+    var email = "";
+    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
+    var member = getCurrentMember();
 
-    var rawMember = null;
-    try {
-      if (typeof getCurrentMember === 'function') {
-        rawMember = getCurrentMember();
-      }
-    } catch (e) {
-      console.warn('[uiGetCurrentUser] getCurrentMember failed: ' + e.message);
-    }
-
-    // ✅ Convert array to plain object — prevents "illegal value in property: 0"
-    var member = null;
-    if (rawMember && Array.isArray(rawMember) && rawMember.length > 0) {
-      member = {
-        id:     String(rawMember[0] != null ? rawMember[0] : ''),
-        name:   String(rawMember[1] != null ? rawMember[1] : ''),
-        role:   String(rawMember[2] != null ? rawMember[2] : 'GUEST'),
-        email:  String(rawMember[3] != null ? rawMember[3] : ''),
-        phone:  String(rawMember[4] != null ? rawMember[4] : ''),
-        status: String(rawMember[5] != null ? rawMember[5] : '')
+    if (!member) {
+      return {
+        success: false,
+        error: String(email) + " - غير مسجل. تحقق: (1) الإيميل في Members (2) Status=Active (3) لا تكرار."
       };
     }
 
-    var role = 'GUEST';
+    // ── SAFE EXTRACTION: String() wrapper prevents Date/undefined serialization failure ──
+    var safeEmail = String(member[MEMBER_COL.EMAIL] || "").trim();
+    var safeName = String(member[MEMBER_COL.FULL_NAME] || "").trim();
+    var safeRole = String(member[MEMBER_COL.ROLE] || "").trim();
+
+    var safePermissions = [];
     try {
-      if (typeof Security !== 'undefined' && typeof Security.getUserRole === 'function') {
-        role = Security.getUserRole();
-      } else if (member && member.role) {
-        role = String(member.role).toUpperCase().trim();
+      var perms = getRolePermissions(safeRole);
+      if (Array.isArray(perms)) {
+        safePermissions = perms.filter(function(p) { return typeof p === "string"; });
       }
-    } catch (e) {
-      if (member && member.role) {
-        role = String(member.role).toUpperCase().trim();
-      }
+    } catch (permErr) {
+      console.log("[AUTH] getRolePermissions failed: " + permErr.message);
     }
-    role = String(role || 'GUEST').toUpperCase().trim();
 
-    // ✅ NO arrays, NO null error property, NO Date objects in return
     return {
-      email:  String(email || ''),
-      role:   String(role),
-      member: member,
-      ts:     new Date().toISOString()
+      success: true,
+      data: {
+        email: safeEmail,
+        name: safeName,
+        role: safeRole,
+        permissions: safePermissions
+      }
     };
-
   } catch (e) {
-    console.error('[uiGetCurrentUser] FATAL: ' + e.message);
-    return {
-      email: '',
-      role:  'GUEST',
-      member: null,
-      ts:     new Date().toISOString()
-    };
+    return { success: false, error: String(e.message || "Unknown error") };
   }
 }
-
 // ============================================================
 // KPI APIs
 // ============================================================
@@ -180,6 +154,14 @@ function uiGetDashboardKpis() {
     _checkRateLimit("uiGetDashboardKpis");
     _requireAuth(PERMISSIONS.KPI_READ);
     var dashboard = KpiService.getDashboardKpis();
+    // ── Contract normalization: ensure client-expected field names ──
+    if (dashboard && typeof dashboard === 'object') {
+      if (dashboard.totalRevenue !== undefined && dashboard.revenue === undefined) dashboard.revenue = dashboard.totalRevenue;
+      if (dashboard.totalExpenses !== undefined && dashboard.expenses === undefined) dashboard.expenses = dashboard.totalExpenses;
+      if (dashboard.netProfit !== undefined && dashboard.profit === undefined) dashboard.profit = dashboard.netProfit;
+      if (dashboard.totalCustomers !== undefined && dashboard.customers === undefined) dashboard.customers = dashboard.totalCustomers;
+      if (dashboard.totalItems !== undefined && dashboard.inventory === undefined) dashboard.inventory = dashboard.totalItems;
+    }
     return { success: true, data: dashboard };
   } catch (e) {
     return { success: false, error: e.message };
@@ -545,6 +527,32 @@ function uiGetMembers() {
     _checkRateLimit("uiGetMembers");
     _requireAuth(PERMISSIONS.MEMBERS_READ);
     var members = Members.getMembers();
+    // ── Serialization safety: sanitize Date/Error objects in member rows ──
+    if (Array.isArray(members)) {
+      for (var i = 0; i < members.length; i++) {
+        if (Array.isArray(members[i])) {
+          for (var j = 0; j < members[i].length; j++) {
+            var val = members[i][j];
+            if (val instanceof Date) {
+              try { members[i][j] = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
+              catch(e) { members[i][j] = String(val); }
+            } else if (val instanceof Error) {
+              members[i][j] = '';
+            }
+          }
+        } else if (members[i] && typeof members[i] === 'object') {
+          for (var key in members[i]) {
+            var v = members[i][key];
+            if (v instanceof Date) {
+              try { members[i][key] = Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
+              catch(e2) { members[i][key] = String(v); }
+            } else if (v instanceof Error) {
+              members[i][key] = '';
+            }
+          }
+        }
+      }
+    }
     return { success: true, data: members };
   } catch (e) {
     return { success: false, error: e.message };
@@ -1329,6 +1337,11 @@ function uiGetKPIs(params) {
       kpis: kpis && kpis.success ? kpis.data : [],
       summary: { revenue: revenue, expenses: operatingExpenses, netProfit: netProfit }
     };
+    // ── Flat aliases for client contract compatibility ──
+    result.revenue = revenue;
+    result.expenses = operatingExpenses;
+    result.profit = netProfit;
+    result.orders = 0; // not provided by current services
     return { success: true, data: result };
   } catch (e) {
     return { success: false, error: e.message };
@@ -1366,4 +1379,107 @@ function _handleDoGetInternal(e) {
   return HtmlService.createHtmlOutputFromFile("UI_Index")
     .setTitle("PHINOX BOS")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ============================================================
+// DIAGNOSTIC API (temporary - remove after fixing)
+// ============================================================
+
+function uiDiagnose() {
+  var result = { checks: [] };
+  function check(name, pass, detail) {
+    result.checks.push({ name: name, pass: !!pass, detail: detail || '' });
+  }
+
+  try {
+    // 1. Session email
+    var email = '';
+    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
+    check('Session.getEmail', email.length > 0, email || 'empty');
+
+    // 2. Spreadsheet
+    var ss = null;
+    try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
+    check('ActiveSpreadsheet', ss !== null, ss ? ss.getName() : e.message);
+
+    // 3. Members sheet
+    if (ss) {
+      var ms = ss.getSheetByName('Members');
+      check('Members sheet exists', ms !== null, '');
+
+      if (ms) {
+        var lastRow = ms.getLastRow();
+        var lastCol = ms.getLastColumn();
+        check('Members data rows', lastRow > 1, 'rows=' + lastRow + ' (1=header)');
+        check('Members columns', lastCol >= 12, 'cols=' + lastCol + ' (need 12)');
+
+        // 4. Read headers
+        var headers = ms.getRange(1, 1, 1, lastCol).getValues()[0];
+        check('Members headers', headers.length > 0, headers.join(' | '));
+
+        // 5. Find current user
+        if (email && lastRow > 1) {
+          var data = ms.getRange(2, 1, lastRow - 1, lastCol).getValues();
+          var found = false;
+          var matchInfo = [];
+          for (var i = 0; i < data.length; i++) {
+            var rowEmail = String(data[i][3] || '').trim().toLowerCase();
+            var rowStatus = String(data[i][5] || '').trim();
+            if (rowEmail === email.toLowerCase()) {
+              found = true;
+              matchInfo.push({ row: i+2, status: rowStatus, name: data[i][1], role: data[i][2] });
+            }
+          }
+          check('Email match in Members', found, matchInfo.length > 0 ? JSON.stringify(matchInfo) : 'No match for: ' + email);
+
+          if (found) {
+            var isActive = matchInfo.some(function(m) { return m.status === 'Active'; });
+            check('Status is Active', isActive, JSON.stringify(matchInfo));
+          }
+        }
+
+        // 6. Check CONFIG
+        check('CONFIG defined', typeof CONFIG !== 'undefined', CONFIG ? 'v' + CONFIG.APP.VERSION : 'missing');
+        check('CONFIG.SHEETS.MEMBERS', CONFIG && CONFIG.SHEETS && CONFIG.SHEETS.MEMBERS === 'Members', '');
+
+        // 7. Check BaseRepository
+        check('BaseRepository defined', typeof BaseRepository !== 'undefined', '');
+
+        // 8. Check ErrorHandler
+        check('ErrorHandler defined', typeof ErrorHandler !== 'undefined', '');
+
+        // 9. Check Logger
+        check('Logger defined', typeof Logger !== 'undefined', '');
+        check('console.log exists', typeof Logger !== 'undefined' && typeof console.log === 'function', typeof Logger !== 'undefined' ? Object.keys(Logger).join(',') : 'N/A');
+
+        // 10. Check RateLimiter
+        check('RateLimiter defined', typeof RateLimiter !== 'undefined', '');
+
+        // 11. Check Security
+        check('Security defined', typeof Security !== 'undefined', '');
+        if (typeof Security !== 'undefined' && typeof Security.getUserRole === 'function') {
+          var role = 'ERROR';
+          try { role = Security.getUserRole(); } catch(e) { role = 'ERROR: ' + e.message; }
+          check('Security.getUserRole()', role !== 'GUEST' && role !== 'ERROR', 'role=' + role);
+        }
+
+        // 12. Check getCurrentMember
+        if (typeof getCurrentMember === 'function') {
+          var member = null;
+          try { member = getCurrentMember(); } catch(e) {
+            check('getCurrentMember()', false, e.message);
+          }
+          if (member) {
+            check('getCurrentMember()', true, 'name=' + member[1] + ' role=' + member[2]);
+          } else if (!result.checks.some(function(c) { return c.name === 'getCurrentMember()'; })) {
+            check('getCurrentMember()', false, 'returned null');
+          }
+        }
+      }
+    }
+  } catch (e) {
+    check('DIAGNOSTIC ERROR', false, e.message);
+  }
+
+  return result;
 }
