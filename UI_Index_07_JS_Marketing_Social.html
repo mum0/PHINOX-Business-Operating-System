@@ -1,0 +1,125 @@
+<script>
+// ═══════════════════════════════════════════════════════
+// MARKETING
+// ═══════════════════════════════════════════════════════
+function loadMarketing() {
+  var from = document.getElementById('marketingDateFrom').value;
+  var to = document.getElementById('marketingDateTo').value;
+  callServer('uiGetMarketingStats', from, to).then(function(res) {
+    var stats = res.data || {};
+    var html = '<div class="kpi-card"><div class="kpi-label">Total Spend</div><div class="kpi-value">$' + esc(String(stats.spend || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Leads</div><div class="kpi-value">' + esc(String(stats.leads || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">ROAS</div><div class="kpi-value">' + esc(String(stats.roas || 0)) + 'x</div></div>';
+    document.getElementById('marketingKpis').innerHTML = html;
+  }).catch(function() {
+    document.getElementById('marketingKpis').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value">-</div></div>';
+  });
+  
+  callServer('uiGetMarketingRecords', { limit: 100 }).then(function(res) {
+    _marketingCache = (res.data && res.data.data) || res.data || [];
+    if (!_marketingCache.length) {
+      document.getElementById('marketingTableContainer').innerHTML = '<div class="empty-state"><p>No marketing records</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>Date</th><th>Campaign</th><th>Channel</th><th>Spend</th><th>Leads</th></tr></thead><tbody>';
+    _marketingCache.forEach(function(m) {
+      html += '<tr><td>' + formatDate(m.date || m.createdAt) + '</td><td>' + esc(m.campaign || '-') + '</td><td>' + esc(m.channel || '-') + '</td>';
+      html += '<td>$' + esc(String(m.spend || 0)) + '</td><td>' + esc(String(m.leads || 0)) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('marketingTableContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('marketingTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+function openAddMarketingModal() {
+  openGenericModal('Add Marketing Record',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Campaign *</label><input type="text" class="form-input" id="mktCampaign" placeholder="Campaign name"></div>' +
+    '<div class="form-group"><label class="form-label">Channel</label><select class="form-select" id="mktChannel"><option value="Social">Social</option><option value="Email">Email</option><option value="PPC">PPC</option><option value="SEO">SEO</option><option value="Other">Other</option></select></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Spend</label><input type="number" step="0.01" class="form-input" id="mktSpend" value="0"></div>' +
+    '<div class="form-group"><label class="form-label">Leads</label><input type="number" class="form-input" id="mktLeads" value="0"></div></div>',
+    '<button class="btn btn-primary" data-action="submit-add-marketing">Save</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitAddMarketing() {
+  var data = {
+    campaign: document.getElementById('mktCampaign').value,
+    channel: document.getElementById('mktChannel').value,
+    spend: parseFloat(document.getElementById('mktSpend').value) || 0,
+    leads: parseFloat(document.getElementById('mktLeads').value) || 0
+  };
+  if (!data.campaign) { showToast('Campaign name is required', 'error'); return; }
+  callServer('uiCreateMarketingRecord', data).then(function() {
+    showToast('Record added');
+    closeModal();
+    loadMarketing();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// SOCIAL
+// ═══════════════════════════════════════════════════════
+function loadSocial() {
+  var from = document.getElementById('socialDateFrom').value;
+  var to = document.getElementById('socialDateTo').value;
+  callServer('uiGetSocialStats', from, to).then(function(res) {
+    var stats = res.data || {};
+    var html = '<div class="kpi-card"><div class="kpi-label">Followers</div><div class="kpi-value">' + esc(String(stats.followers || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Engagement</div><div class="kpi-value">' + esc(String(stats.engagementRate || 0)) + '%</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Reach</div><div class="kpi-value">' + esc(String(stats.reach || 0)) + '</div></div>';
+    document.getElementById('socialKpis').innerHTML = html;
+  }).catch(function() {
+    document.getElementById('socialKpis').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value">-</div></div>';
+  });
+  
+  callServer('uiGetSocialRecords', { limit: 100 }).then(function(res) {
+    _socialCache = (res.data && res.data.data) || res.data || [];
+    if (!_socialCache.length) {
+      document.getElementById('socialTableContainer').innerHTML = '<div class="empty-state"><p>No social records</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>Date</th><th>Platform</th><th>Post</th><th>Likes</th><th>Shares</th></tr></thead><tbody>';
+    _socialCache.forEach(function(s) {
+      html += '<tr><td>' + formatDate(s.date || s.createdAt) + '</td><td>' + esc(s.platform || '-') + '</td><td>' + esc(s.content || s.post || '-').substring(0, 50) + '...</td>';
+      html += '<td>' + esc(String(s.likes || 0)) + '</td><td>' + esc(String(s.shares || 0)) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('socialTableContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('socialTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+function openAddSocialModal() {
+  openGenericModal('Add Social Record',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Platform *</label><select class="form-select" id="socPlatform"><option value="Facebook">Facebook</option><option value="Instagram">Instagram</option><option value="Twitter">Twitter</option><option value="LinkedIn">LinkedIn</option><option value="TikTok">TikTok</option></select></div>' +
+    '<div class="form-group"><label class="form-label">Post Type</label><select class="form-select" id="socType"><option value="Image">Image</option><option value="Video">Video</option><option value="Text">Text</option><option value="Story">Story</option></select></div></div>' +
+    '<div class="form-group"><label class="form-label">Content</label><textarea class="form-textarea" id="socContent" rows="3" placeholder="Post content..."></textarea></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Likes</label><input type="number" class="form-input" id="socLikes" value="0"></div>' +
+    '<div class="form-group"><label class="form-label">Shares</label><input type="number" class="form-input" id="socShares" value="0"></div></div>',
+    '<button class="btn btn-primary" data-action="submit-add-social">Save</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitAddSocial() {
+  var data = {
+    platform: document.getElementById('socPlatform').value,
+    postType: document.getElementById('socType').value,
+    content: document.getElementById('socContent').value,
+    likes: parseFloat(document.getElementById('socLikes').value) || 0,
+    shares: parseFloat(document.getElementById('socShares').value) || 0
+  };
+  if (!data.platform) { showToast('Platform is required', 'error'); return; }
+  callServer('uiCreateSocialRecord', data).then(function() {
+    showToast('Record added');
+    closeModal();
+    loadSocial();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+</script>

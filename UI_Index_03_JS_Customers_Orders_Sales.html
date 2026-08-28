@@ -1,0 +1,117 @@
+<script>
+// ─── DASHBOARD LOADER ───
+function loadDashboard() {
+  callServer('uiGetDashboardKpis').then(function(res) {
+    var kpis = (res.data && res.data.data) || res.data || {};
+    var items = [
+      { label: 'Revenue', value: kpis.revenue || kpis.totalRevenue || 0, format: 'currency' },
+      { label: 'Expenses', value: kpis.expenses || kpis.totalExpenses || 0, format: 'currency' },
+      { label: 'Profit', value: kpis.profit || kpis.netProfit || 0, format: 'currency' },
+      { label: 'Customers', value: kpis.customers || kpis.totalCustomers || 0, format: 'number' },
+      { label: 'Inventory Items', value: kpis.inventory || kpis.totalItems || 0, format: 'number' }
+    ];
+    var html = '';
+    items.forEach(function(k) {
+      var fmt = k.format === 'currency' ? '$' + Number(k.value).toLocaleString() : Number(k.value).toLocaleString();
+      html += '<div class="kpi-card"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-value">' + fmt + '</div></div>';
+    });
+    var c = document.getElementById('dashboardKpis');
+    if (c) c.innerHTML = html;
+  }).catch(function(err) {
+    var c = document.getElementById('dashboardKpis');
+    if (c) c.innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
+  });
+}
+
+// ─── KPI PAGE LOADER ───
+function loadKPIs() {
+  var period = document.getElementById('kpiPeriod') ? document.getElementById('kpiPeriod').value : 'monthly';
+  var refDate = document.getElementById('kpiRefDate') ? document.getElementById('kpiRefDate').value : '';
+  callServer('uiGetKPIs', { period: period, refDate: refDate }).then(function(res) {
+    var kpis = res.data || {};
+    var html = '';
+    var items = [
+      { label: 'Revenue', value: kpis.revenue || 0 },
+      { label: 'Expenses', value: kpis.expenses || 0 },
+      { label: 'Profit', value: kpis.profit || 0 },
+      { label: 'Orders', value: kpis.orders || 0 }
+    ];
+    items.forEach(function(k) {
+      html += '<div class="kpi-card"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-value">$' + esc(String(k.value)) + '</div></div>';
+    });
+    var c1 = document.getElementById('kpiContainer');
+    if (c1) c1.innerHTML = html;
+    var c2 = document.getElementById('dashboardKpis');
+    if (c2) c2.innerHTML = html;
+  }).catch(function(err) {
+    var msg = '<div class="kpi-card"><div class="kpi-label">KPIs</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
+    var c1 = document.getElementById('kpiContainer');
+    if (c1) c1.innerHTML = msg;
+    var c2 = document.getElementById('dashboardKpis');
+    if (c2) c2.innerHTML = msg;
+  });
+}
+
+function loadCustomers() {
+  callServer('uiGetCustomers', { limit: 1000 }).then(function(res) {
+    var list = (res.data && res.data.data) || res.data || [];
+    if (!list.length) {
+      document.getElementById('customersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><p>No customers found</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th></tr></thead><tbody>';
+    list.forEach(function(c) {
+      var status = c.status || 'Active';
+      var badge = status === 'Active' ? 'badge-success' : 'badge-secondary';
+      html += '<tr><td>' + esc(c.name || c.fullName || '-') + '</td><td>' + esc(c.email || '-') + '</td><td>' + esc(c.phone || '-') + '</td><td><span class="badge ' + badge + '">' + esc(status) + '</span></td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('customersTableContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('customersTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+function filterCustomers() { loadCustomers(); }
+function openAddCustomerModal() { showToast('Add Customer — implement form', 'warning'); }
+
+function loadOrders() {
+  callServer('uiGetOrders', { limit: 1000 }).then(function(res) {
+    var list = (res.data && res.data.data) || res.data || [];
+    if (!list.length) {
+      document.getElementById('ordersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><p>No orders found</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
+    list.forEach(function(o) {
+      var status = o.status || 'Pending';
+      var badge = status === 'Delivered' ? 'badge-success' : status === 'Cancelled' ? 'badge-danger' : 'badge-warning';
+      html += '<tr><td>' + esc(o.id || '-') + '</td><td>' + formatDate(o.date || o.createdAt) + '</td><td>' + esc(o.customerName || o.customer || '-') + '</td><td>$' + esc(String(o.amount || 0)) + '</td><td><span class="badge ' + badge + '">' + esc(status) + '</span></td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('ordersTableContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('ordersTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+function filterOrders() { loadOrders(); }
+function openAddOrderModal() { showToast('Add Order — implement form', 'warning'); }
+
+function loadSales() {
+  callServer('uiGetSales', { limit: 1000 }).then(function(res) {
+    var list = (res.data && res.data.data) || res.data || [];
+    if (!list.length) {
+      document.getElementById('salesTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">💰</div><p>No sales found</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead><tbody>';
+    list.forEach(function(s) {
+      html += '<tr><td>' + formatDate(s.date || s.createdAt) + '</td><td>' + esc(s.product || s.productName || '-') + '</td><td>' + esc(String(s.quantity || s.qty || 0)) + '</td><td>$' + esc(String(s.amount || 0)) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('salesTableContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('salesTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+function openAddSaleModal() { showToast('Add Sale — implement form', 'warning'); }
+</script>

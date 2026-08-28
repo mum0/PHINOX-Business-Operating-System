@@ -1,0 +1,238 @@
+<script>
+<script>
+// ═══════════════════════════════════════════════════════
+// SECURITY HELPERS
+// ═══════════════════════════════════════════════════════
+function escAttr(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ═══════════════════════════════════════════════════════
+// CORE / AUTH / ROUTER — PHINOX BOS v5
+// ═══════════════════════════════════════════════════════
+
+// ─── GLOBALS ───
+var _currentUser = null;
+var _customerCache = [];
+var _inventoryCache = [];
+var _expenseCache = [];
+var _taskCache = [];
+var _memberCache = [];
+var _marketingCache = [];
+var _socialCache = [];
+var _satisfactionCache = [];
+var _npsCache = [];
+var _expenseTab = 'all';
+var _bomComponents = [];
+var _currentBOM = null;
+
+// ─── SERVER BRIDGE (Fixed for GAS V8) ───
+function callServer(action, payload) {
+  return new Promise(function(resolve, reject) {
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      reject(new Error('google.script.run غير متاح — جرب من رابط Web App'));
+      return;
+    }
+    var runner = google.script.run
+      .withSuccessHandler(function(res) {
+        // Unwrap {success: true, data: X} → resolve with X directly
+        if (res && typeof res === 'object' && res.success === true && 'data' in res) {
+          resolve({ data: res.data });
+        } else if (res && typeof res === 'object' && res.success === false && res.error) {
+          reject(new Error(res.error));
+        } else {
+          // Legacy: return raw response
+          resolve({ data: res });
+        }
+      })
+      .withFailureHandler(function(err) {
+        var msg = (err && err.message) ? err.message : String(err);
+        reject(new Error(msg));
+      });
+    var fn = runner[action];
+    if (typeof fn === 'function') {
+      var args = Array.prototype.slice.call(arguments, 1);
+      fn.apply(runner, args);
+    } else {
+      reject(new Error('Server function "' + action + '" not found'));
+    }
+  });
+}
+
+// ─── XSS ESCAPE ───
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── TOASTS ───
+function showToast(message, type) {
+  type = type || 'success';
+  var container = document.getElementById('toastContainer');
+  if (!container) return;
+  var toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+  toast.innerHTML = '<span style="font-size:18px">' + icon + '</span><span>' + esc(message) + '</span>';
+  container.appendChild(toast);
+  setTimeout(function() {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(20px)';
+    setTimeout(function() { toast.remove(); }, 300);
+  }, 4000);
+}
+
+// ─── MODALS ───
+function openModal(id) {
+  var el = document.getElementById(id || 'modalGeneric');
+  if (el) el.classList.add('active');
+}
+function closeModal(id) {
+  if (id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  } else {
+    document.querySelectorAll('.modal-overlay').forEach(function(el) { el.classList.remove('active'); });
+  }
+}
+function openGenericModal(title, bodyHtml, footerHtml) {
+  document.getElementById('modalGenericTitle').textContent = title || '';
+  document.getElementById('modalGenericBody').innerHTML = bodyHtml || '';
+  document.getElementById('modalGenericFooter').innerHTML = footerHtml || '';
+  openModal('modalGeneric');
+}
+
+// ─── DATE FORMATTERS ───
+function formatDate(dt) {
+  if (!dt) return '-';
+  var d = new Date(dt);
+  if (isNaN(d.getTime())) return String(dt);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+function formatDateTime(dt) {
+  if (!dt) return '-';
+  var d = new Date(dt);
+  if (isNaN(d.getTime())) return String(dt);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ─── PERMISSIONS ───
+function hasPerm(perm) {
+  if (!_currentUser || !_currentUser.permissions) return false;
+  var perms = _currentUser.permissions;
+  if (perms.indexOf('*') > -1 || perms.indexOf('admin') > -1 || perms.indexOf('Admin') > -1) return true;
+  return perms.indexOf(perm) > -1;
+}
+function isAdmin() {
+  return hasPerm('admin') || (_currentUser && (_currentUser.role === 'Admin' || _currentUser.role === 'CEO'));
+}
+
+// ═══════════════════════════════════════════════════════
+// AUTH & LOGIN OVERLAY
+// ═══════════════════════════════════════════════════════
+function showAuthOverlay() {
+  var existing = document.getElementById('authOverlay');
+  if (existing) { existing.style.display = 'flex'; return; }
+
+  var overlay = document.createElement('div');
+  overlay.id = 'authOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML =
+    '<div style="background:#1E293B;border:1px solid #334155;border-radius:16px;padding:40px;max-width:420px;width:100%;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.5);">' +
+    '<div style="font-size:42px;margin-bottom:16px;">🔐</div>' +
+    '<h2 style="margin:0 0 8px;font-size:22px;">PHINOX BOS v5</h2>' +
+    '<p style="color:#94A3B8;margin:0 0 24px;font-size:14px;">جاري التحقق من هويتك...</p>' +
+    '<div id="authStatus" style="padding:12px 16px;border-radius:8px;background:#0F172A;font-size:13px;color:#94A3B8;margin-bottom:16px;">' +
+    'جاري الاتصال بالسيرفر...' +
+    '</div>' +
+    '<button id="authRetryBtn" class="btn btn-primary" style="display:none;width:100%;" onclick="initAuthSystem()">🔄 إعادة المحاولة</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function hideAuthOverlay() {
+  var el = document.getElementById('authOverlay');
+  if (el) el.style.display = 'none';
+}
+
+function setAuthStatus(msg, isError) {
+  var el = document.getElementById('authStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? '#F87171' : '#94A3B8';
+  el.style.border = isError ? '1px solid #DC2626' : '1px solid #334155';
+  var btn = document.getElementById('authRetryBtn');
+  if (btn) btn.style.display = isError ? 'inline-flex' : 'none';
+}
+
+function initAuthSystem() {
+  showAuthOverlay();
+  setAuthStatus('جاري التحقق من الجلسة...', false);
+
+  callServer('uiGetCurrentUser', null).then(function(res) {
+    var user = res.data;
+    if (!user || !user.email) {
+      setAuthStatus('❌ المستخدم غير مسجل في النظام. تواصل مع الأدمن.', true);
+      return;
+    }
+    _currentUser = user;
+    var displayName = user.name || user.fullName || user.email.split('@')[0];
+    var role = user.role || 'User';
+    document.getElementById('userName').textContent = displayName;
+    document.getElementById('userRole').textContent = role;
+    document.getElementById('userAvatar').textContent = (displayName || 'U').charAt(0).toUpperCase();
+    var perms = user.permissions || [];
+    document.getElementById('userPermissions').textContent = perms.join(', ');
+    hideAuthOverlay();
+    showToast('مرحباً ' + displayName + ' (' + role + ')', 'success');
+    // Pre-load customers cache for NPS/Satisfaction dropdowns
+    callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
+      _customerCache = (cres.data && cres.data.data) || cres.data || [];
+    }).catch(function() {});
+    navigateTo('dashboard');
+  }).catch(function(err) {
+    console.error('Auth error:', err);
+    setAuthStatus('❌ ' + (err.message || 'خطأ في الاتصال بالسيرفر'), true);
+    var btn = document.getElementById('authRetryBtn');
+    if (btn) {
+      btn.style.display = 'inline-flex';
+      btn.textContent = '🔄 إعادة المحاولة';
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function navigateTo(page) {
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    el.classList.remove('active');
+    if (el.getAttribute('data-page') === page) el.classList.add('active');
+  });
+  document.querySelectorAll('.page-section').forEach(function(el) { el.classList.remove('active'); });
+  var target = document.getElementById('page-' + page);
+  if (target) target.classList.add('active');
+  document.getElementById('sidebar').classList.remove('open');
+  window.scrollTo(0, 0);
+
+  var loaders = {
+    dashboard: function() { if (typeof loadDashboard === "function") loadDashboard(); },
+    kpi: function() { loadKPIs(); },
+    customers: function() { if (typeof loadCustomers === 'function') loadCustomers(); },
+    orders: function() { if (typeof loadOrders === 'function') loadOrders(); },
+    sales: function() { if (typeof loadSales === 'function') loadSales(); },
+    inventory: loadInventory,
+    finance: loadFinance,
+    expenses: loadExpenses,
+    approvals: loadApprovals,
+    tasks: loadTasks,
+    marketing: loadMarketing,
+    social: loadSocial,
+    satisfaction: loadSatisfaction,
+    nps: loadNPS,
+    members: loadMembers
+  };
+  if (loaders[page] && typeof loaders[page] === 'function') {
+    try { loaders[page](); } catch (e) { console.log('Loader error:', e); }
+  }
+}
+</script>

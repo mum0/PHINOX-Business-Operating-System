@@ -1,0 +1,117 @@
+<script>
+// ═══════════════════════════════════════════════════════
+// MEMBERS — Improved modal with Admin/CEO validation
+// ═══════════════════════════════════════════════════════
+function loadMembers() {
+  callServer('uiGetMembers', null).then(function(res) {
+    _memberCache = res.data || [];
+    renderMembers(_memberCache);
+  }).catch(function(err) {
+    document.getElementById('membersTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+function renderMembers(list) {
+  if (!list || !list.length) {
+    document.getElementById('membersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🧑‍💼</div><p>No members found</p></div>';
+    return;
+  }
+  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Position</th><th>Department</th><th>Status</th></tr></thead><tbody>';
+  list.forEach(function(m) {
+    var role = m.role || (Array.isArray(m) ? m[2] : undefined) || '-';
+    var badgeClass = role === 'CEO' ? 'badge-danger' : role === 'Admin' ? 'badge-warning' : 'badge-secondary';
+    html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-') + '</td>';
+    html += '<td>' + esc(m.phone || '-') + '</td>';
+    html += '<td><span class="badge ' + badgeClass + '">' + esc(role) + '</span></td>';
+    html += '<td>' + esc(m.position || '-') + '</td><td>' + esc(m.department || '-') + '</td>';
+    html += '<td><span class="badge ' + ((m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active') === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(m.status || 'Active') + '</span></td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('membersTableContainer').innerHTML = html;
+}
+
+function openAddMemberModal() {
+  // Count existing Admin/CEO for warnings
+  var adminCount = 0, ceoCount = 0;
+  _memberCache.forEach(function(m) {
+    var role = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
+    if (role === 'Admin') adminCount++;
+    if (role === 'CEO') ceoCount++;
+  });
+  
+  var warningHtml = '';
+  if (adminCount >= 1) {
+    warningHtml += '<div class="role-note danger">⚠️ Admin already exists (' + adminCount + '/1). You cannot add another Admin.</div>';
+  }
+  if (ceoCount >= 1) {
+    warningHtml += '<div class="role-note danger">⚠️ CEO already exists (' + ceoCount + '/1). You cannot add another CEO.</div>';
+  }
+  
+  openGenericModal('Add Team Member',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="memName" placeholder="Full name"></div>' +
+    '<div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="memEmail" placeholder="email@company.com"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Role *</label><select class="form-select" id="memRole" onchange="updateRoleWarning()">' +
+    '<option value="Operations">Operations</option><option value="Finance">Finance</option><option value="Marketing">Marketing</option><option value="Designer">Designer</option><option value="Customer Service">Customer Service</option><option value="Partner">Partner</option><option value="Admin">Admin</option><option value="CEO">CEO</option></select>' +
+    '<div id="roleWarningContainer">' + warningHtml + '</div></div>' +
+    '<div class="form-group"><label class="form-label">Position</label><input type="text" class="form-input" id="memPosition" placeholder="e.g. Sales Manager"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Department</label><input type="text" class="form-input" id="memDept" placeholder="e.g. Sales"></div>' +
+    '<div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="memPhone" placeholder="Phone number"></div></div>' +
+    '<div class="form-group"><label class="form-label">Status</label><select class="form-select" id="memStatus"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>',
+    '<button class="btn btn-primary" data-action="submit-add-member">Add Member</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function updateRoleWarning() {
+  var role = document.getElementById('memRole').value;
+  var container = document.getElementById('roleWarningContainer');
+  var adminCount = 0, ceoCount = 0;
+  _memberCache.forEach(function(m) {
+    var r = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
+    if (r === 'Admin') adminCount++;
+    if (r === 'CEO') ceoCount++;
+  });
+  
+  var msg = '';
+  if (role === 'Admin' && adminCount >= 1) {
+    msg = '<div class="role-note danger">❌ Cannot add: Only 1 Admin allowed (' + adminCount + '/1)</div>';
+  } else if (role === 'CEO' && ceoCount >= 1) {
+    msg = '<div class="role-note danger">❌ Cannot add: Only 1 CEO allowed (' + ceoCount + '/1)</div>';
+  } else if (role === 'Admin') {
+    msg = '<div class="role-note">✅ Admin slot available</div>';
+  } else if (role === 'CEO') {
+    msg = '<div class="role-note">✅ CEO slot available</div>';
+  }
+  container.innerHTML = msg;
+}
+
+function submitAddMember() {
+  var data = {
+    fullName: document.getElementById('memName').value,
+    email: document.getElementById('memEmail').value,
+    role: document.getElementById('memRole').value,
+    position: document.getElementById('memPosition').value,
+    department: document.getElementById('memDept').value,
+    phone: document.getElementById('memPhone').value,
+    status: document.getElementById('memStatus').value
+  };
+  if (!data.fullName || !data.email) { showToast('Name and email are required', 'error'); return; }
+  
+  // Client-side check for Admin/CEO
+  var adminCount = 0, ceoCount = 0;
+  _memberCache.forEach(function(m) {
+    var r = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
+    if (r === 'Admin') adminCount++;
+    if (r === 'CEO') ceoCount++;
+  });
+  if (data.role === 'Admin' && adminCount >= 1) { showToast('Only one Admin is allowed', 'error'); return; }
+  if (data.role === 'CEO' && ceoCount >= 1) { showToast('Only one CEO is allowed', 'error'); return; }
+  
+  callServer('uiAddMember', data).then(function() {
+    showToast('Member added successfully');
+    closeModal();
+    loadMembers();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+</script>

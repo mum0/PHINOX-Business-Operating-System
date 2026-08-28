@@ -1,0 +1,70 @@
+<script>
+// ═══════════════════════════════════════════════════════
+// TASKS
+// ═══════════════════════════════════════════════════════
+function loadTasks() {
+  var from = document.getElementById('taskDateFrom').value;
+  var to = document.getElementById('taskDateTo').value;
+  callServer('uiGetTasksByDateRange', from, to).then(function(res) {
+    _taskCache = (res.data && res.data.data) || res.data || [];
+    renderTasks(_taskCache);
+  }).catch(function(err) {
+    document.getElementById('tasksTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+function renderTasks(list) {
+  if (!list || !list.length) {
+    document.getElementById('tasksTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">✓</div><p>No tasks found</p></div>';
+    return;
+  }
+  var html = '<table class="table"><thead><tr><th>Title</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th></tr></thead><tbody>';
+  list.forEach(function(t) {
+    var status = t.status || 'Pending';
+    var badgeClass = status === 'Completed' ? 'badge-success' : status === 'Overdue' ? 'badge-danger' : 'badge-warning';
+    html += '<tr><td>' + esc(t.title || '-') + '</td><td>' + esc(t.assignee || '-') + '</td><td>' + formatDate(t.dueDate) + '</td>';
+    html += '<td>' + esc(t.priority || '-') + '</td><td><span class="badge ' + badgeClass + '">' + esc(status) + '</span></td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('tasksTableContainer').innerHTML = html;
+}
+
+function filterTasks() {
+  var status = document.getElementById('taskStatusFilter').value;
+  var filtered = _taskCache.filter(function(t) {
+    return !status || (t.status || 'Pending') === status;
+  });
+  renderTasks(filtered);
+}
+
+function openAddTaskModal() {
+  openGenericModal('New Task',
+    '<div class="form-group"><label class="form-label">Title *</label><input type="text" class="form-input" id="taskTitle" placeholder="Task title"></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Assignee</label><input type="text" class="form-input" id="taskAssignee" placeholder="Email or name"></div>' +
+    '<div class="form-group"><label class="form-label">Due Date</label><input type="date" class="form-input" id="taskDue"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Priority</label><select class="form-select" id="taskPriority"><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select></div>' +
+    '<div class="form-group"><label class="form-label">Status</label><select class="form-select" id="taskStatus"><option value="Pending">Pending</option><option value="In Progress">In Progress</option></select></div></div>' +
+    '<div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="taskDesc" rows="2"></textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-add-task">Create</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitAddTask() {
+  var data = {
+    title: document.getElementById('taskTitle').value,
+    assignee: document.getElementById('taskAssignee').value,
+    dueDate: document.getElementById('taskDue').value,
+    priority: document.getElementById('taskPriority').value,
+    status: document.getElementById('taskStatus').value,
+    description: document.getElementById('taskDesc').value
+  };
+  if (!data.title) { showToast('Title is required', 'error'); return; }
+  callServer('uiCreateTask', data).then(function() {
+    showToast('Task created');
+    closeModal();
+    loadTasks();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+</script>

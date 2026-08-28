@@ -1,0 +1,121 @@
+<script>
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// EVENT DELEGATION — PHINOX SECURITY PATCH
+// ═══════════════════════════════════════════════════════
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  var action = btn.getAttribute('data-action');
+  var id = btn.getAttribute('data-id');
+  var sku = btn.getAttribute('data-sku');
+  var name = btn.getAttribute('data-name');
+  var qty = btn.getAttribute('data-qty');
+  var idx = btn.getAttribute('data-idx');
+
+  if (action === 'open-restock') {
+    e.preventDefault();
+    openRestockModal(sku, name, parseFloat(qty) || 0);
+  }
+  else if (action === 'open-movements') {
+    e.preventDefault();
+    openMovementsModal(sku, name);
+  }
+  else if (action === 'open-bom') {
+    e.preventDefault();
+    openBOMModal(sku, name);
+  }
+  else if (action === 'open-cost-margin') {
+    e.preventDefault();
+    openCostMarginModal(sku, name);
+  }
+  else if (action === 'open-bom-editor') {
+    e.preventDefault();
+    openBOMEditor(sku, name);
+  }
+  else if (action === 'remove-bom-component') {
+    e.preventDefault();
+    removeBOMComponent(parseInt(idx, 10));
+  }
+  else if (action === 'approve-expense') {
+    e.preventDefault();
+    approveExpense(id);
+  }
+  else if (action === 'open-reject-expense') {
+    e.preventDefault();
+    openRejectExpenseModal(id);
+  }
+  else if (action === 'open-post-expense') {
+    e.preventDefault();
+    openPostExpenseModal(id);
+  }
+  else if (action === 'delete-expense') {
+    e.preventDefault();
+    deleteExpense(id);
+  }
+  else if (action === 'save-bom') {
+    e.preventDefault();
+    saveBOM();
+  }
+  else if (action === 'calculate-cost-margin') {
+    e.preventDefault();
+    calculateCostMargin();
+  }
+  else if (action === 'submit-restock') {
+    e.preventDefault();
+    submitRestock();
+  }
+  else if (action === 'submit-post-expense') {
+    e.preventDefault();
+    submitPostExpense();
+  }
+  else if (action === 'submit-reject-expense') {
+    e.preventDefault();
+    submitRejectExpense();
+  }
+  else if (action === 'submit-add-inventory') {
+    e.preventDefault();
+    submitAddInventory();
+  }
+  else if (action === 'submit-add-expense') {
+    e.preventDefault();
+    submitAddExpense();
+  }
+  else if (action === 'submit-add-task') {
+    e.preventDefault();
+    submitAddTask();
+  }
+  else if (action === 'submit-add-marketing') {
+    e.preventDefault();
+    submitAddMarketing();
+  }
+  else if (action === 'submit-add-social') {
+    e.preventDefault();
+    submitAddSocial();
+  }
+  else if (action === 'submit-add-satisfaction') {
+    e.preventDefault();
+    submitAddSatisfaction();
+  }
+  else if (action === 'submit-add-nps') {
+    e.preventDefault();
+    submitAddNPS();
+  }
+  else if (action === 'submit-add-member') {
+    e.preventDefault();
+    submitAddMember();
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  initAuthSystem();
+});
+</script>
+</body>
+</html></script>

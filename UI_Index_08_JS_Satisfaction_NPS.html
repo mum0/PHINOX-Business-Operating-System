@@ -1,0 +1,125 @@
+<script>
+// ═══════════════════════════════════════════════════════
+// SATISFACTION
+// ═══════════════════════════════════════════════════════
+function loadSatisfaction() {
+  var from = document.getElementById('satisfactionDateFrom').value;
+  var to = document.getElementById('satisfactionDateTo').value;
+  callServer('uiGetSatisfactionStats', from, to).then(function(res) {
+    var stats = res.data || {};
+    var satisfiedPct = stats.count > 0 ? Math.round(((stats.records || []).filter(function(r) { return (r.score || r.rating || 0) >= 4; }).length / stats.count) * 10000) / 100 : 0;
+    var html = '<div class="grid-3"><div class="kpi-card"><div class="kpi-label">Avg Score</div><div class="kpi-value">' + esc(String(stats.average || 0)) + '/5</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Responses</div><div class="kpi-value">' + esc(String(stats.count || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Satisfied %</div><div class="kpi-value">' + esc(String(satisfiedPct)) + '%</div></div></div>';
+    document.getElementById('satisfactionStats').innerHTML = html;
+  }).catch(function() {
+    document.getElementById('satisfactionStats').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value">-</div></div>';
+  });
+  
+  callServer('uiGetSatisfactionRecords', { limit: 100 }).then(function(res) {
+    _satisfactionCache = (res.data && res.data.data) || res.data || [];
+    if (!_satisfactionCache.length) {
+      document.getElementById('satisfactionTableContainer').innerHTML = '<div class="empty-state"><p>No satisfaction records</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>Date</th><th>Customer</th><th>Score</th><th>Feedback</th></tr></thead><tbody>';
+    _satisfactionCache.forEach(function(s) {
+      var score = s.score || s.rating || 0;
+      var color = score >= 4 ? 'text-success' : score >= 3 ? 'text-warning' : 'text-danger';
+      html += '<tr><td>' + formatDate(s.date || s.createdAt) + '</td><td>' + esc(s.customerName || s.customer || '-') + '</td>';
+      html += '<td class="' + color + '"><strong>' + esc(String(score)) + '/5</strong></td><td>' + esc(s.feedback || s.comment || '-').substring(0, 60) + '...</td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('satisfactionTableContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('satisfactionTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+function openAddSatisfactionModal() {
+  openGenericModal('Add Satisfaction Record',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Customer</label><input type="text" class="form-input" id="satCustomer" placeholder="Customer name"></div>' +
+    '<div class="form-group"><label class="form-label">Score (1-5) *</label><select class="form-select" id="satScore"><option value="5">5 - Excellent</option><option value="4">4 - Good</option><option value="3">3 - Average</option><option value="2">2 - Poor</option><option value="1">1 - Very Poor</option></select></div></div>' +
+    '<div class="form-group"><label class="form-label">Feedback</label><textarea class="form-textarea" id="satFeedback" rows="3" placeholder="Customer feedback..."></textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-add-satisfaction">Save</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitAddSatisfaction() {
+  var data = {
+    customerName: document.getElementById('satCustomer').value,
+    score: parseFloat(document.getElementById('satScore').value) || 0,
+    feedback: document.getElementById('satFeedback').value
+  };
+  callServer('uiCreateSatisfaction', data).then(function() {
+    showToast('Record added');
+    closeModal();
+    loadSatisfaction();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// NPS
+// ═══════════════════════════════════════════════════════
+function loadNPS() {
+  var from = document.getElementById('npsDateFrom').value;
+  var to = document.getElementById('npsDateTo').value;
+  callServer('uiGetNPSStats', from, to).then(function(res) {
+    var stats = res.data || {};
+    var bd = stats.breakdown || {};
+    var html = '<div class="grid-3"><div class="kpi-card"><div class="kpi-label">NPS Score</div><div class="kpi-value ' + ((stats.nps || 0) >= 50 ? 'text-success' : (stats.nps || 0) >= 0 ? 'text-warning' : 'text-danger') + '">' + esc(String(stats.nps || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Promoters</div><div class="kpi-value">' + esc(String(bd.promoters || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Detractors</div><div class="kpi-value text-danger">' + esc(String(bd.detractors || 0)) + '</div></div></div>';
+    document.getElementById('npsStats').innerHTML = html;
+  }).catch(function() {
+    document.getElementById('npsStats').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value">-</div></div>';
+  });
+  
+  callServer('uiGetNPSRecords', { limit: 100 }).then(function(res) {
+    _npsCache = (res.data && res.data.data) || res.data || [];
+    if (!_npsCache.length) {
+      document.getElementById('npsTableContainer').innerHTML = '<div class="empty-state"><p>No NPS records</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>Date</th><th>Customer</th><th>Score</th><th>Category</th></tr></thead><tbody>';
+    _npsCache.forEach(function(n) {
+      var score = n.score || n.rating || 0;
+      var cat = score >= 9 ? 'Promoter' : score >= 7 ? 'Passive' : 'Detractor';
+      var catClass = cat === 'Promoter' ? 'badge-success' : cat === 'Passive' ? 'badge-warning' : 'badge-danger';
+      html += '<tr><td>' + formatDate(n.date || n.createdAt) + '</td><td>' + esc(n.customerName || n.customer || '-') + '</td>';
+      html += '<td><strong>' + esc(String(score)) + '</strong></td><td><span class="badge ' + catClass + '">' + cat + '</span></td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('npsTableContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('npsTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+function openAddNPSModal() {
+  openGenericModal('Add NPS Record',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Customer</label><input type="text" class="form-input" id="npsCustomer" placeholder="Customer name"></div>' +
+    '<div class="form-group"><label class="form-label">Score (0-10) *</label><input type="number" min="0" max="10" class="form-input" id="npsScore" value="10"></div></div>' +
+    '<div class="form-group"><label class="form-label">Reason</label><textarea class="form-textarea" id="npsReason" rows="2" placeholder="Why this score?"></textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-add-nps">Save</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitAddNPS() {
+  var data = {
+    customerName: document.getElementById('npsCustomer').value,
+    score: parseFloat(document.getElementById('npsScore').value) || 0,
+    reason: document.getElementById('npsReason').value
+  };
+  if (data.score < 0 || data.score > 10) { showToast('Score must be 0-10', 'error'); return; }
+  callServer('uiCreateNPS', data).then(function() {
+    showToast('Record added');
+    closeModal();
+    loadNPS();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+</script>

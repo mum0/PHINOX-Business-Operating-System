@@ -1,0 +1,281 @@
+<body>
+<div class="app-container">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">PHINOX BOS</div>
+      <div class="version">v5 Enterprise</div>
+    </div>
+    <nav class="nav-menu">
+      <button class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')"><span class="icon">📊</span> Dashboard</button>
+      <button class="nav-item" data-page="kpi" onclick="navigateTo('kpi')"><span class="icon">🎯</span> KPIs</button>
+      <button class="nav-item" data-page="customers" onclick="navigateTo('customers')"><span class="icon">👥</span> Customers</button>
+      <button class="nav-item" data-page="orders" onclick="navigateTo('orders')"><span class="icon">📦</span> Orders</button>
+      <button class="nav-item" data-page="sales" onclick="navigateTo('sales')"><span class="icon">💰</span> Sales</button>
+      <button class="nav-item" data-page="inventory" onclick="navigateTo('inventory')"><span class="icon">🏭</span> Inventory</button>
+      <button class="nav-item" data-page="finance" onclick="navigateTo('finance')"><span class="icon">📈</span> Finance</button>
+      <button class="nav-item" data-page="expenses" onclick="navigateTo('expenses')"><span class="icon">🧾</span> Expenses</button>
+      <button class="nav-item" data-page="approvals" onclick="navigateTo('approvals')"><span class="icon">✅</span> Approvals</button>
+      <button class="nav-item" data-page="tasks" onclick="navigateTo('tasks')"><span class="icon">✓</span> Tasks</button>
+      <button class="nav-item" data-page="marketing" onclick="navigateTo('marketing')"><span class="icon">📢</span> Marketing</button>
+      <button class="nav-item" data-page="social" onclick="navigateTo('social')"><span class="icon">🌐</span> Social</button>
+      <button class="nav-item" data-page="satisfaction" onclick="navigateTo('satisfaction')"><span class="icon">😊</span> Satisfaction</button>
+      <button class="nav-item" data-page="nps" onclick="navigateTo('nps')"><span class="icon">⭐</span> NPS</button>
+      <button class="nav-item" data-page="members" onclick="navigateTo('members')"><span class="icon">🧑‍💼</span> Members</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div>
+          <div id="userName" style="font-weight:600;font-size:13px;">Loading...</div>
+          <div id="userRole" style="font-size:11px;color:var(--text-secondary);">...</div>
+        </div>
+      </div>
+      <div id="userPermissions" style="font-size:10px;opacity:0.7;"></div>
+    </div>
+  </aside>
+  <main class="main-content" id="mainContent">
+    <section class="page-section active" id="page-dashboard">
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Dashboard</h1>
+      <div class="kpi-grid" id="dashboardKpis"><div class="kpi-card"><div class="loading">Loading KPIs...</div></div></div>
+      <div class="grid-2">
+        <div class="card"><div class="card-header"><div class="card-title">Revenue Trend</div></div><div class="chart-container" id="revenueChart">Chart will render here</div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Recent Orders</div></div><div id="recentOrdersTable"><div class="loading">Loading...</div></div></div>
+      </div>
+    </section>
+    <section class="page-section" id="page-kpi">
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Key Performance Indicators</h1>
+      <div class="filter-bar">
+        <div class="filter-group"><label>Period</label><select class="form-select" id="kpiPeriod" style="width:160px;" onchange="loadKPIs()"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></div>
+        <div class="filter-group"><label>Reference Date</label><input type="date" class="form-input" id="kpiRefDate" style="width:160px;" onchange="loadKPIs()"></div>
+        <button class="btn btn-primary" onclick="loadKPIs()">🔄 Refresh</button>
+      </div>
+      <div id="kpiContainer"><div class="loading">Loading KPIs...</div></div>
+    </section>
+    <section class="page-section" id="page-customers">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Customers</h1><button class="btn btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button></div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>Search</label><input type="text" class="form-input" id="customerSearch" placeholder="Name, email, phone..." style="width:240px;" onkeyup="filterCustomers()"></div>
+        <div class="filter-group"><label>Status</label><select class="form-select" id="customerStatusFilter" style="width:140px;" onchange="filterCustomers()"><option value="">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
+      </div>
+      <div class="card"><div id="customersTableContainer"><div class="loading">Loading customers...</div></div></div>
+    </section>
+    <section class="page-section" id="page-orders">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Orders</h1><button class="btn btn-primary" onclick="openAddOrderModal()">+ New Order</button></div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="orderDateFrom" onchange="loadOrders()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="orderDateTo" onchange="loadOrders()"></div>
+        <div class="filter-group"><label>Status</label><select class="form-select" id="orderStatusFilter" style="width:140px;" onchange="filterOrders()"><option value="">All</option><option value="Pending">Pending</option><option value="Confirmed">Confirmed</option><option value="Shipped">Shipped</option><option value="Delivered">Delivered</option><option value="Cancelled">Cancelled</option></select></div>
+        <button class="btn btn-primary" onclick="loadOrders()">🔄 Refresh</button>
+      </div>
+      <div class="card"><div id="ordersTableContainer"><div class="loading">Loading orders...</div></div></div>
+    </section>
+    <section class="page-section" id="page-sales">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Sales</h1><button class="btn btn-primary" onclick="openAddSaleModal()">+ Record Sale</button></div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="saleDateFrom" onchange="loadSales()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="saleDateTo" onchange="loadSales()"></div>
+        <button class="btn btn-primary" onclick="loadSales()">🔄 Refresh</button>
+      </div>
+      <div class="card"><div id="salesTableContainer"><div class="loading">Loading sales...</div></div></div>
+    </section>
+    <section class="page-section" id="page-inventory">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Inventory</h1>
+        <div class="btn-group">
+          <button class="btn btn-warning" onclick="showLowStock()">⚠️ Low Stock</button>
+          <button class="btn btn-danger" onclick="showOutOfStock()">❌ Out of Stock</button>
+          <button class="btn btn-primary" onclick="openAddInventoryModal()">+ Add Item</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>Search</label><input type="text" class="form-input" id="inventorySearch" placeholder="SKU, name, category..." style="width:240px;" onkeyup="filterInventory()"></div>
+        <div class="filter-group"><label>Category</label><select class="form-select" id="inventoryCategoryFilter" style="width:160px;" onchange="filterInventory()"><option value="">All Categories</option></select></div>
+        <div class="filter-group"><label>Status</label><select class="form-select" id="inventoryStatusFilter" style="width:140px;" onchange="filterInventory()"><option value="">All</option><option value="In Stock">In Stock</option><option value="Low Stock">Low Stock</option><option value="Out of Stock">Out of Stock</option></select></div>
+        <button class="btn btn-primary" onclick="loadInventory()">🔄 Refresh</button>
+      </div>
+      <div class="card"><div id="inventoryTableContainer"><div class="loading">Loading inventory...</div></div></div>
+    </section>
+    <section class="page-section" id="page-finance">
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Finance</h1>
+      <div class="filter-bar">
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="financeDateFrom" onchange="loadFinance()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="financeDateTo" onchange="loadFinance()"></div>
+        <button class="btn btn-primary" onclick="loadFinance()">🔄 Refresh</button>
+      </div>
+      <div class="grid-3" id="financeKpis"><div class="kpi-card"><div class="loading">Loading...</div></div><div class="kpi-card"><div class="loading">Loading...</div></div><div class="kpi-card"><div class="loading">Loading...</div></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">General Ledger</div></div><div id="ledgerTableContainer"><div class="loading">Loading ledger...</div></div></div>
+    </section>
+    <section class="page-section" id="page-expenses">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Expenses</h1><button class="btn btn-primary" onclick="openAddExpenseModal()">+ New Expense</button></div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchExpenseTab(this, 'all')">All</div>
+        <div class="tab" onclick="switchExpenseTab(this, 'pending')">Pending</div>
+        <div class="tab" onclick="switchExpenseTab(this, 'approved')">Approved</div>
+        <div class="tab" onclick="switchExpenseTab(this, 'rejected')">Rejected</div>
+        <div class="tab" onclick="switchExpenseTab(this, 'posted')">Posted</div>
+      </div>
+      <div class="card"><div id="expensesTableContainer"><div class="loading">Loading expenses...</div></div></div>
+    </section>
+    <section class="page-section" id="page-approvals">
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Pending Approvals</h1>
+      <div class="card"><div id="approvalsTableContainer"><div class="loading">Loading approvals...</div></div></div>
+    </section>
+    <section class="page-section" id="page-tasks">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Tasks</h1><button class="btn btn-primary" onclick="openAddTaskModal()">+ New Task</button></div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="taskDateFrom" onchange="loadTasks()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="taskDateTo" onchange="loadTasks()"></div>
+        <div class="filter-group"><label>Status</label><select class="form-select" id="taskStatusFilter" style="width:140px;" onchange="filterTasks()"><option value="">All</option><option value="Pending">Pending</option><option value="In Progress">In Progress</option><option value="Completed">Completed</option><option value="Overdue">Overdue</option></select></div>
+        <button class="btn btn-primary" onclick="loadTasks()">🔄 Refresh</button>
+      </div>
+      <div class="card"><div id="tasksTableContainer"><div class="loading">Loading tasks...</div></div></div>
+    </section>
+    <section class="page-section" id="page-marketing">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Marketing</h1><button class="btn btn-primary" onclick="openAddMarketingModal()">+ Add Record</button></div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="marketingDateFrom" onchange="loadMarketing()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="marketingDateTo" onchange="loadMarketing()"></div>
+        <button class="btn btn-primary" onclick="loadMarketing()">🔄 Refresh</button>
+      </div>
+      <div class="kpi-grid" id="marketingKpis"><div class="kpi-card"><div class="loading">Loading...</div></div></div>
+      <div class="card"><div id="marketingTableContainer"><div class="loading">Loading marketing data...</div></div></div>
+    </section>
+    <section class="page-section" id="page-social">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Social Media</h1><button class="btn btn-primary" onclick="openAddSocialModal()">+ Add Record</button></div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="socialDateFrom" onchange="loadSocial()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="socialDateTo" onchange="loadSocial()"></div>
+        <button class="btn btn-primary" onclick="loadSocial()">🔄 Refresh</button>
+      </div>
+      <div class="kpi-grid" id="socialKpis"><div class="kpi-card"><div class="loading">Loading...</div></div></div>
+      <div class="card"><div id="socialTableContainer"><div class="loading">Loading social data...</div></div></div>
+    </section>
+    <section class="page-section" id="page-satisfaction">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Customer Satisfaction</h1><button class="btn btn-primary" onclick="openAddSatisfactionModal()">+ Add Record</button></div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="satisfactionDateFrom" onchange="loadSatisfaction()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="satisfactionDateTo" onchange="loadSatisfaction()"></div>
+        <button class="btn btn-primary" onclick="loadSatisfaction()">🔄 Refresh</button>
+      </div>
+      <div class="card" id="satisfactionStats"></div>
+      <div class="card"><div id="satisfactionTableContainer"><div class="loading">Loading...</div></div></div>
+    </section>
+    <section class="page-section" id="page-nps">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Net Promoter Score</h1><button class="btn btn-primary" onclick="openAddNPSModal()">+ Add Record</button></div>
+      <div class="filter-bar">
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="npsDateFrom" onchange="loadNPS()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="npsDateTo" onchange="loadNPS()"></div>
+        <button class="btn btn-primary" onclick="loadNPS()">🔄 Refresh</button>
+      </div>
+      <div class="card" id="npsStats"></div>
+      <div class="card"><div id="npsTableContainer"><div class="loading">Loading...</div></div></div>
+    </section>
+    <section class="page-section" id="page-members">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Team Members</h1><button class="btn btn-primary" onclick="openAddMemberModal()">+ Add Member</button></div>
+      <div class="card"><div id="membersTableContainer"><div class="loading">Loading members...</div></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-overlay" id="modalGeneric">
+  <div class="modal" id="modalGenericContent">
+    <div class="modal-header"><div class="modal-title" id="modalGenericTitle">Title</div><button class="modal-close" onclick="closeModal()">&times;</button></div>
+    <div class="modal-body" id="modalGenericBody">Content</div>
+    <div class="modal-footer" id="modalGenericFooter"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalMovements">
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title">📦 Stock Movement History</div><button class="modal-close" onclick="closeModal('modalMovements')">&times;</button></div>
+    <div class="modal-body"><div style="margin-bottom:12px;font-weight:600;" id="movementsProductLabel"></div><div id="movementsTableContainer"><div class="loading">Loading movements...</div></div></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modalMovements')">Close</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalBOM">
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title">📋 Bill of Materials</div><button class="modal-close" onclick="closeModal('modalBOM')">&times;</button></div>
+    <div class="modal-body"><div style="margin-bottom:12px;font-weight:600;" id="bomProductLabel"></div><div id="bomTableContainer"><div class="loading">Loading BOM...</div></div></div>
+    <div class="modal-footer" id="bomActions"><button class="btn btn-outline" onclick="closeModal('modalBOM')">Close</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalBOMEditor">
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title">✏️ Edit Bill of Materials</div><button class="modal-close" onclick="closeModal('modalBOMEditor')">&times;</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px;font-weight:600;" id="bomEditProductLabel"></div>
+      <input type="hidden" id="bomEditSku">
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="bomEditNotes" rows="2" placeholder="BOM notes..."></textarea></div>
+      <div style="margin:20px 0 12px;font-weight:700;font-size:14px;">Components</div>
+      <div id="bomComponentsList"><p style="text-align:center;color:#999;padding:16px;">No components added yet.</p></div>
+      <div style="margin-top:16px;padding:16px;background:var(--bg-primary);border-radius:8px;">
+        <div style="font-weight:600;margin-bottom:10px;font-size:13px;">Add Component</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;"><label class="form-label">Component</label><select class="form-select" id="bomComponentSelect"><option value="">Select component...</option></select></div>
+          <div style="width:100px;"><label class="form-label">Qty</label><input type="number" step="0.01" class="form-input" id="bomComponentQty" value="1"></div>
+          <div style="width:100px;"><label class="form-label">Unit</label><input type="text" class="form-input" id="bomComponentUnit" value="pcs"></div>
+          <button class="btn btn-primary" onclick="addBOMComponent()">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-action="save-bom">💾 Save BOM</button><button class="btn btn-outline" onclick="closeModal('modalBOMEditor')">Cancel</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalCostMargin">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">💰 Cost & Margin Analysis</div><button class="modal-close" onclick="closeModal('modalCostMargin')">&times;</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:12px;font-weight:600;" id="costProductLabel"></div>
+      <input type="hidden" id="costProductId">
+      <div class="form-group"><label class="form-label">Manual Selling Price (optional)</label><input type="number" step="0.01" class="form-input" id="costManualPrice" placeholder="Leave empty to use product price"></div>
+      <div id="costResultContainer" style="margin-top:16px;"><p style="text-align:center;color:#999;padding:20px;">Click Calculate to see cost breakdown</p></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-action="calculate-cost-margin">🧮 Calculate</button><button class="btn btn-outline" onclick="closeModal('modalCostMargin')">Close</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalRestock">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📥 Restock Item</div><button class="modal-close" onclick="closeModal('modalRestock')">&times;</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px;font-weight:600;" id="restockProductLabel"></div>
+      <input type="hidden" id="restockInventoryId"><input type="hidden" id="restockSku">
+      <div class="form-group"><label class="form-label">Current Quantity</label><div id="restockCurrentQty" style="font-size:20px;font-weight:700;">0</div></div>
+      <div class="form-group"><label class="form-label">Quantity to Add *</label><input type="number" class="form-input" id="restockQty" placeholder="Enter quantity"></div>
+      <div class="form-group"><label class="form-label">Unit Cost</label><input type="number" step="0.01" class="form-input" id="restockCost" placeholder="Cost per unit"></div>
+      <div class="form-group"><label class="form-label">Supplier</label><input type="text" class="form-input" id="restockSupplier" placeholder="Supplier name"></div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="restockNotes" rows="2" placeholder="Optional notes..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-action="submit-restock">✅ Restock</button><button class="btn btn-outline" onclick="closeModal('modalRestock')">Cancel</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalPostExpense">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📤 Post Expense to Ledger</div><button class="modal-close" onclick="closeModal('modalPostExpense')">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="postExpenseId">
+      <div class="form-group"><label class="form-label">Account *</label>
+        <select class="form-select" id="postExpenseAccount">
+          <option value="">Select account...</option>
+          <option value="Expenses">Expenses</option>
+          <option value="Cost of Goods Sold">Cost of Goods Sold</option>
+          <option value="Operating Expenses">Operating Expenses</option>
+          <option value="Marketing Expenses">Marketing Expenses</option>
+          <option value="Salaries">Salaries</option>
+          <option value="Rent">Rent</option>
+          <option value="Utilities">Utilities</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-action="submit-post-expense">Post</button><button class="btn btn-outline" onclick="closeModal('modalPostExpense')">Cancel</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalRejectExpense">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">❌ Reject Expense</div><button class="modal-close" onclick="closeModal('modalRejectExpense')">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="rejectExpenseId">
+      <div class="form-group"><label class="form-label">Reason *</label><textarea class="form-textarea" id="rejectExpenseReason" rows="3" placeholder="Enter rejection reason..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-danger" data-action="submit-reject-expense">Reject</button><button class="btn btn-outline" onclick="closeModal('modalRejectExpense')">Cancel</button></div>
+  </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>

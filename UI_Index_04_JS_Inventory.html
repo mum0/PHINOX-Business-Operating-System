@@ -1,0 +1,316 @@
+<script>
+// ═══════════════════════════════════════════════════════
+// INVENTORY — BOM hidden unless inventory:bom_read
+// ═══════════════════════════════════════════════════════
+function loadInventory() {
+  callServer('uiGetInventory', { limit: 1000 }).then(function(res) {
+    var raw = (res.data && res.data.data) || res.data;
+    _inventoryCache = Array.isArray(raw) ? raw : (Array.isArray(raw && raw.items) ? raw.items : []);
+    renderInventory(_inventoryCache);
+    populateCategoryFilter();
+  }).catch(function(err) {
+    document.getElementById('inventoryTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+function renderInventory(list) {
+  if (!Array.isArray(list) || !list.length) {
+    document.getElementById('inventoryTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏭</div><p>No inventory items</p></div>';
+    return;
+  }
+  var html = '<table class="table"><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Qty</th><th>Cost</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+  list.forEach(function(item) {
+    var qty = item.quantity || item.qty || 0;
+    var minStock = item.minStock || item.min_stock || 0;
+    var status = qty <= 0 ? 'Out of Stock' : (minStock > 0 && qty <= minStock) ? 'Low Stock' : 'In Stock';
+    var badgeClass = status === 'In Stock' ? 'badge-success' : status === 'Low Stock' ? 'badge-warning' : 'badge-danger';
+    html += '<tr><td>' + esc(item.sku || item.id || '-') + '</td><td>' + esc(item.name || '-') + '</td><td>' + esc(item.category || '-') + '</td>';
+    html += '<td>' + esc(String(qty)) + '</td><td>$' + esc(String(item.cost || 0)) + '</td>';
+    html += '<td><span class="badge ' + badgeClass + '">' + esc(status) + '</span></td>';
+    html += '<td><div class="btn-group">';
+    html += '<button class="btn btn-sm btn-outline" data-action="open-restock" data-sku="' + escAttr(item.sku || item.id) + '" data-name="' + escAttr(item.name || '') + '" data-qty="' + escAttr(String(qty)) + '">📥 Restock</button>';
+    html += '<button class="btn btn-sm btn-outline" data-action="open-movements" data-sku="' + escAttr(item.sku || item.id) + '" data-name="' + escAttr(item.name || '') + '">📦 Movements</button>';
+    // BOM buttons hidden unless has inventory:bom_read permission
+    if (hasPerm('inventory:bom_read')) {
+      html += '<button class="btn btn-sm btn-outline" data-action="open-bom" data-sku="' + escAttr(item.sku || item.id) + '" data-name="' + escAttr(item.name || '') + '">📋 BOM</button>';
+      html += '<button class="btn btn-sm btn-outline" data-action="open-cost-margin" data-sku="' + escAttr(item.sku || item.id) + '" data-name="' + escAttr(item.name || '') + '">💰 Cost</button>';
+    }
+    html += '</div></td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('inventoryTableContainer').innerHTML = html;
+}
+
+function populateCategoryFilter() {
+  var cats = {};
+  _inventoryCache.forEach(function(item) {
+    if (item.category) cats[item.category] = true;
+  });
+  var select = document.getElementById('inventoryCategoryFilter');
+  var current = select.value;
+  select.innerHTML = '<option value="">All Categories</option>';
+  Object.keys(cats).sort().forEach(function(c) {
+    select.innerHTML += '<option value="' + esc(c) + '">' + esc(c) + '</option>';
+  });
+  select.value = current;
+}
+
+function filterInventory() {
+  var search = (document.getElementById('inventorySearch').value || '').toLowerCase();
+  var cat = document.getElementById('inventoryCategoryFilter').value;
+  var statusFilter = document.getElementById('inventoryStatusFilter').value;
+  var filtered = _inventoryCache.filter(function(item) {
+    var qty = item.quantity || item.qty || 0;
+    var minStock = item.minStock || item.min_stock || 0;
+    var status = qty <= 0 ? 'Out of Stock' : (minStock > 0 && qty <= minStock) ? 'Low Stock' : 'In Stock';
+    var matchSearch = !search || ((item.sku || '') + ' ' + (item.name || '') + ' ' + (item.category || '')).toLowerCase().indexOf(search) > -1;
+    var matchCat = !cat || item.category === cat;
+    var matchStatus = !statusFilter || status === statusFilter;
+    return matchSearch && matchCat && matchStatus;
+  });
+  renderInventory(filtered);
+}
+
+function showLowStock() {
+  var filtered = _inventoryCache.filter(function(item) {
+    var qty = item.quantity || item.qty || 0;
+    var minStock = item.minStock || item.min_stock || 0;
+    return minStock > 0 && qty <= minStock && qty > 0;
+  });
+  renderInventory(filtered);
+  showToast('Showing ' + filtered.length + ' low stock items', 'warning');
+}
+
+function showOutOfStock() {
+  var filtered = _inventoryCache.filter(function(item) {
+    return (item.quantity || item.qty || 0) <= 0;
+  });
+  renderInventory(filtered);
+  showToast('Showing ' + filtered.length + ' out of stock items', 'error');
+}
+
+function openAddInventoryModal() {
+  openGenericModal('Add Inventory Item',
+    '<div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" id="invName" placeholder="Product name"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Category</label><input type="text" class="form-input" id="invCategory" placeholder="Category"></div>' +
+    '<div class="form-group"><label class="form-label">Quantity</label><input type="number" class="form-input" id="invQty" value="0"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Cost</label><input type="number" step="0.01" class="form-input" id="invCost" value="0"></div>' +
+    '<div class="form-group"><label class="form-label">Min Stock</label><input type="number" class="form-input" id="invMinStock" value="10"></div></div>' +
+    '<div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="invDesc" rows="2"></textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-add-inventory">Save</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitAddInventory() {
+  var data = {
+    name: document.getElementById('invName').value,
+    category: document.getElementById('invCategory').value,
+    quantity: parseFloat(document.getElementById('invQty').value) || 0,
+    cost: parseFloat(document.getElementById('invCost').value) || 0,
+    minStock: parseFloat(document.getElementById('invMinStock').value) || 0,
+    description: document.getElementById('invDesc').value
+  };
+  if (!data.name) { showToast('Name is required', 'error'); return; }
+  callServer('uiCreateInventory', data).then(function() {
+    showToast('Item added');
+    closeModal();
+    loadInventory();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+// ─── RESTOCK ───
+function openRestockModal(sku, name, currentQty) {
+  document.getElementById('restockSku').value = sku;
+  document.getElementById('restockProductLabel').textContent = esc(name) + ' (' + esc(sku) + ')';
+  document.getElementById('restockCurrentQty').textContent = currentQty;
+  document.getElementById('restockQty').value = '';
+  document.getElementById('restockCost').value = '';
+  document.getElementById('restockSupplier').value = '';
+  document.getElementById('restockNotes').value = '';
+  openModal('modalRestock');
+}
+
+function submitRestock() {
+  var data = {
+    sku: document.getElementById('restockSku').value,
+    qty: parseFloat(document.getElementById('restockQty').value) || 0,
+    unitCost: parseFloat(document.getElementById('restockCost').value) || 0,
+    supplier: document.getElementById('restockSupplier').value,
+    notes: document.getElementById('restockNotes').value,
+    referenceId: 'UI_RESTOCK_' + Date.now()
+  };
+  if (!data.sku || !data.qty) { showToast('SKU and quantity are required', 'error'); return; }
+  callServer('uiRestockStock', data).then(function() {
+    showToast('Restocked successfully');
+    closeModal('modalRestock');
+    loadInventory();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+// ─── MOVEMENTS ───
+function openMovementsModal(sku, name) {
+  document.getElementById('movementsProductLabel').textContent = esc(name) + ' (' + esc(sku) + ')';
+  document.getElementById('movementsTableContainer').innerHTML = '<div class="loading">Loading movements...</div>';
+  openModal('modalMovements');
+  callServer('uiGetStockMovements', sku).then(function(res) {
+    var movements = res.data || [];
+    if (!movements.length) {
+      document.getElementById('movementsTableContainer').innerHTML = '<div class="empty-state"><p>No movements found</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Reference</th><th>Notes</th></tr></thead><tbody>';
+    movements.forEach(function(m) {
+      html += '<tr><td>' + formatDateTime(m.date || m.createdAt) + '</td><td>' + esc(m.type || '-') + '</td><td>' + esc(String(m.quantity || m.qty || 0)) + '</td><td>' + esc(m.reference || '-') + '</td><td>' + esc(m.notes || '-') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('movementsTableContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('movementsTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+// ─── BOM ───
+function openBOMModal(sku, name) {
+  document.getElementById('bomProductLabel').textContent = esc(name) + ' (' + esc(sku) + ')';
+  document.getElementById('bomTableContainer').innerHTML = '<div class="loading">Loading BOM...</div>';
+  openModal('modalBOM');
+  callServer('uiGetBOM', sku).then(function(res) {
+    var bom = res.data;
+    if (!bom) {
+      document.getElementById('bomTableContainer').innerHTML = '<div class="empty-state"><p>No BOM found for this product</p></div>';
+      document.getElementById('bomActions').innerHTML = '<button class="btn btn-primary" data-action="open-bom-editor" data-sku="' + escAttr(sku) + '" data-name="' + escAttr(name) + '">Create BOM</button><button class="btn btn-outline" onclick="closeModal(\'modalBOM\')">Close</button>';
+      return;
+    }
+    _currentBOM = bom;
+    callServer('uiGetBOMItems', bom.id).then(function(itemsRes) {
+      var items = (itemsRes.data && itemsRes.data.data) || itemsRes.data || [];
+      var html = '<table class="table"><thead><tr><th>Component</th><th>Qty</th><th>Unit</th></tr></thead><tbody>';
+      items.forEach(function(it) {
+        html += '<tr><td>' + esc(it.componentSku || it.componentName || '-') + '</td><td>' + esc(String(it.quantity || it.qty || 0)) + '</td><td>' + esc(it.unit || 'pcs') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      document.getElementById('bomTableContainer').innerHTML = html;
+      if (hasPerm('inventory:bom_manage')) {
+        document.getElementById('bomActions').innerHTML = '<button class="btn btn-primary" data-action="open-bom-editor" data-sku="' + escAttr(sku) + '" data-name="' + escAttr(name) + '">Edit BOM</button><button class="btn btn-outline" onclick="closeModal(\'modalBOM\')">Close</button>';
+      } else {
+        document.getElementById('bomActions').innerHTML = '<button class="btn btn-outline" onclick="closeModal(\'modalBOM\')">Close</button>';
+      }
+    });
+  }).catch(function(err) {
+    document.getElementById('bomTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+function openBOMEditor(sku, name) {
+  document.getElementById('bomEditProductLabel').textContent = esc(name) + ' (' + esc(sku) + ')';
+  document.getElementById('bomEditSku').value = sku;
+  document.getElementById('bomEditNotes').value = '';
+  _bomComponents = [];
+  renderBOMComponents();
+  // Populate component select
+  var select = document.getElementById('bomComponentSelect');
+  select.innerHTML = '<option value="">Select component...</option>';
+  _inventoryCache.forEach(function(item) {
+    if (item.sku !== sku) {
+      select.innerHTML += '<option value="' + esc(item.sku) + '">' + esc(item.name || item.sku) + '</option>';
+    }
+  });
+  closeModal('modalBOM');
+  openModal('modalBOMEditor');
+}
+
+function renderBOMComponents() {
+  var container = document.getElementById('bomComponentsList');
+  if (!_bomComponents.length) {
+    container.innerHTML = '<p style="text-align:center;color:#999;padding:16px;">No components added yet.</p>';
+    return;
+  }
+  var html = '<table class="table"><thead><tr><th>Component</th><th>Qty</th><th>Unit</th><th>Action</th></tr></thead><tbody>';
+  _bomComponents.forEach(function(c, idx) {
+    html += '<tr><td>' + esc(c.componentSku) + '</td><td>' + esc(String(c.qty)) + '</td><td>' + esc(c.unit) + '</td>';
+    html += '<td><button class="btn btn-sm btn-danger" data-action="remove-bom-component" data-idx="' + escAttr(String(idx)) + '">Remove</button></td></tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function addBOMComponent() {
+  var sku = document.getElementById('bomComponentSelect').value;
+  var qty = parseFloat(document.getElementById('bomComponentQty').value) || 0;
+  var unit = document.getElementById('bomComponentUnit').value || 'pcs';
+  if (!sku || qty <= 0) { showToast('Select a component and enter quantity', 'error'); return; }
+  _bomComponents.push({ componentSku: sku, qty: qty, unit: unit });
+  renderBOMComponents();
+  document.getElementById('bomComponentSelect').value = '';
+  document.getElementById('bomComponentQty').value = '1';
+}
+
+function removeBOMComponent(idx) {
+  _bomComponents.splice(idx, 1);
+  renderBOMComponents();
+}
+
+function saveBOM() {
+  var sku = document.getElementById('bomEditSku').value;
+  var notes = document.getElementById('bomEditNotes').value;
+  if (!sku) { showToast('SKU required', 'error'); return; }
+  
+  // Step 1: Create BOM without components
+  callServer('uiCreateBOM', { sku: sku, notes: notes }).then(function(res) {
+    var bom = res.data;
+    if (!bom || !bom.id) throw new Error('Failed to create BOM');
+    
+    // Step 2: Add components one by one
+    var promises = _bomComponents.map(function(c) {
+      return callServer('uiAddBOMItem', { bomId: bom.id, data: { componentSku: c.componentSku, quantity: c.qty, unit: c.unit } });
+    });
+    
+    return Promise.all(promises);
+  }).then(function() {
+    showToast('BOM saved successfully');
+    closeModal('modalBOMEditor');
+    loadInventory();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+// ─── COST & MARGIN ───
+function openCostMarginModal(sku, name) {
+  document.getElementById('costProductLabel').textContent = esc(name) + ' (' + esc(sku) + ')';
+  document.getElementById('costProductId').value = sku;
+  document.getElementById('costManualPrice').value = '';
+  document.getElementById('costResultContainer').innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Click Calculate to see cost breakdown</p>';
+  openModal('modalCostMargin');
+}
+
+function calculateCostMargin() {
+  var sku = document.getElementById('costProductId').value;
+  var price = document.getElementById('costManualPrice').value;
+  callServer('uiCalculateCost', sku).then(function(costRes) {
+    var cost = costRes.data.finalCost || 0;
+    var sellingPrice = parseFloat(price) || 0;
+    if (!sellingPrice) {
+      // Try to get price from inventory cache
+      var item = _inventoryCache.find(function(i) { return i.sku === sku; });
+      sellingPrice = item ? (item.price || item.sellingPrice || 0) : 0;
+    }
+    var margin = sellingPrice > 0 ? ((sellingPrice - cost) / sellingPrice * 100) : 0;
+    var html = '<div class="grid-3"><div class="kpi-card"><div class="kpi-label">BOM Cost</div><div class="kpi-value">$' + esc(String(costRes.data.bomCost || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Inventory Cost</div><div class="kpi-value">$' + esc(String(costRes.data.inventoryCost || 0)) + '</div></div>';
+    html += '<div class="kpi-card"><div class="kpi-label">Final Cost</div><div class="kpi-value">$' + esc(String(cost)) + '</div></div></div>';
+    html += '<div style="margin-top:16px;padding:16px;background:var(--bg-primary);border-radius:8px;">';
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>Selling Price:</span><strong>$' + esc(String(sellingPrice)) + '</strong></div>';
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>Cost:</span><strong>$' + esc(String(cost)) + '</strong></div>';
+    html += '<div style="display:flex;justify-content:space-between;"><span>Margin:</span><strong class="' + (margin >= 30 ? 'text-success' : margin >= 10 ? 'text-warning' : 'text-danger') + '">' + esc(String(margin.toFixed(2))) + '%</strong></div>';
+    html += '</div>';
+    document.getElementById('costResultContainer').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('costResultContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+</script>
