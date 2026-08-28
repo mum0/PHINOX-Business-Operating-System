@@ -1,7 +1,3 @@
-<script>
-// ═══════════════════════════════════════════════════════
-// MEMBERS — Improved modal with Admin/CEO validation
-// ═══════════════════════════════════════════════════════
 function loadMembers() {
   callServer('uiGetMembers', null).then(function(res) {
     _memberCache = res.data || [];
@@ -114,5 +110,3 @@ function submitAddMember() {
     showToast('Error: ' + err.message, 'error');
   });
 }
-
-</script>

@@ -1,5 +1,4 @@
 <script>
-<script>
 // ═══════════════════════════════════════════════════════
 // SECURITY HELPERS
 // ═══════════════════════════════════════════════════════
@@ -199,41 +198,3 @@ function initAuthSystem() {
     }
   });
 }
-
-// ═══════════════════════════════════════════════════════
-// NAVIGATION
-// ═══════════════════════════════════════════════════════
-function navigateTo(page) {
-  document.querySelectorAll('.nav-item').forEach(function(el) {
-    el.classList.remove('active');
-    if (el.getAttribute('data-page') === page) el.classList.add('active');
-  });
-  document.querySelectorAll('.page-section').forEach(function(el) { el.classList.remove('active'); });
-  var target = document.getElementById('page-' + page);
-  if (target) target.classList.add('active');
-  document.getElementById('sidebar').classList.remove('open');
-  window.scrollTo(0, 0);
-
-  var loaders = {
-    dashboard: function() { if (typeof loadDashboard === "function") loadDashboard(); },
-    kpi: function() { loadKPIs(); },
-    customers: function() { if (typeof loadCustomers === 'function') loadCustomers(); },
-    orders: function() { if (typeof loadOrders === 'function') loadOrders(); },
-    sales: function() { if (typeof loadSales === 'function') loadSales(); },
-    inventory: loadInventory,
-    finance: loadFinance,
-    expenses: loadExpenses,
-    approvals: loadApprovals,
-    tasks: loadTasks,
-    marketing: loadMarketing,
-    social: loadSocial,
-    satisfaction: loadSatisfaction,
-    nps: loadNPS,
-    members: loadMembers
-  };
-  if (loaders[page] && typeof loaders[page] === 'function') {
-    try { loaders[page](); } catch (e) { console.log('Loader error:', e); }
-  }
-}
-
-</script>

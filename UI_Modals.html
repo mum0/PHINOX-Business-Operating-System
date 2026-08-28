@@ -1,0 +1,103 @@
+<div class="modal-overlay" id="modalGeneric">
+  <div class="modal" id="modalGenericContent">
+    <div class="modal-header"><div class="modal-title" id="modalGenericTitle">Title</div><button class="modal-close" onclick="closeModal()">&times;</button></div>
+    <div class="modal-body" id="modalGenericBody">Content</div>
+    <div class="modal-footer" id="modalGenericFooter"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalMovements">
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title">📦 Stock Movement History</div><button class="modal-close" onclick="closeModal('modalMovements')">&times;</button></div>
+    <div class="modal-body"><div style="margin-bottom:12px;font-weight:600;" id="movementsProductLabel"></div><div id="movementsTableContainer"><div class="loading">Loading movements...</div></div></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modalMovements')">Close</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalBOM">
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title">📋 Bill of Materials</div><button class="modal-close" onclick="closeModal('modalBOM')">&times;</button></div>
+    <div class="modal-body"><div style="margin-bottom:12px;font-weight:600;" id="bomProductLabel"></div><div id="bomTableContainer"><div class="loading">Loading BOM...</div></div></div>
+    <div class="modal-footer" id="bomActions"><button class="btn btn-outline" onclick="closeModal('modalBOM')">Close</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalBOMEditor">
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title">✏️ Edit Bill of Materials</div><button class="modal-close" onclick="closeModal('modalBOMEditor')">&times;</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px;font-weight:600;" id="bomEditProductLabel"></div>
+      <input type="hidden" id="bomEditSku">
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="bomEditNotes" rows="2" placeholder="BOM notes..."></textarea></div>
+      <div style="margin:20px 0 12px;font-weight:700;font-size:14px;">Components</div>
+      <div id="bomComponentsList"><p style="text-align:center;color:#999;padding:16px;">No components added yet.</p></div>
+      <div style="margin-top:16px;padding:16px;background:var(--bg-primary);border-radius:8px;">
+        <div style="font-weight:600;margin-bottom:10px;font-size:13px;">Add Component</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;"><label class="form-label">Component</label><select class="form-select" id="bomComponentSelect"><option value="">Select component...</option></select></div>
+          <div style="width:100px;"><label class="form-label">Qty</label><input type="number" step="0.01" class="form-input" id="bomComponentQty" value="1"></div>
+          <div style="width:100px;"><label class="form-label">Unit</label><input type="text" class="form-input" id="bomComponentUnit" value="pcs"></div>
+          <button class="btn btn-primary" onclick="addBOMComponent()">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-action="save-bom">💾 Save BOM</button><button class="btn btn-outline" onclick="closeModal('modalBOMEditor')">Cancel</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalCostMargin">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">💰 Cost & Margin Analysis</div><button class="modal-close" onclick="closeModal('modalCostMargin')">&times;</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:12px;font-weight:600;" id="costProductLabel"></div>
+      <input type="hidden" id="costProductId">
+      <div class="form-group"><label class="form-label">Manual Selling Price (optional)</label><input type="number" step="0.01" class="form-input" id="costManualPrice" placeholder="Leave empty to use product price"></div>
+      <div id="costResultContainer" style="margin-top:16px;"><p style="text-align:center;color:#999;padding:20px;">Click Calculate to see cost breakdown</p></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-action="calculate-cost-margin">🧮 Calculate</button><button class="btn btn-outline" onclick="closeModal('modalCostMargin')">Close</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalRestock">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📥 Restock Item</div><button class="modal-close" onclick="closeModal('modalRestock')">&times;</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px;font-weight:600;" id="restockProductLabel"></div>
+      <input type="hidden" id="restockInventoryId"><input type="hidden" id="restockSku">
+      <div class="form-group"><label class="form-label">Current Quantity</label><div id="restockCurrentQty" style="font-size:20px;font-weight:700;">0</div></div>
+      <div class="form-group"><label class="form-label">Quantity to Add *</label><input type="number" class="form-input" id="restockQty" placeholder="Enter quantity"></div>
+      <div class="form-group"><label class="form-label">Unit Cost</label><input type="number" step="0.01" class="form-input" id="restockCost" placeholder="Cost per unit"></div>
+      <div class="form-group"><label class="form-label">Supplier</label><input type="text" class="form-input" id="restockSupplier" placeholder="Supplier name"></div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="restockNotes" rows="2" placeholder="Optional notes..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-action="submit-restock">✅ Restock</button><button class="btn btn-outline" onclick="closeModal('modalRestock')">Cancel</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalPostExpense">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📤 Post Expense to Ledger</div><button class="modal-close" onclick="closeModal('modalPostExpense')">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="postExpenseId">
+      <div class="form-group"><label class="form-label">Account *</label>
+        <select class="form-select" id="postExpenseAccount">
+          <option value="">Select account...</option>
+          <option value="Expenses">Expenses</option>
+          <option value="Cost of Goods Sold">Cost of Goods Sold</option>
+          <option value="Operating Expenses">Operating Expenses</option>
+          <option value="Marketing Expenses">Marketing Expenses</option>
+          <option value="Salaries">Salaries</option>
+          <option value="Rent">Rent</option>
+          <option value="Utilities">Utilities</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-action="submit-post-expense">Post</button><button class="btn btn-outline" onclick="closeModal('modalPostExpense')">Cancel</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalRejectExpense">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">❌ Reject Expense</div><button class="modal-close" onclick="closeModal('modalRejectExpense')">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="rejectExpenseId">
+      <div class="form-group"><label class="form-label">Reason *</label><textarea class="form-textarea" id="rejectExpenseReason" rows="3" placeholder="Enter rejection reason..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-danger" data-action="submit-reject-expense">Reject</button><button class="btn btn-outline" onclick="closeModal('modalRejectExpense')">Cancel</button></div>
+  </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
