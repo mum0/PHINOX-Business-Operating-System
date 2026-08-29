@@ -177,7 +177,7 @@ function isAdmin() {
 }
 
 // ═══════════════════════════════════════════════════════
-// AUTH & LOGIN OVERLAY
+// AUTH, LOGIN & REGISTRATION — PHINOX BOS v5
 // ═══════════════════════════════════════════════════════
 function showAuthOverlay() {
   var existing = document.getElementById('authOverlay');
@@ -185,13 +185,13 @@ function showAuthOverlay() {
 
   var overlay = document.createElement('div');
   overlay.id = 'authOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
   overlay.innerHTML =
-    '<div style="background:#1E293B;border:1px solid #334155;border-radius:16px;padding:40px;max-width:420px;width:100%;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.5);">' +
+    '<div id="authBox" style="background:#1E293B;border:1px solid #334155;border-radius:16px;padding:40px;max-width:460px;width:100%;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.5);">' +
     '<div style="font-size:42px;margin-bottom:16px;">🔐</div>' +
     '<h2 style="margin:0 0 8px;font-size:22px;">PHINOX BOS v5</h2>' +
-    '<p style="color:#94A3B8;margin:0 0 24px;font-size:14px;">جاري التحقق من هويتك...</p>' +
-    '<div id="authStatus" style="padding:12px 16px;border-radius:8px;background:#0F172A;font-size:13px;color:#94A3B8;margin-bottom:16px;">' +
+    '<p id="authSubtitle" style="color:#94A3B8;margin:0 0 24px;font-size:14px;">جاري التحقق من هويتك...</p>' +
+    '<div id="authStatus" style="padding:12px 16px;border-radius:8px;background:#0F172A;font-size:13px;color:#94A3B8;margin-bottom:16px;border:1px solid #334155;">' +
     'جاري الاتصال بالسيرفر...' +
     '</div>' +
     '<button id="authRetryBtn" class="btn btn-primary" style="display:none;width:100%;" onclick="initAuthSystem()">🔄 إعادة المحاولة</button>' +
@@ -214,45 +214,72 @@ function setAuthStatus(msg, isError) {
   if (btn) btn.style.display = isError ? 'inline-flex' : 'none';
 }
 
+function _getAuthBox() {
+  return document.getElementById('authBox');
+}
+
+function _setAuthBox(html) {
+  var box = _getAuthBox();
+  if (box) box.innerHTML = html;
+}
+
+function _setAuthSubtitle(text) {
+  var el = document.getElementById('authSubtitle');
+  if (el) el.textContent = text;
+}
+
+// ─── MAIN AUTH FLOW ───
 function initAuthSystem() {
   showAuthOverlay();
   setAuthStatus('جاري التحقق من الجلسة...', false);
 
+  // Step 1: Try auto-login (Gmail users)
   callServer('uiGetCurrentUser', null).then(function(res) {
     var user = res.data;
-    if (!user || !user.email) {
-      showManualLoginForm();
+    if (user && user.email) {
+      _loginSuccess(user);
       return;
     }
-    _currentUser = user;
-    var displayName = user.name || user.fullName || user.email.split('@')[0];
-    var role = user.role || 'User';
-    document.getElementById('userName').textContent = displayName;
-    document.getElementById('userRole').textContent = role;
-    document.getElementById('userAvatar').textContent = (displayName || 'U').charAt(0).toUpperCase();
-    var perms = user.permissions || [];
-    document.getElementById('userPermissions').textContent = perms.join(', ');
-    hideAuthOverlay();
-    showToast('مرحباً ' + displayName + ' (' + role + ')', 'success');
-    callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
-      _customerCache = (cres.data && cres.data.data) || cres.data || [];
-    }).catch(function() {});
-    navigateTo('dashboard');
+    // Not auto-logged in — check if Gmail user needs registration
+    callServer('uiCheckRegistrationStatus', '').then(function(statusRes) {
+      var statusData = statusRes.data || {};
+      // For Gmail: the server returned empty email, so we can't check
+      // Just show manual login with registration option
+      showManualLoginForm();
+    }).catch(function() {
+      showManualLoginForm();
+    });
   }).catch(function(err) {
     console.error('Auth error:', err);
     showManualLoginForm();
   });
 }
 
+// ─── LOGIN SUCCESS HANDLER ───
+function _loginSuccess(user) {
+  _currentUser = user;
+  var displayName = user.name || user.fullName || user.email.split('@')[0];
+  var role = user.role || 'User';
+  document.getElementById('userName').textContent = displayName;
+  document.getElementById('userRole').textContent = role;
+  document.getElementById('userAvatar').textContent = (displayName || 'U').charAt(0).toUpperCase();
+  var perms = user.permissions || [];
+  document.getElementById('userPermissions').textContent = perms.join(', ');
+  hideAuthOverlay();
+  showToast('مرحباً ' + displayName + ' (' + role + ')', 'success');
+  callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
+    _customerCache = (cres.data && cres.data.data) || cres.data || [];
+  }).catch(function() {});
+  navigateTo('dashboard');
+}
+
+// ─── MANUAL LOGIN FORM ───
 function showManualLoginForm() {
-  var overlay = document.getElementById('authOverlay');
-  if (!overlay) return;
-  var box = overlay.querySelector('div');
-  if (!box) return;
-  box.innerHTML =
+  _setAuthSubtitle('تسجيل الدخول');
+  _setAuthBox(
     '<div style="font-size:42px;margin-bottom:16px;">🔐</div>' +
     '<h2 style="margin:0 0 8px;font-size:22px;">PHINOX BOS v5</h2>' +
-    '<p style="color:#94A3B8;margin:0 0 20px;font-size:13px;">تسجيل الدخول اليدوي — أدخل إيميلك وكلمة المرور</p>' +
+    '<div id="authStatus" style="display:none;padding:8px 12px;border-radius:6px;background:#1C1917;color:#F87171;font-size:12px;margin-bottom:12px;border:1px solid #DC2626;text-align:left;"></div>' +
     '<div style="margin-bottom:14px;text-align:left;">' +
     '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">البريد الإلكتروني *</label>' +
     '<input type="email" id="manualLoginEmail" placeholder="email@example.com" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" />' +
@@ -261,15 +288,18 @@ function showManualLoginForm() {
     '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">كلمة المرور *</label>' +
     '<input type="password" id="manualLoginPassword" placeholder="••••••••" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" onkeydown="if(event.key===\'Enter\')doManualLogin()" />' +
     '</div>' +
-    '<div id="manualLoginError" style="display:none;padding:8px 12px;border-radius:6px;background:#1C1917;color:#F87171;font-size:12px;margin-bottom:12px;border:1px solid #DC2626;"></div>' +
-    '<button class="btn btn-primary" style="width:100%;" onclick="doManualLogin()">🔑 تسجيل الدخول</button>' +
-    '<p style="color:#64748B;font-size:11px;margin-top:16px;">يجب أن يكون الإيميل مسجلاً في شيت Members مع كلمة مرور معينة من الأدمن</p>';
+    '<button class="btn btn-primary" style="width:100%;margin-bottom:12px;" onclick="doManualLogin()">🔑 تسجيل الدخول</button>' +
+    '<div style="border-top:1px solid #334155;margin:16px 0;padding-top:16px;">' +
+    '<p style="color:#94A3B8;font-size:13px;margin:0 0 8px;">ليس لديك حساب؟</p>' +
+    '<button class="btn btn-outline" style="width:100%;" onclick="doCheckAndRegister()">📝 تسجيل كعضو جديد</button>' +
+    '</div>'
+  );
 }
 
 function doManualLogin() {
   var emailInput = document.getElementById('manualLoginEmail');
   var passInput = document.getElementById('manualLoginPassword');
-  var errorDiv = document.getElementById('manualLoginError');
+  var errorDiv = document.getElementById('authStatus');
   if (!emailInput || !passInput) return;
   var email = emailInput.value.trim();
   var password = passInput.value;
@@ -282,31 +312,202 @@ function doManualLogin() {
     return;
   }
   if (errorDiv) errorDiv.style.display = 'none';
-  setAuthStatus('جاري التحقق...', false);
 
-  callServer('uiLoginWithEmail', email, password).then(function(res) {
-    var user = res.data;
-    if (!user || !user.email) {
-      if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'فشل تسجيل الدخول'; }
-      return;
+  // Check registration status first
+  callServer('uiCheckRegistrationStatus', email).then(function(statusRes) {
+    var info = statusRes.data || {};
+    if (info.exists) {
+      if (info.status === 'Pending') {
+        showPendingScreen(email);
+        return;
+      }
+      if (info.status === 'Rejected') {
+        showRejectedScreen(email);
+        return;
+      }
     }
-    _currentUser = user;
-    var displayName = user.name || user.fullName || user.email.split('@')[0];
-    var role = user.role || 'User';
-    document.getElementById('userName').textContent = displayName;
-    document.getElementById('userRole').textContent = role;
-    document.getElementById('userAvatar').textContent = (displayName || 'U').charAt(0).toUpperCase();
-    var perms = user.permissions || [];
-    document.getElementById('userPermissions').textContent = perms.join(', ');
-    hideAuthOverlay();
-    showToast('مرحباً ' + displayName + ' (' + role + ')', 'success');
-    callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
-      _customerCache = (cres.data && cres.data.data) || cres.data || [];
-    }).catch(function() {});
-    navigateTo('dashboard');
+    // Try login
+    return callServer('uiLoginWithEmail', email, password).then(function(res) {
+      var user = res.data;
+      if (!user || !user.email) {
+        if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'فشل تسجيل الدخول'; }
+        return;
+      }
+      _loginSuccess(user);
+    }).catch(function(err) {
+      var msg = err.message || 'خطأ في تسجيل الدخول';
+      // If "not found" error, offer registration
+      if (msg.indexOf('غير موجود') > -1 || msg.indexOf('غير مسجّل') > -1) {
+        if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.innerHTML = '⚠️ ' + esc(msg) + '<br><span style="color:#94A3B8;">إذا لم يكن لديك حساب، اضغط "تسجيل كعضو جديد" بالأسفل</span>'; }
+      } else {
+        if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = msg; }
+      }
+    });
   }).catch(function(err) {
-    if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = err.message || 'خطأ في تسجيل الدخول'; }
+    if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = err.message || 'خطأ'; }
   });
+}
+
+// ─── CHECK & REDIRECT TO REGISTRATION ───
+function doCheckAndRegister() {
+  var emailInput = document.getElementById('manualLoginEmail');
+  var email = emailInput ? emailInput.value.trim() : '';
+  if (!email || email.indexOf('@') < 0) {
+    showRegistrationForm('', false);
+  } else {
+    callServer('uiCheckRegistrationStatus', email).then(function(res) {
+      var info = res.data || {};
+      if (info.exists) {
+        if (info.status === 'Pending') {
+          showPendingScreen(email);
+        } else if (info.status === 'Rejected') {
+          showRejectedScreen(email);
+        } else {
+          showManualLoginForm();
+          var errorDiv = document.getElementById('authStatus');
+          if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'هذا الإيميل مسجل بالفعل. حاول تسجيل الدخول.'; }
+        }
+        return;
+      }
+      var isGmail = info.isGmail || email.indexOf('gmail.com') > -1;
+      showRegistrationForm(email, isGmail);
+    }).catch(function() {
+      showRegistrationForm(email, false);
+    });
+  }
+}
+
+// ─── REGISTRATION FORM ───
+function showRegistrationForm(prefillEmail, isGmail) {
+  _setAuthSubtitle('تسجيل عضو جديد');
+  var emailField = isGmail
+    ? '<input type="email" id="regEmail" value="' + escAttr(prefillEmail) + '" readonly style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#334155;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;opacity:0.7;cursor:not-allowed;" />'
+    : '<input type="email" id="regEmail" placeholder="email@example.com" value="' + escAttr(prefillEmail) + '" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" />';
+
+  var passwordSection = isGmail ? '' :
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">كلمة المرور * <span style="font-size:11px;opacity:0.6;">(4 أحرف على الأقل)</span></label>' +
+    '<input type="password" id="regPassword" placeholder="••••••••" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" />' +
+    '</div>' +
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">تأكيد كلمة المرور *</label>' +
+    '<input type="password" id="regPasswordConfirm" placeholder="••••••••" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" />' +
+    '</div>';
+
+  _setAuthBox(
+    '<div style="font-size:42px;margin-bottom:16px;">📝</div>' +
+    '<h2 style="margin:0 0 8px;font-size:22px;">إنشاء حساب جديد</h2>' +
+    '<p style="color:#94A3B8;margin:0 0 20px;font-size:12px;">سيتم مراجعة طلبك من قبل الإدارة قبل تفعيل الحساب</p>' +
+    '<div id="authStatus" style="display:none;padding:8px 12px;border-radius:6px;background:#1C1917;color:#F87171;font-size:12px;margin-bottom:12px;border:1px solid #DC2626;text-align:left;"></div>' +
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">الاسم الكامل *</label>' +
+    '<input type="text" id="regName" placeholder="أدخل اسمك الكامل" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" />' +
+    '</div>' +
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">البريد الإلكتروني *</label>' +
+    emailField +
+    (isGmail ? '<p style="margin:4px 0 0;font-size:11px;color:#6366F1;">✓ تم التعرف تلقائياً (حساب Google)</p>' : '') +
+    '</div>' +
+    passwordSection +
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">رقم الهاتف</label>' +
+    '<input type="tel" id="regPhone" placeholder="+20 xxx xxx xxxx" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" />' +
+    '</div>' +
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">المنصب / الوظيفة *</label>' +
+    '<select id="regRole" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;">' +
+    '<option value="">— اختر المنصب —</option>' +
+    '<option value="Operations">Operations</option>' +
+    '<option value="Finance">Finance</option>' +
+    '<option value="Marketing">Marketing</option>' +
+    '<option value="Designer">Designer</option>' +
+    '<option value="Customer Service">Customer Service</option>' +
+    '<option value="Partner">Partner</option>' +
+    '</select>' +
+    '</div>' +
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">رسالة للإدارة <span style="opacity:0.5;">(اختياري)</span></label>' +
+    '<textarea id="regMessage" rows="2" placeholder="مثال: أريد الانضمام لفريق التسويق..." style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;resize:vertical;"></textarea>' +
+    '</div>' +
+    '<button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="submitRegistration()">📤 إرسال طلب التسجيل</button>' +
+    '<button class="btn btn-outline" style="width:100%;" onclick="showManualLoginForm()">← رجوع لتسجيل الدخول</button>'
+  );
+}
+
+// ─── SUBMIT REGISTRATION ───
+function submitRegistration() {
+  var errorDiv = document.getElementById('authStatus');
+  var name = document.getElementById('regName').value.trim();
+  var email = document.getElementById('regEmail').value.trim();
+  var phone = document.getElementById('regPhone').value.trim();
+  var role = document.getElementById('regRole').value;
+  var password = document.getElementById('regPassword') ? document.getElementById('regPassword').value : '';
+  var passwordConfirm = document.getElementById('regPasswordConfirm') ? document.getElementById('regPasswordConfirm').value : '';
+  var message = document.getElementById('regMessage').value.trim();
+
+  // Validation
+  if (!name) { if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'الاسم الكامل مطلوب'; } return; }
+  if (!email || email.indexOf('@') < 0) { if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'أدخل إيميل صحيح'; } return; }
+  if (!role) { if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'اختر المنصب'; } return; }
+
+  var isGmail = email.indexOf('gmail.com') > -1 || email.indexOf('googlemail.com') > -1;
+  if (!isGmail) {
+    if (!password || password.length < 4) { if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'كلمة المرور مطلوبة (4 أحرف على الأقل)'; } return; }
+    if (password !== passwordConfirm) { if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'كلمتا المرور غير متطابقتين'; } return; }
+  }
+
+  if (errorDiv) errorDiv.style.display = 'none';
+
+  callServer('uiRegisterNewMember', {
+    fullName: name,
+    email: email,
+    phone: phone,
+    role: role,
+    password: password,
+    message: message
+  }).then(function(res) {
+    var data = res.data || {};
+    showPendingScreen(email, data.name || name);
+  }).catch(function(err) {
+    if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = err.message || 'خطأ في التسجيل'; }
+  });
+}
+
+// ─── PENDING APPROVAL SCREEN ───
+function showPendingScreen(email, name) {
+  _setAuthSubtitle('في انتظار الموافقة');
+  _setAuthBox(
+    '<div style="font-size:64px;margin-bottom:20px;">⏳</div>' +
+    '<h2 style="margin:0 0 12px;font-size:22px;color:#F59E0B;">طلبك قيد المراجعة</h2>' +
+    '<p style="color:#94A3B8;margin:0 0 24px;font-size:14px;line-height:1.6;">' +
+    'تم استلام طلب تسجيلك بنجاح وسيتم مراجعته من قبل الإدارة.<br>' +
+    'ستتمكن من تسجيل الدخول بعد الموافقة على طلبك.' +
+    '</p>' +
+    '<div style="padding:14px 16px;border-radius:8px;background:#0F172A;border:1px solid #334155;margin-bottom:20px;text-align:left;">' +
+    '<div style="font-size:11px;color:#64748B;text-transform:uppercase;margin-bottom:4px;">البريد الإلكتروني</div>' +
+    '<div style="font-size:14px;color:#F1F5F9;">' + esc(email || '') + '</div>' +
+    (name ? '<div style="font-size:11px;color:#64748B;text-transform:uppercase;margin:8px 0 4px;">الاسم</div><div style="font-size:14px;color:#F1F5F9;">' + esc(name) + '</div>' : '') +
+    '</div>' +
+    '<button class="btn btn-outline" style="width:100%;" onclick="showManualLoginForm()">← رجوع لتسجيل الدخول</button>'
+  );
+}
+
+// ─── REJECTED SCREEN ───
+function showRejectedScreen(email) {
+  _setAuthSubtitle('تم رفض الطلب');
+  _setAuthBox(
+    '<div style="font-size:64px;margin-bottom:20px;">🚫</div>' +
+    '<h2 style="margin:0 0 12px;font-size:22px;color:#EF4444;">تم رفض طلب التسجيل</h2>' +
+    '<p style="color:#94A3B8;margin:0 0 24px;font-size:14px;line-height:1.6;">' +
+    'عذراً، تم رفض طلب تسجيلك مسبقاً.<br>' +
+    'يرجى التواصل مع الإدارة للحصول على مزيد من المعلومات.' +
+    '</p>' +
+    '<div style="padding:14px 16px;border-radius:8px;background:#0F172A;border:1px solid #334155;margin-bottom:20px;text-align:left;">' +
+    '<div style="font-size:11px;color:#64748B;text-transform:uppercase;margin-bottom:4px;">البريد الإلكتروني</div>' +
+    '<div style="font-size:14px;color:#F1F5F9;">' + esc(email || '') + '</div>' +
+    '</div>' +
+    '<button class="btn btn-outline" style="width:100%;" onclick="showManualLoginForm()">← رجوع</button>'
+  );
 }
 
 // ═══════════════════════════════════════════════════════

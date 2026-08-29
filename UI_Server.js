@@ -298,6 +298,326 @@ function uiSetMemberPassword(targetEmail, newPassword) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// REGISTRATION & APPROVAL SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Check if email exists and its status (NO auth required) ───
+function uiCheckRegistrationStatus(inputEmail) {
+  try {
+    if (!inputEmail || typeof inputEmail !== 'string') return { success: true, data: { exists: false } };
+    var cleanEmail = inputEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return { success: true, data: { exists: false } };
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) return { success: true, data: { exists: false } };
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return { success: true, data: { exists: false } };
+
+    var totalCols = sheet.getLastColumn();
+    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var colEmail = String(row[MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+      if (colEmail === cleanEmail) {
+        var status = String(row[MEMBER_COL.STATUS] || 'Active').trim();
+        var role = String(row[MEMBER_COL.ROLE] || '').trim();
+        var name = String(row[MEMBER_COL.FULL_NAME] || '').trim();
+        return {
+          success: true,
+          data: {
+            exists: true,
+            status: status,
+            role: role,
+            name: name,
+            isGmail: cleanEmail.indexOf('gmail.com') > -1 || cleanEmail.indexOf('googlemail.com') > -1
+          }
+        };
+      }
+    }
+    return { success: true, data: { exists: false, isGmail: cleanEmail.indexOf('gmail.com') > -1 || cleanEmail.indexOf('googlemail.com') > -1 } };
+  } catch (e) {
+    return { success: true, data: { exists: false } };
+  }
+}
+
+// ─── Self-registration (NO auth required — creates Pending member) ───
+function uiRegisterNewMember(data) {
+  try {
+    _checkRateLimit("uiRegisterNewMember");
+    if (!data || typeof data !== 'object') throw new Error("بيانات غير صحيحة");
+    var fullName = _sanitizeInput(data.fullName || data.name || '');
+    var email = _sanitizeEmail(data.email);
+    var phone = _sanitizeInput(data.phone || '');
+    var role = _sanitizeInput(data.role || '');
+    var password = data.password || '';
+    var message = _sanitizeInput(data.message || '');
+
+    if (!fullName) throw new Error("الاسم مطلوب");
+    if (!email) throw new Error("الإيميل مطلوب بصيغة صحيحة");
+    if (!role) throw new Error("المنصب مطلوب");
+
+    // Prevent self-registering as Admin/CEO
+    var roleLower = role.toLowerCase();
+    if (roleLower === 'admin') throw new Error("لا يمكنك التسجيل كأدمن — تواصل مع الإدارة");
+    if (roleLower === 'ceo') throw new Error("لا يمكنك التسجيل كـ CEO — تواصل مع الإدارة");
+
+    // For non-Gmail, password is required
+    var isGmail = email.indexOf('gmail.com') > -1 || email.indexOf('googlemail.com') > -1;
+    var passHash = '';
+    if (!isGmail) {
+      if (!password || typeof password !== 'string') throw new Error("كلمة المرور مطلوبة (4 أحرف على الأقل)");
+      if (password.length < 4) throw new Error("كلمة المرور قصيرة جداً (4 أحرف على الأقل)");
+      passHash = _hashPassword(password);
+    }
+
+    // Check if email already exists
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) throw new Error("شيت Members غير موجود");
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) lastRow = 1;
+    var totalCols = sheet.getLastColumn();
+
+    // Read existing data to check duplicates
+    if (lastRow > 1) {
+      var existing = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+      for (var i = 0; i < existing.length; i++) {
+        var eEmail = String(existing[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+        if (eEmail === email) {
+          var eStatus = String(existing[i][MEMBER_COL.STATUS] || '').trim();
+          if (eStatus.toLowerCase() === 'pending') {
+            throw new Error("لقد قمت بالتسجيل مسبقاً وانتظار الموافقة. برجاء الانتظار.");
+          } else if (eStatus.toLowerCase() === 'active') {
+            throw new Error("هذا الإيميل مسجل بالفعل كعضو نشط. حاول تسجيل الدخول.");
+          } else if (eStatus.toLowerCase() === 'rejected') {
+            throw new Error("تم رفض طلب التسجيل السابق. تواصل مع الإدارة.");
+          } else {
+            throw new Error("هذا الإيميل موجود بالفعل في النظام. تواصل مع الإدارة.");
+          }
+        }
+      }
+    }
+
+    // Ensure password column exists
+    var passCol = MEMBER_COL.PASSWORD + 1;
+    if (totalCols < passCol) {
+      sheet.getRange(1, passCol, 1, 1).setValue('password')
+        .setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    }
+
+    // Generate member ID
+    var memberId = 'MBR-' + Date.now().toString(36).toUpperCase();
+    var joinDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+    // Append new row — Status = Pending
+    var newRow = [];
+    newRow[MEMBER_COL.MEMBER_ID] = memberId;
+    newRow[MEMBER_COL.FULL_NAME] = fullName;
+    newRow[MEMBER_COL.ROLE] = role;
+    newRow[MEMBER_COL.EMAIL] = email;
+    newRow[MEMBER_COL.PHONE] = phone;
+    newRow[MEMBER_COL.STATUS] = 'Pending';
+    newRow[MEMBER_COL.JOIN_DATE] = joinDate;
+    newRow[MEMBER_COL.KPI_SCORE] = 0;
+    newRow[MEMBER_COL.TASKS_COMPLETED] = 0;
+    newRow[MEMBER_COL.TASKS_LATE] = 0;
+    newRow[MEMBER_COL.AVERAGE_QUALITY] = 0;
+    newRow[MEMBER_COL.NOTES] = 'Registration request' + (message ? ': ' + message : '');
+    newRow[MEMBER_COL.PASSWORD] = passHash;
+
+    sheet.appendRow(newRow);
+
+    _auditLog("MEMBER_REGISTER", email, { name: fullName, role: role, isGmail: isGmail }, "SUCCESS");
+
+    return {
+      success: true,
+      data: {
+        email: email,
+        name: fullName,
+        role: role,
+        status: 'Pending',
+        message: 'تم تسجيل طلبك بنجاح! سيتم مراجعته من قبل الإدارة.'
+      }
+    };
+  } catch (e) {
+    _auditLog("MEMBER_REGISTER", String(data && data.email || ''), { error: e.message }, "FAILED");
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── Get pending registrations (Admin/CEO/Partner only) ───
+function uiGetPendingRegistrations() {
+  try {
+    _checkRateLimit("uiGetPendingRegistrations");
+    _requireAuth(PERMISSIONS.MEMBERS_READ);
+    var member = getCurrentMember();
+    var myRole = String(member[MEMBER_COL.ROLE] || '').trim().toLowerCase();
+    if (myRole !== 'admin' && myRole !== 'ceo' && myRole !== 'partner') {
+      throw new Error("فقط Admin أو CEO أو Partner يمكنهم رؤية طلبات التسجيل");
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) return { success: true, data: [] };
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return { success: true, data: [] };
+
+    var totalCols = sheet.getLastColumn();
+    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+    var pending = [];
+
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var status = String(row[MEMBER_COL.STATUS] || '').trim().toLowerCase();
+      if (status === 'pending') {
+        var m = {
+          email: String(row[MEMBER_COL.EMAIL] || '').trim(),
+          name: String(row[MEMBER_COL.FULL_NAME] || '').trim(),
+          role: String(row[MEMBER_COL.ROLE] || '').trim(),
+          phone: String(row[MEMBER_COL.PHONE] || '').trim(),
+          joinDate: row[MEMBER_COL.JOIN_DATE] instanceof Date
+            ? Utilities.formatDate(row[MEMBER_COL.JOIN_DATE], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+            : String(row[MEMBER_COL.JOIN_DATE] || ''),
+          notes: String(row[MEMBER_COL.NOTES] || '').trim(),
+          isGmail: String(row[MEMBER_COL.EMAIL] || '').toLowerCase().indexOf('gmail.com') > -1,
+          hasPassword: !!String(row[MEMBER_COL.PASSWORD] || '').trim()
+        };
+        pending.push(m);
+      }
+    }
+    return { success: true, data: pending };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── Approve a pending registration (Admin/CEO/Partner only) ───
+function uiApproveMemberRegistration(targetEmail, approvedRole) {
+  try {
+    _checkRateLimit("uiApproveMemberRegistration");
+    var member = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
+    var myRole = String(member[MEMBER_COL.ROLE] || '').trim().toLowerCase();
+    if (myRole !== 'admin' && myRole !== 'ceo' && myRole !== 'partner') {
+      throw new Error("فقط Admin أو CEO أو Partner يمكنهم الموافقة على التسجيل");
+    }
+
+    if (!targetEmail || typeof targetEmail !== 'string') throw new Error("الإيميل مطلوب");
+    var cleanTarget = targetEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanTarget)) throw new Error("صيغة الإيميل غير صحيحة");
+
+    // Validate role if provided
+    if (approvedRole) {
+      var roleLower = String(approvedRole).trim().toLowerCase();
+      if (roleLower === 'admin' || roleLower === 'ceo') {
+        var limitErr = _checkAdminCEOLimit(approvedRole, null);
+        if (limitErr) throw new Error(limitErr);
+      }
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) throw new Error("شيت Members غير موجود");
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) throw new Error("لا يوجد أعضاء");
+
+    var totalCols = sheet.getLastColumn();
+    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+    var foundIdx = -1;
+    var currentStatus = '';
+
+    for (var i = 0; i < data.length; i++) {
+      var eEmail = String(data[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+      if (eEmail === cleanTarget) {
+        foundIdx = i;
+        currentStatus = String(data[i][MEMBER_COL.STATUS] || '').trim().toLowerCase();
+        break;
+      }
+    }
+    if (foundIdx < 0) throw new Error("العضو غير موجود: " + cleanTarget);
+    if (currentStatus !== 'pending') throw new Error("هذا العضو ليس في حالة انتظار موافقة (الحالة: " + currentStatus + ")");
+
+    // Update status to Active, and optionally change role
+    var targetRow = foundIdx + 2;
+    sheet.getRange(targetRow, MEMBER_COL.STATUS + 1, 1, 1).setValue('Active');
+    if (approvedRole && String(approvedRole).trim()) {
+      sheet.getRange(targetRow, MEMBER_COL.ROLE + 1, 1, 1).setValue(String(approvedRole).trim());
+    }
+    // Set join date to today if empty
+    var joinVal = data[foundIdx][MEMBER_COL.JOIN_DATE];
+    if (!joinVal || (typeof joinVal === 'string' && !joinVal.trim())) {
+      sheet.getRange(targetRow, MEMBER_COL.JOIN_DATE + 1, 1, 1).setValue(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'));
+    }
+
+    var adminEmail = String(member[MEMBER_COL.EMAIL] || '').trim();
+    _auditLog("MEMBER_APPROVE", cleanTarget, "Approved by " + adminEmail + (approvedRole ? " as " + approvedRole : ""), "SUCCESS");
+
+    return { success: true, data: { email: cleanTarget, status: 'Active', message: 'تمت الموافقة على العضو بنجاح' } };
+  } catch (e) {
+    _auditLog("MEMBER_APPROVE", String(targetEmail || ''), { error: e.message }, "FAILED");
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── Reject a pending registration (Admin/CEO/Partner only) ───
+function uiRejectMemberRegistration(targetEmail, reason) {
+  try {
+    _checkRateLimit("uiRejectMemberRegistration");
+    var member = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
+    var myRole = String(member[MEMBER_COL.ROLE] || '').trim().toLowerCase();
+    if (myRole !== 'admin' && myRole !== 'ceo' && myRole !== 'partner') {
+      throw new Error("فقط Admin أو CEO أو Partner يمكنهم رفض التسجيل");
+    }
+
+    if (!targetEmail || typeof targetEmail !== 'string') throw new Error("الإيميل مطلوب");
+    var cleanTarget = targetEmail.trim().toLowerCase();
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) throw new Error("شيت Members غير موجود");
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) throw new Error("لا يوجد أعضاء");
+
+    var totalCols = sheet.getLastColumn();
+    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+    var foundIdx = -1;
+    var currentStatus = '';
+
+    for (var i = 0; i < data.length; i++) {
+      var eEmail = String(data[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+      if (eEmail === cleanTarget) {
+        foundIdx = i;
+        currentStatus = String(data[i][MEMBER_COL.STATUS] || '').trim().toLowerCase();
+        break;
+      }
+    }
+    if (foundIdx < 0) throw new Error("العضو غير موجود: " + cleanTarget);
+    if (currentStatus !== 'pending') throw new Error("هذا العضو ليس في حالة انتظار (الحالة: " + currentStatus + ")");
+
+    var targetRow = foundIdx + 2;
+    sheet.getRange(targetRow, MEMBER_COL.STATUS + 1, 1, 1).setValue('Rejected');
+    // Add rejection reason to notes
+    var oldNotes = String(data[foundIdx][MEMBER_COL.NOTES] || '').trim();
+    var newNotes = oldNotes + (oldNotes ? ' | ' : '') + 'Rejected: ' + (reason || 'No reason provided');
+    sheet.getRange(targetRow, MEMBER_COL.NOTES + 1, 1, 1).setValue(newNotes);
+
+    var adminEmail = String(member[MEMBER_COL.EMAIL] || '').trim();
+    _auditLog("MEMBER_REJECT", cleanTarget, "Rejected by " + adminEmail + ": " + (reason || ''), "SUCCESS");
+
+    return { success: true, data: { email: cleanTarget, status: 'Rejected', message: 'تم رفض طلب التسجيل' } };
+  } catch (e) {
+    _auditLog("MEMBER_REJECT", String(targetEmail || ''), { error: e.message }, "FAILED");
+    return { success: false, error: e.message };
+  }
+}
+
 // ============================================================
 // KPI APIs
 // ============================================================

@@ -179,6 +179,10 @@
     </section>
     <section class="page-section" id="page-members">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Team Members</h1><button class="btn btn-primary" onclick="openAddMemberModal()">+ Add Member</button></div>
+      <div class="card" id="pendingRegistrationsCard" style="display:none;border-left:3px solid var(--warning);margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">⏳ طلبات التسجيل المعلقة</div></div>
+        <div id="pendingRegistrationsContainer"></div>
+      </div>
       <div class="card"><div id="membersTableContainer"><div class="loading">Loading members...</div></div></div>
     </section>
   </main>

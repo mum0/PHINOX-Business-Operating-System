@@ -82,7 +82,7 @@ function loadDashboard() {
     var chartEl = document.getElementById('dashboardExpenseChart');
     if (!chartEl) return;
     var entries = Object.entries(cats).sort(function(a,b){ return b[1]-a[1]; });
-    if (!entries.length) { chartEl.innerHTML = '<div style='color:var(--text-secondary);'>لا توجد مصروفات</div>'; return; }
+    if (!entries.length) { chartEl.innerHTML = '<div style="color:var(--text-secondary);">لا توجد مصروفات</div>'; return; }
     var total = entries.reduce(function(s,e){ return s+e[1]; }, 0);
     var colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#F97316'];
     var maxVal = entries[0][1];

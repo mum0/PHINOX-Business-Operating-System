@@ -3,6 +3,8 @@ function loadMembers() {
   callServer('uiGetMembers', null).then(function(res) {
     _memberCache = res.data || [];
     renderMembers(_memberCache);
+    // Also load pending registrations if admin
+    if (isAdmin()) loadPendingRegistrations();
   }).catch(function(err) {
     document.getElementById('membersTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
   });
@@ -13,6 +15,7 @@ function renderMembers(list) {
     document.getElementById('membersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🧑‍💼</div><p>No members found</p></div>';
     return;
   }
+  var canApprove = isAdmin();
   var canSetPass = isAdmin();
   var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th>' + (canSetPass ? '<th>Password</th>' : '') + '</tr></thead><tbody>';
   list.forEach(function(m) {
@@ -20,12 +23,20 @@ function renderMembers(list) {
     var badgeClass = role === 'CEO' ? 'badge-danger' : role === 'Admin' ? 'badge-warning' : 'badge-secondary';
     var mEmail = esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-');
     var mStatus = String(m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active');
+    var statusBadge = mStatus === 'Active' ? 'badge-success' : mStatus === 'Pending' ? 'badge-warning' : mStatus === 'Rejected' ? 'badge-danger' : 'badge-secondary';
     html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + mEmail + '</td>';
     html += '<td>' + esc(m.phone || '-') + '</td>';
     html += '<td><span class="badge ' + badgeClass + '">' + esc(role) + '</span></td>';
-    html += '<td><span class="badge ' + (mStatus === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(mStatus) + '</span></td>';
+    html += '<td><span class="badge ' + statusBadge + '">' + esc(mStatus) + '</span></td>';
     if (canSetPass) {
-      html += '<td><button class="btn btn-sm btn-outline" data-action="set-member-password" data-email="' + mEmail + '">🔑 Set</button></td>';
+      html += '<td>';
+      if (mStatus === 'Pending' && canApprove) {
+        html += '<button class="btn btn-sm btn-success" data-action="approve-registration" data-email="' + mEmail + '" style="margin-right:4px;">✅</button>';
+        html += '<button class="btn btn-sm btn-danger" data-action="open-reject-registration" data-email="' + mEmail + '" data-name="' + escAttr(m.name || m.fullName || '') + '">❌</button>';
+      } else if (mStatus === 'Active') {
+        html += '<button class="btn btn-sm btn-outline" data-action="set-member-password" data-email="' + mEmail + '">🔑 Set</button>';
+      }
+      html += '</td>';
     }
     html += '</tr>';
   });
@@ -33,8 +44,77 @@ function renderMembers(list) {
   document.getElementById('membersTableContainer').innerHTML = html;
 }
 
+// ─── PENDING REGISTRATIONS SECTION ───
+function loadPendingRegistrations() {
+  var container = document.getElementById('pendingRegistrationsContainer');
+  var card = document.getElementById('pendingRegistrationsCard');
+  if (!container || !card) return;
+  card.style.display = 'none';
+  container.innerHTML = '<div class="loading">Loading...</div>';
+  callServer('uiGetPendingRegistrations').then(function(res) {
+    var pending = res.data || [];
+    if (!pending.length) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    var html = '<table class="table"><thead><tr><th>الاسم</th><th>الإيميل</th><th>الهاتف</th><th>المنصب المطلوب</th><th>التاريخ</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody>';
+    pending.forEach(function(p) {
+      var typeLabel = p.isGmail ? '<span style="color:#6366F1;font-size:10px;">Gmail</span>' : '<span style="color:#F59E0B;font-size:10px;">Manual</span>';
+      html += '<tr>';
+      html += '<td>' + esc(p.name) + '</td>';
+      html += '<td>' + esc(p.email) + ' ' + typeLabel + '</td>';
+      html += '<td>' + esc(p.phone || '-') + '</td>';
+      html += '<td>' + esc(p.role) + '</td>';
+      html += '<td>' + esc(p.joinDate || '-') + '</td>';
+      html += '<td style="max-width:150px;font-size:12px;color:var(--text-secondary);">' + esc(p.notes || '-') + '</td>';
+      html += '<td><div class="btn-group">';
+      html += '<button class="btn btn-sm btn-success" data-action="approve-registration" data-email="' + escAttr(p.email) + '" data-name="' + escAttr(p.name) + '" data-role="' + escAttr(p.role) + '">✅ موافقة</button>';
+      html += '<button class="btn btn-sm btn-danger" data-action="open-reject-registration" data-email="' + escAttr(p.email) + '" data-name="' + escAttr(p.name) + '">❌ رفض</button>';
+      html += '</div></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }).catch(function(err) {
+    container.innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+// ─── APPROVE REGISTRATION ───
+function approveRegistration(email, requestedRole) {
+  callServer('uiApproveMemberRegistration', email, requestedRole || null).then(function() {
+    showToast('تمت الموافقة على ' + email);
+    loadMembers();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+// ─── REJECT REGISTRATION MODAL ───
+function openRejectRegistrationModal(email, name) {
+  openGenericModal('رفض طلب التسجيل',
+    '<p style="margin:0 0 12px;color:#94A3B8;font-size:13px;">رفض طلب: <strong>' + esc(name || email) + '</strong></p>' +
+    '<div class="form-group"><label class="form-label">سبب الرفض *</label>' +
+    '<textarea class="form-textarea" id="rejectReason" rows="3" placeholder="أدخل سبب الرفض..."></textarea></div>',
+    '<button class="btn btn-danger" data-action="submit-reject-registration" data-email="' + escAttr(email) + '">❌ تأكيد الرفض</button>' +
+    '<button class="btn btn-outline" onclick="closeModal()">إلغاء</button>'
+  );
+}
+
+function submitRejectRegistration(email) {
+  var reason = document.getElementById('rejectReason').value.trim();
+  if (!reason) { showToast('أدخل سبب الرفض', 'error'); return; }
+  callServer('uiRejectMemberRegistration', email, reason).then(function() {
+    showToast('تم رفض طلب ' + email);
+    closeModal();
+    loadMembers();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
 function openAddMemberModal() {
-  // Count existing Admin/CEO for warnings
   var adminCount = 0, ceoCount = 0;
   _memberCache.forEach(function(m) {
     var role = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
@@ -100,7 +180,6 @@ function submitAddMember() {
   };
   if (!data.name || !data.email) { showToast('Name and email are required', 'error'); return; }
   
-  // Client-side check for Admin/CEO
   var adminCount = 0, ceoCount = 0;
   _memberCache.forEach(function(m) {
     var r = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
