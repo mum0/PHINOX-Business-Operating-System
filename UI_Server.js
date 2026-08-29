@@ -41,8 +41,8 @@ function _requireAuth(permission) {
     try { email = Session.getActiveUser().getEmail(); } catch(e) {}
     throw new Error("المستخدم غير مسجّل في النظام. البريد: " + email);
   }
-  var role = member[MEMBER_COL.ROLE] || "";
-  if (role === "Admin" || role === "CEO") return member;
+  var role = String(member[MEMBER_COL.ROLE] || "").trim().toLowerCase();
+  if (role === "admin" || role === "ceo") return member;
   var hasPerm = hasPermission(member, permission);
   if (!hasPerm) {
     try { logActivity(member, "Access Denied", "UI_Server", permission, "", "Unauthorized attempt"); } catch(e) {}
