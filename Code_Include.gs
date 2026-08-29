@@ -1,3 +1,3 @@
-yfunction include(filename) {
+function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
