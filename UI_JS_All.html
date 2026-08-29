@@ -492,11 +492,13 @@ function showOutOfStock() {
 
 function openAddInventoryModal() {
   openGenericModal('Add Inventory Item',
+    '<div class="form-row"><div class="form-group"><label class="form-label">SKU</label><input type="text" class="form-input" id="invSku" placeholder="Auto-generated if empty"></div>' +
     '<div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" id="invName" placeholder="Product name"></div></div>' +
     '<div class="form-row"><div class="form-group"><label class="form-label">Category</label><input type="text" class="form-input" id="invCategory" placeholder="Category"></div>' +
     '<div class="form-group"><label class="form-label">Quantity</label><input type="number" class="form-input" id="invQty" value="0"></div></div>' +
     '<div class="form-row"><div class="form-group"><label class="form-label">Cost</label><input type="number" step="0.01" class="form-input" id="invCost" value="0"></div>' +
-    '<div class="form-group"><label class="form-label">Min Stock</label><input type="number" class="form-input" id="invMinStock" value="10"></div></div>' +
+    '<div class="form-group"><label class="form-label">Selling Price</label><input type="number" step="0.01" class="form-input" id="invPrice" value="0"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Reorder Level</label><input type="number" class="form-input" id="invMinStock" value="10"></div></div>' +
     '<div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="invDesc" rows="2"></textarea></div>',
     '<button class="btn btn-primary" data-action="submit-add-inventory">Save</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
   );
@@ -504,11 +506,13 @@ function openAddInventoryModal() {
 
 function submitAddInventory() {
   var data = {
+    sku: document.getElementById('invSku').value || ('SKU-' + Date.now()),
     name: document.getElementById('invName').value,
     category: document.getElementById('invCategory').value,
     quantity: parseFloat(document.getElementById('invQty').value) || 0,
     cost: parseFloat(document.getElementById('invCost').value) || 0,
-    minStock: parseFloat(document.getElementById('invMinStock').value) || 0,
+    price: parseFloat(document.getElementById('invPrice').value) || 0,
+    reorderLevel: parseFloat(document.getElementById('invMinStock').value) || 0,
     description: document.getElementById('invDesc').value
   };
   if (!data.name) { showToast('Name is required', 'error'); return; }
@@ -821,13 +825,15 @@ function openAddExpenseModal() {
 }
 
 function submitAddExpense() {
+  var desc = document.getElementById('expDesc').value;
   var data = {
+    title: desc || document.getElementById('expCategory').value + ' expense',
     category: document.getElementById('expCategory').value,
     amount: parseFloat(document.getElementById('expAmount').value) || 0,
-    description: document.getElementById('expDesc').value,
+    description: desc,
     receiptUrl: document.getElementById('expReceipt').value
   };
-  if (!data.category || !data.amount || !data.description) { showToast('All fields are required', 'error'); return; }
+  if (!data.title || !data.category || !data.amount) { showToast('Title, category and amount are required', 'error'); return; }
   callServer('uiCreateExpense', data).then(function() {
     showToast('Expense submitted');
     closeModal();
@@ -967,13 +973,14 @@ function openAddTaskModal() {
 function submitAddTask() {
   var data = {
     title: document.getElementById('taskTitle').value,
-    assignee: document.getElementById('taskAssignee').value,
-    dueDate: document.getElementById('taskDue').value,
-    priority: document.getElementById('taskPriority').value,
-    status: document.getElementById('taskStatus').value,
-    description: document.getElementById('taskDesc').value
+    assignedTo: document.getElementById('taskAssignee').value,
+    dueDate: document.getElementById('taskDue').value || '',
+    priority: document.getElementById('taskPriority').value || 'Medium',
+    difficulty: 'Medium',
+    status: document.getElementById('taskStatus').value || 'Not Started',
+    description: document.getElementById('taskDesc').value || ''
   };
-  if (!data.title) { showToast('Title is required', 'error'); return; }
+  if (!data.title || !data.assignedTo) { showToast('Title and assignee are required', 'error'); return; }
   callServer('uiCreateTask', data).then(function() {
     showToast('Task created');
     closeModal();
@@ -1028,13 +1035,17 @@ function openAddMarketingModal() {
 }
 
 function submitAddMarketing() {
+  var campaign = document.getElementById('mktCampaign').value;
   var data = {
-    campaign: document.getElementById('mktCampaign').value,
-    channel: document.getElementById('mktChannel').value,
+    date: new Date().toISOString(),
+    platform: 'Other',
+    campaignName: campaign,
+    channel: document.getElementById('mktChannel').value || 'Paid Social',
+    currency: 'EGP',
     spend: parseFloat(document.getElementById('mktSpend').value) || 0,
     leads: parseFloat(document.getElementById('mktLeads').value) || 0
   };
-  if (!data.campaign) { showToast('Campaign name is required', 'error'); return; }
+  if (!data.campaignName) { showToast('Campaign name is required', 'error'); return; }
   callServer('uiCreateMarketingRecord', data).then(function() {
     showToast('Record added');
     closeModal();
@@ -1153,10 +1164,12 @@ function openAddSatisfactionModal() {
 
 function submitAddSatisfaction() {
   var data = {
-    customerName: document.getElementById('satCustomer').value,
-    score: parseFloat(document.getElementById('satScore').value) || 0,
-    feedback: document.getElementById('satFeedback').value
+    customerEmail: document.getElementById('satCustomer').value,
+    score: parseFloat(document.getElementById('satScore').value) || 1,
+    notes: document.getElementById('satFeedback').value || ''
   };
+  if (!data.customerEmail || !data.customerEmail.includes('@')) { showToast('Valid customer email is required', 'error'); return; }
+  if (data.score < 1 || data.score > 10) { showToast('Score must be 1-10', 'error'); return; }
   callServer('uiCreateSatisfaction', data).then(function() {
     showToast('Record added');
     closeModal();
@@ -1215,10 +1228,11 @@ function openAddNPSModal() {
 
 function submitAddNPS() {
   var data = {
-    customerName: document.getElementById('npsCustomer').value,
+    customerEmail: document.getElementById('npsCustomer').value,
     score: parseFloat(document.getElementById('npsScore').value) || 0,
-    reason: document.getElementById('npsReason').value
+    notes: document.getElementById('npsReason').value || ''
   };
+  if (!data.customerEmail || !data.customerEmail.includes('@')) { showToast('Valid customer email is required', 'error'); return; }
   if (data.score < 0 || data.score > 10) { showToast('Score must be 0-10', 'error'); return; }
   callServer('uiCreateNPS', data).then(function() {
     showToast('Record added');
@@ -1312,15 +1326,16 @@ function updateRoleWarning() {
 
 function submitAddMember() {
   var data = {
+    name: document.getElementById('memName').value,
     fullName: document.getElementById('memName').value,
     email: document.getElementById('memEmail').value,
     role: document.getElementById('memRole').value,
     position: document.getElementById('memPosition').value,
     department: document.getElementById('memDept').value,
     phone: document.getElementById('memPhone').value,
-    status: document.getElementById('memStatus').value
+    status: document.getElementById('memStatus').value || 'Active'
   };
-  if (!data.fullName || !data.email) { showToast('Name and email are required', 'error'); return; }
+  if (!data.name || !data.email) { showToast('Name and email are required', 'error'); return; }
   
   // Client-side check for Admin/CEO
   var adminCount = 0, ceoCount = 0;

@@ -1,5 +1,4 @@
 <script>
-
 // ═══════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════
@@ -15,21 +14,21 @@ function navigateTo(page) {
   window.scrollTo(0, 0);
 
   var loaders = {
-    dashboard: function() { if (typeof loadDashboard === "function") loadDashboard(); },
-    kpi: function() { loadKPIs(); },
+    dashboard: function() { if (typeof loadDashboard === 'function') loadDashboard(); },
+    kpi: function() { if (typeof loadKPIs === 'function') loadKPIs(); },
     customers: function() { if (typeof loadCustomers === 'function') loadCustomers(); },
     orders: function() { if (typeof loadOrders === 'function') loadOrders(); },
     sales: function() { if (typeof loadSales === 'function') loadSales(); },
-    inventory: loadInventory,
-    finance: loadFinance,
-    expenses: loadExpenses,
-    approvals: loadApprovals,
-    tasks: loadTasks,
-    marketing: loadMarketing,
-    social: loadSocial,
-    satisfaction: loadSatisfaction,
-    nps: loadNPS,
-    members: loadMembers
+    inventory: function() { if (typeof loadInventory === 'function') loadInventory(); },
+    finance: function() { if (typeof loadFinance === 'function') loadFinance(); },
+    expenses: function() { if (typeof loadExpenses === 'function') loadExpenses(); },
+    approvals: function() { if (typeof loadApprovals === 'function') loadApprovals(); },
+    tasks: function() { if (typeof loadTasks === 'function') loadTasks(); },
+    marketing: function() { if (typeof loadMarketing === 'function') loadMarketing(); },
+    social: function() { if (typeof loadSocial === 'function') loadSocial(); },
+    satisfaction: function() { if (typeof loadSatisfaction === 'function') loadSatisfaction(); },
+    nps: function() { if (typeof loadNPS === 'function') loadNPS(); },
+    members: function() { if (typeof loadMembers === 'function') loadMembers(); }
   };
   if (loaders[page] && typeof loaders[page] === 'function') {
     try { loaders[page](); } catch (e) { console.log('Loader error:', e); }

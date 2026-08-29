@@ -52,13 +52,14 @@ function openAddTaskModal() {
 function submitAddTask() {
   var data = {
     title: document.getElementById('taskTitle').value,
-    assignee: document.getElementById('taskAssignee').value,
-    dueDate: document.getElementById('taskDue').value,
-    priority: document.getElementById('taskPriority').value,
-    status: document.getElementById('taskStatus').value,
-    description: document.getElementById('taskDesc').value
+    assignedTo: document.getElementById('taskAssignee').value,
+    dueDate: document.getElementById('taskDue').value || '',
+    priority: document.getElementById('taskPriority').value || 'Medium',
+    difficulty: 'Medium',
+    status: document.getElementById('taskStatus').value || 'Not Started',
+    description: document.getElementById('taskDesc').value || ''
   };
-  if (!data.title) { showToast('Title is required', 'error'); return; }
+  if (!data.title || !data.assignedTo) { showToast('Title and assignee are required', 'error'); return; }
   callServer('uiCreateTask', data).then(function() {
     showToast('Task created');
     closeModal();
@@ -113,13 +114,17 @@ function openAddMarketingModal() {
 }
 
 function submitAddMarketing() {
+  var campaign = document.getElementById('mktCampaign').value;
   var data = {
-    campaign: document.getElementById('mktCampaign').value,
-    channel: document.getElementById('mktChannel').value,
+    date: new Date().toISOString(),
+    platform: 'Other',
+    campaignName: campaign,
+    channel: document.getElementById('mktChannel').value || 'Paid Social',
+    currency: 'EGP',
     spend: parseFloat(document.getElementById('mktSpend').value) || 0,
     leads: parseFloat(document.getElementById('mktLeads').value) || 0
   };
-  if (!data.campaign) { showToast('Campaign name is required', 'error'); return; }
+  if (!data.campaignName) { showToast('Campaign name is required', 'error'); return; }
   callServer('uiCreateMarketingRecord', data).then(function() {
     showToast('Record added');
     closeModal();

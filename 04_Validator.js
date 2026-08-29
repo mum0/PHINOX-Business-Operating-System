@@ -129,7 +129,7 @@ const Validator = (function() {
         });
         
         if (errors.length > 0) {
-          throw ErrorHandler.validation('Validation failed', { fields: errors }, module);
+          throw ErrorHandler.validation('Validation failed: ' + errors.join('; '), { fields: errors }, module);
         }
         
         return { isValid: true, errors: [], data: sanitized };

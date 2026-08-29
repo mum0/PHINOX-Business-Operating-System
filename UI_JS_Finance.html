@@ -106,13 +106,15 @@ function openAddExpenseModal() {
 }
 
 function submitAddExpense() {
+  var desc = document.getElementById('expDesc').value;
   var data = {
+    title: desc || document.getElementById('expCategory').value + ' expense',
     category: document.getElementById('expCategory').value,
     amount: parseFloat(document.getElementById('expAmount').value) || 0,
-    description: document.getElementById('expDesc').value,
+    description: desc,
     receiptUrl: document.getElementById('expReceipt').value
   };
-  if (!data.category || !data.amount || !data.description) { showToast('All fields are required', 'error'); return; }
+  if (!data.title || !data.category || !data.amount) { showToast('Title, category and amount are required', 'error'); return; }
   callServer('uiCreateExpense', data).then(function() {
     showToast('Expense submitted');
     closeModal();

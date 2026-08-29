@@ -83,15 +83,16 @@ function updateRoleWarning() {
 
 function submitAddMember() {
   var data = {
+    name: document.getElementById('memName').value,
     fullName: document.getElementById('memName').value,
     email: document.getElementById('memEmail').value,
     role: document.getElementById('memRole').value,
     position: document.getElementById('memPosition').value,
     department: document.getElementById('memDept').value,
     phone: document.getElementById('memPhone').value,
-    status: document.getElementById('memStatus').value
+    status: document.getElementById('memStatus').value || 'Active'
   };
-  if (!data.fullName || !data.email) { showToast('Name and email are required', 'error'); return; }
+  if (!data.name || !data.email) { showToast('Name and email are required', 'error'); return; }
   
   // Client-side check for Admin/CEO
   var adminCount = 0, ceoCount = 0;
