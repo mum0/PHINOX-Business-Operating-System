@@ -1,5 +1,47 @@
 <script>
 // ═══════════════════════════════════════════════════════
+// STUB FUNCTIONS — Safety net if any split file fails to load
+// These get overridden by real implementations in later includes
+// ═══════════════════════════════════════════════════════
+function loadDashboard() {}
+function loadKPIs() {}
+function loadCustomers() {}
+function filterCustomers() {}
+function openAddCustomerModal() {}
+function loadOrders() {}
+function filterOrders() {}
+function openAddOrderModal() {}
+function loadSales() {}
+function openAddSaleModal() {}
+function loadInventory() {}
+function filterInventory() {}
+function showLowStock() {}
+function showOutOfStock() {}
+function openAddInventoryModal() {}
+function loadFinance() {}
+function loadExpenses() {}
+function switchExpenseTab() {}
+function openAddExpenseModal() {}
+function loadApprovals() {}
+function loadTasks() {}
+function filterTasks() {}
+function openAddTaskModal() {}
+function loadMarketing() {}
+function openAddMarketingModal() {}
+function loadSocial() {}
+function openAddSocialModal() {}
+function submitAddSocial() {}
+function loadSatisfaction() {}
+function openAddSatisfactionModal() {}
+function submitAddSatisfaction() {}
+function loadNPS() {}
+function openAddNPSModal() {}
+function submitAddNPS() {}
+function loadMembers() {}
+function openAddMemberModal() {}
+function submitAddMember() {}
+
+// ═══════════════════════════════════════════════════════
 // SECURITY HELPERS
 // ═══════════════════════════════════════════════════════
 function escAttr(str) {
@@ -207,7 +249,6 @@ function initAuthSystem() {
     }
   });
 }
-</script>
 // ═══════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════
@@ -1416,3 +1457,4 @@ document.addEventListener('click', function(e) {
 document.addEventListener('DOMContentLoaded', function() {
   initAuthSystem();
 });
+</script>

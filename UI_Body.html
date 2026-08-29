@@ -141,9 +141,9 @@
     <section class="page-section" id="page-social">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Social Media</h1><button class="btn btn-primary" onclick="openAddSocialModal()">+ Add Record</button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="socialDateFrom" onchange="loadSocial()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="socialDateTo" onchange="loadSocial()"></div>
-        <button class="btn btn-primary" onclick="loadSocial()">🔄 Refresh</button>
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="socialDateFrom" onchange="if(typeof loadSocial==='function')loadSocial()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="socialDateTo" onchange="if(typeof loadSocial==='function')loadSocial()"></div>
+        <button class="btn btn-primary" onclick="if(typeof loadSocial==='function')loadSocial()">🔄 Refresh</button>
       </div>
       <div class="kpi-grid" id="socialKpis"><div class="kpi-card"><div class="loading">Loading...</div></div></div>
       <div class="card"><div id="socialTableContainer"><div class="loading">Loading social data...</div></div></div>
@@ -151,9 +151,9 @@
     <section class="page-section" id="page-satisfaction">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Customer Satisfaction</h1><button class="btn btn-primary" onclick="openAddSatisfactionModal()">+ Add Record</button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="satisfactionDateFrom" onchange="loadSatisfaction()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="satisfactionDateTo" onchange="loadSatisfaction()"></div>
-        <button class="btn btn-primary" onclick="loadSatisfaction()">🔄 Refresh</button>
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="satisfactionDateFrom" onchange="if(typeof loadSatisfaction==='function')loadSatisfaction()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="satisfactionDateTo" onchange="if(typeof loadSatisfaction==='function')loadSatisfaction()"></div>
+        <button class="btn btn-primary" onclick="if(typeof loadSatisfaction==='function')loadSatisfaction()">🔄 Refresh</button>
       </div>
       <div class="card" id="satisfactionStats"></div>
       <div class="card"><div id="satisfactionTableContainer"><div class="loading">Loading...</div></div></div>
@@ -161,9 +161,9 @@
     <section class="page-section" id="page-nps">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Net Promoter Score</h1><button class="btn btn-primary" onclick="openAddNPSModal()">+ Add Record</button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="npsDateFrom" onchange="loadNPS()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="npsDateTo" onchange="loadNPS()"></div>
-        <button class="btn btn-primary" onclick="loadNPS()">🔄 Refresh</button>
+        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="npsDateFrom" onchange="if(typeof loadNPS==='function')loadNPS()"></div>
+        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="npsDateTo" onchange="if(typeof loadNPS==='function')loadNPS()"></div>
+        <button class="btn btn-primary" onclick="if(typeof loadNPS==='function')loadNPS()">🔄 Refresh</button>
       </div>
       <div class="card" id="npsStats"></div>
       <div class="card"><div id="npsTableContainer"><div class="loading">Loading...</div></div></div>
