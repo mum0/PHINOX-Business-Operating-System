@@ -43,6 +43,14 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
     removeBOMComponent(parseInt(idx, 10));
   }
+  else if (action === 'open-adjust-stock') {
+    e.preventDefault();
+    openAdjustStockModal(sku, name, parseFloat(qty) || 0);
+  }
+  else if (action === 'submit-adjust-stock') {
+    e.preventDefault();
+    submitAdjustStock(sku);
+  }
   else if (action === 'approve-expense') {
     e.preventDefault();
     approveExpense(id);
@@ -50,10 +58,6 @@ document.addEventListener('click', function(e) {
   else if (action === 'open-reject-expense') {
     e.preventDefault();
     openRejectExpenseModal(id);
-  }
-  else if (action === 'submit-expense-approval') {
-    e.preventDefault();
-    submitExpenseForApproval(id);
   }
   else if (action === 'open-post-expense') {
     e.preventDefault();
@@ -115,44 +119,72 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
     submitAddMember();
   }
-  else if (action === 'set-member-password') {
+  else if (action === 'edit-customer') {
     e.preventDefault();
-    var email = btn.getAttribute('data-email');
-    if (email) openSetPasswordModal(email);
+    openEditCustomerModal(id);
   }
-  else if (action === 'approve-registration') {
+  else if (action === 'delete-customer') {
     e.preventDefault();
-    var regEmail = btn.getAttribute('data-email');
-    var regRole = btn.getAttribute('data-role');
-    if (regEmail) approveRegistration(regEmail, regRole);
-  }
-  else if (action === 'open-reject-registration') {
-    e.preventDefault();
-    var rejEmail = btn.getAttribute('data-email');
-    var rejName = btn.getAttribute('data-name');
-    if (rejEmail) openRejectRegistrationModal(rejEmail, rejName);
-  }
-  else if (action === 'submit-reject-registration') {
-    e.preventDefault();
-    var subRejEmail = btn.getAttribute('data-email');
-    if (subRejEmail) submitRejectRegistration(subRejEmail);
+    deleteCustomer(id);
   }
   else if (action === 'submit-add-customer') {
     e.preventDefault();
-    if (typeof submitAddCustomer === 'function') submitAddCustomer();
+    submitAddCustomer();
+  }
+  else if (action === 'submit-edit-customer') {
+    e.preventDefault();
+    submitEditCustomer(id);
   }
   else if (action === 'submit-add-order') {
     e.preventDefault();
-    if (typeof submitAddOrder === 'function') submitAddOrder();
+    submitAddOrder();
+  }
+  else if (action === 'edit-task') {
+    e.preventDefault();
+    openEditTaskModal(id);
+  }
+  else if (action === 'delete-task') {
+    e.preventDefault();
+    deleteTask(id);
+  }
+  else if (action === 'approve-task') {
+    e.preventDefault();
+    approveTaskAction(id);
+  }
+  else if (action === 'open-reject-task') {
+    e.preventDefault();
+    openRejectTaskModal(id);
+  }
+  else if (action === 'submit-reject-task') {
+    e.preventDefault();
+    submitRejectTask(id);
+  }
+  else if (action === 'submit-edit-task') {
+    e.preventDefault();
+    submitEditTask(id);
+  }
+  else if (action === 'edit-member') {
+    e.preventDefault();
+    openEditMemberModal(id);
+  }
+  else if (action === 'delete-member') {
+    e.preventDefault();
+    deleteMember(id);
+  }
+  else if (action === 'submit-edit-member') {
+    e.preventDefault();
+    submitEditMember(id);
   }
   else if (action === 'submit-add-sale') {
     e.preventDefault();
-    if (typeof submitAddSale === 'function') submitAddSale();
+    submitAddSale();
   }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
   initAuthSystem();
 });
-
+</script>
+</body>
+</html>
 </script>

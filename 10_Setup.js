@@ -201,47 +201,49 @@ function _migrateMembersIfNeeded(opt_ss) {
     newSheet.setColumnWidth(w + 1, widths[w]);
   }
 
-  console.log('[SETUP] Members migration done! ' + newRows.length + ' rows → new 13-column format (with password).');
+  console.log('[SETUP] Members migration done! ' + newRows.length + ' rows → new 13-column format.');
 }
 
-
-// UPDATE (2026-08-29): Added password column migration for manual login (Hotmail/Outlook support)
-// ═══════════════════════════════════════════════════════════════════════════════════
 
 /**
- * Add password column to Members sheet if missing (for Hotmail/Outlook manual login).
- * Only runs if the sheet exists and has exactly 12 columns (old format without password).
+ * Ensure Members sheet has the 13th column (password).
+ * Called by password functions before writing.
  */
-function _addPasswordColumnIfNeeded(opt_ss) {
-  var ss = opt_ss || SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Members');
-  if (!sheet) {
-    console.log('[SETUP] No Members sheet — password column will be created by normal flow.');
-    return;
-  }
-
+function _addPasswordColumnIfNeeded(opt_sheet) {
+  var sheet = opt_sheet || SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Members');
+  if (!sheet) return null;
   var lastCol = sheet.getLastColumn();
   if (lastCol >= 13) {
-    // Check if column 13 header is already 'password'
-    var header13 = String(sheet.getRange(1, 13, 1, 1).getValue()).trim().toLowerCase();
-    if (header13 === 'password') {
-      console.log('[SETUP] Password column already exists. No migration needed.');
-      return;
-    }
+    // Verify header
+    var hdr = sheet.getRange(1, 13, 1, 1).getValue();
+    if (String(hdr).toLowerCase() === 'password') return sheet;
   }
-
-  if (lastCol < 12) {
-    console.log('[SETUP] Members sheet has fewer than 12 columns. Will be handled by normal setup.');
-    return;
-  }
-
-  console.log('[SETUP] Adding password column to Members...');
-  sheet.getRange(1, 13, 1, 1).setValue('password')
-    .setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+  console.log('[SETUP] Adding password column (col 13) to Members sheet. Current cols: ' + lastCol);
+  sheet.getRange(1, 13, 1, 1).setValue('password');
+  sheet.getRange(1, 13, 1, 1)
+    .setFontWeight('bold')
+    .setBackground('#1a237e')
+    .setFontColor('#ffffff');
   sheet.setColumnWidth(13, 30);
   console.log('[SETUP] Password column added successfully.');
+  return sheet;
 }
 
+/**
+ * Migrate Members from 12 to 13 columns (add password column).
+ */
+function _migrateMembers12to13(opt_ss) {
+  var ss = opt_ss || SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Members');
+  if (!sheet) return;
+  var lastCol = sheet.getLastColumn();
+  if (lastCol >= 13) {
+    var hdr = sheet.getRange(1, 13, 1, 1).getValue();
+    if (String(hdr).toLowerCase() === 'password') return;
+  }
+  _addPasswordColumnIfNeeded(sheet);
+  console.log('[SETUP] Members 12→13 migration done (password column added).');
+}
 
 function run() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -250,8 +252,8 @@ function run() {
   // ── Step 1: Migrate Members if columns are outdated ──
   _migrateMembersIfNeeded(ss);
 
-  // ── Step 1b: Add password column if missing (for Hotmail/Outlook login) ──
-  _addPasswordColumnIfNeeded(ss);
+  // ── Step 1.5: Migrate Members 12→13 (add password column) ──
+  _migrateMembers12to13(ss);
 
   // ── Step 2: Create / verify all sheets ──
   var sheetNames = Object.keys(SHEET_CONFIGS);

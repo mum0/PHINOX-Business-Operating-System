@@ -7,249 +7,420 @@ function navigateTo(page) {
     el.classList.remove('active');
     if (el.getAttribute('data-page') === page) el.classList.add('active');
   });
-  document.querySelectorAll('.page-section').forEach(function(el) { el.classList.remove('active'); });
+  document.querySelectorAll('.page-section').forEach(function(el) {
+    el.classList.remove('active');
+  });
   var target = document.getElementById('page-' + page);
   if (target) target.classList.add('active');
   document.getElementById('sidebar').classList.remove('open');
   window.scrollTo(0, 0);
 
   var loaders = {
-    dashboard: function() { if (typeof loadDashboard === 'function') loadDashboard(); },
-    kpi: function() { if (typeof loadKPIs === 'function') loadKPIs(); },
-    customers: function() { if (typeof loadCustomers === 'function') loadCustomers(); },
-    orders: function() { if (typeof loadOrders === 'function') loadOrders(); },
-    sales: function() { if (typeof loadSales === 'function') loadSales(); },
-    inventory: function() { if (typeof loadInventory === 'function') loadInventory(); },
-    finance: function() { if (typeof loadFinance === 'function') loadFinance(); },
-    expenses: function() { if (typeof loadExpenses === 'function') loadExpenses(); },
-    approvals: function() { if (typeof loadApprovals === 'function') loadApprovals(); },
-    tasks: function() { if (typeof loadTasks === 'function') loadTasks(); },
-    marketing: function() { if (typeof loadMarketing === 'function') loadMarketing(); },
-    social: function() { if (typeof loadSocial === 'function') loadSocial(); },
-    satisfaction: function() { if (typeof loadSatisfaction === 'function') loadSatisfaction(); },
-    nps: function() { if (typeof loadNPS === 'function') loadNPS(); },
-    members: function() { if (typeof loadMembers === 'function') loadMembers(); }
+    dashboard: function() {
+      if (typeof loadDashboard === 'function') loadDashboard();
+    },
+    kpi: function() { loadKPIs(); },
+    customers: function() {
+      if (typeof loadCustomers === 'function') loadCustomers();
+    },
+    orders: function() {
+      if (typeof loadOrders === 'function') loadOrders();
+    },
+    sales: function() {
+      if (typeof loadSales === 'function') loadSales();
+    },
+    inventory: loadInventory,
+    finance: loadFinance,
+    expenses: loadExpenses,
+    approvals: loadApprovals,
+    tasks: loadTasks,
+    marketing: loadMarketing,
+    social: loadSocial,
+    satisfaction: loadSatisfaction,
+    nps: loadNPS,
+    members: loadMembers
   };
+
   if (loaders[page] && typeof loaders[page] === 'function') {
-    try { loaders[page](); } catch (e) { console.log('Loader error:', e); }
+    try {
+      loaders[page]();
+    } catch (e) {
+      console.log('Loader error:', e);
+    }
   }
 }
 
-// ─── DASHBOARD LOADER (Professional v2 — lightweight) ───
+// ─── DASHBOARD LOADER ───
 function loadDashboard() {
-  // Greeting
-  var greetEl = document.getElementById('dashboardGreeting');
-  var dateEl = document.getElementById('dashboardDate');
-  if (greetEl && _currentUser) {
-    var name = _currentUser.name || _currentUser.fullName || '';
-    var h = new Date().getHours();
-    var greeting = h < 12 ? 'صباح الخير' : h < 18 ? 'مساء الخير' : 'مساء الخير';
-    greetEl.textContent = greeting + '، ' + name;
-  }
-  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  loadNotifications();
+  loadDashboardKpis();
+  loadRevenueChart();
+  loadRecentOrders();
+}
 
-  // KPI cards
-  var kpiContainer = document.getElementById('dashboardKpis');
-  if (kpiContainer) kpiContainer.innerHTML = '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
-    _dashCard('💰', 'الإيرادات', '--', 'revenue') +
-    _dashCard('📈', 'المصروفات', '--', 'expenses') +
-    _dashCard('📊', 'صافي الربح', '--', 'profit') +
-    _dashCard('📦', 'الطلبات', '--', 'orders') +
-    _dashCard('🏷️', 'المخزون', '--', 'inventory') +
-    _dashCard('👥', 'العملاء', '--', 'customers') +
-    '</div>';
-
-  // Load data in parallel
-  var p1 = callServer('uiGetDashboardKpis').then(function(res) {
-    var d = (res.data && res.data.data) || res.data || {};
-    _dashUpdate('revenue', _fmtCurrency(d.revenue || d.totalRevenue || 0));
-    _dashUpdate('expenses', _fmtCurrency(d.expenses || d.totalExpenses || 0));
-    var profit = d.profit || d.netProfit || 0;
-    _dashUpdate('profit', _fmtCurrency(profit));
-    _dashUpdate('orders', String(d.orders || 0));
-    _dashUpdate('inventory', String(d.inventory || d.totalItems || 0));
-    _dashUpdate('customers', String(d.customers || d.totalCustomers || 0));
-  }).catch(function() {});
-
-  // Expense breakdown
-  var p2 = callServer('uiGetExpenses', { limit: 1000 }).then(function(res) {
-    var all = (res.data && res.data.data) || res.data || [];
-    var cats = {};
-    (all || []).forEach(function(e) {
-      var c = e.category || 'Other';
-      cats[c] = (cats[c] || 0) + (parseFloat(e.amount) || 0);
+function loadDashboardKpis() {
+  callServer('uiGetDashboardKpis').then(function(res) {
+    var kpis = (res.data && res.data.data) || res.data || {};
+    var items = [
+      { label: 'Revenue', value: kpis.revenue || kpis.totalRevenue || 0, format: 'currency' },
+      { label: 'Expenses', value: kpis.expenses || kpis.totalExpenses || 0, format: 'currency' },
+      { label: 'Profit', value: kpis.profit || kpis.netProfit || 0, format: 'currency' },
+      { label: 'Customers', value: kpis.customers || kpis.totalCustomers || 0, format: 'number' },
+      { label: 'Inventory Items', value: kpis.inventory || kpis.totalItems || 0, format: 'number' }
+    ];
+    var html = '';
+    items.forEach(function(k) {
+      var fmt = k.format === 'currency' ? '$' + Number(k.value).toLocaleString() : Number(k.value).toLocaleString();
+      html += '<div class="kpi-card"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-value">' + fmt + '</div></div>';
     });
-    var chartEl = document.getElementById('dashboardExpenseChart');
-    if (!chartEl) return;
-    var entries = Object.entries(cats).sort(function(a,b){ return b[1]-a[1]; });
-    if (!entries.length) { chartEl.innerHTML = '<div style="color:var(--text-secondary);">لا توجد مصروفات</div>'; return; }
-    var total = entries.reduce(function(s,e){ return s+e[1]; }, 0);
-    var colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#F97316'];
-    var maxVal = entries[0][1];
-    var bars = entries.slice(0, 6).map(function(e, i) {
-      var pct = total > 0 ? ((e[1]/total)*100).toFixed(1) : 0;
-      var barW = maxVal > 0 ? Math.max(8, (e[1]/maxVal)*100) : 0;
-      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
-        '<div style="width:90px;font-size:12px;color:var(--text-secondary);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(e[0]) + '</div>' +
-        '<div style="flex:1;background:var(--bg-secondary);border-radius:6px;height:24px;overflow:hidden;">' +
-        '<div style="width:' + barW + '%;height:100%;background:' + colors[i % colors.length] + ';border-radius:6px;transition:width 0.6s ease;"></div></div>' +
-        '<div style="width:80px;font-size:12px;font-weight:600;">' + _fmtCurrency(e[1]) + ' <span style="color:var(--text-secondary);font-weight:400;">(' + pct + '%)</span></div></div>';
-    }).join('');
-    chartEl.innerHTML = bars;
-  }).catch(function() {});
-
-  // Recent activity
-  var p3 = callServer('uiGetExpenses', { limit: 5 }).then(function(res) {
-    var all = (res.data && res.data.data) || res.data || [];
-    var actEl = document.getElementById('dashboardRecentActivity');
-    if (!actEl) return;
-    if (!all || !all.length) { actEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">لا يوجد نشاط حديث</div>'; return; }
-    var html = '<table class="table" style="margin:0;"><thead><tr><th>الوصف</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>';
-    all.slice(0, 5).forEach(function(e) {
-      var st = e.status || 'Draft';
-      var bc = st==='Approved'?'badge-success':st==='Posted'?'badge-info':st==='Rejected'?'badge-danger':'badge-warning';
-      html += '<tr><td>' + esc(e.description || e.category || '-') + '</td><td>' + _fmtCurrency(e.amount||0) + '</td><td><span class="badge ' + bc + '">' + esc(st) + '</span></td></tr>';
-    });
-    html += '</tbody></table>';
-    actEl.innerHTML = html;
-  }).catch(function() {});
-
-  Promise.all([p1, p2, p3]).catch(function() {});
-}
-
-function _dashCard(icon, label, value, id) {
-  return '<div class="card" style="padding:20px;border-left:3px solid var(--accent);position:relative;overflow:hidden;">' +
-    '<div style="position:absolute;top:-8px;right:-8px;font-size:48px;opacity:0.08;">' + icon + '</div>' +
-    '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">' + label + '</div>' +
-    '<div id="dash-' + id + '" style="font-size:24px;font-weight:800;color:var(--text-primary);">' + value + '</div></div>';
-}
-function _dashUpdate(id, value) {
-  var el = document.getElementById('dash-' + id);
-  if (el) el.textContent = value;
-}
-function _fmtCurrency(v) {
-  var n = parseFloat(v) || 0;
-  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-// ─── KPI PAGE LOADER (Simplified — essential only) ───
-function loadKPIs() {
-  var period = document.getElementById('kpiPeriod') ? document.getElementById('kpiPeriod').value : 'monthly';
-  var refDate = document.getElementById('kpiRefDate') ? document.getElementById('kpiRefDate').value : '';
-  var c = document.getElementById('kpiContainer');
-  if (c) c.innerHTML = '<div class="kpi-grid">' +
-    '<div class="card" style="padding:20px;"><div class="kpi-label">الإيرادات</div><div class="kpi-value" id="kpiRev">...</div></div>' +
-    '<div class="card" style="padding:20px;"><div class="kpi-label">المصروفات</div><div class="kpi-value" id="kpiExp">...</div></div>' +
-    '<div class="card" style="padding:20px;"><div class="kpi-label">صافي الربح</div><div class="kpi-value" id="kpiProf">...</div></div>' +
-    '</div>';
-  callServer('uiGetKPIs', { period: period, refDate: refDate }).then(function(res) {
-    var d = res.data || {};
-    var r = document.getElementById('kpiRev'); if(r) r.textContent = _fmtCurrency(d.revenue||0);
-    var e = document.getElementById('kpiExp'); if(e) e.textContent = _fmtCurrency(d.expenses||0);
-    var p = document.getElementById('kpiProf'); if(p) p.textContent = _fmtCurrency(d.profit||0);
+    var c = document.getElementById('dashboardKpis');
+    if (c) c.innerHTML = html;
   }).catch(function(err) {
-    if (c) c.innerHTML = '<p style="color:var(--text-danger);">' + esc(err.message) + '</p>';
+    var c = document.getElementById('dashboardKpis');
+    if (c) c.innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
   });
 }
 
+// ─── REVENUE CHART ───
+function loadRevenueChart() {
+  var months = [];
+  var labels = [];
+  var revenues = [];
+  var expenses = [];
+
+  for (var i = 5; i >= 0; i--) {
+    var d = new Date();
+    d.setMonth(d.getMonth() - i);
+    var year = d.getFullYear();
+    var month = d.getMonth();
+    var firstDay = new Date(year, month, 1).toISOString().split('T')[0];
+    var lastDay = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    months.push({
+      from: firstDay,
+      to: lastDay,
+      label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+    });
+  }
+
+  var promises = months.map(function(m) {
+    return callServer('uiGetFinanceStats', m.from, m.to).then(function(res) {
+      var stats = res.data || {};
+      var pnl = stats.pnl || {};
+      revenues.push(pnl.revenue || 0);
+      expenses.push(pnl.expenses || 0);
+      labels.push(m.label);
+    }).catch(function() {
+      revenues.push(0);
+      expenses.push(0);
+      labels.push(m.label);
+    });
+  });
+
+  Promise.all(promises).then(function() {
+    var canvas = document.getElementById('revenueChartCanvas');
+    if (!canvas) return;
+    if (_revenueChartInstance) {
+      _revenueChartInstance.destroy();
+    }
+    _revenueChartInstance = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Revenue',
+            data: revenues,
+            borderColor: '#6366F1',
+            backgroundColor: 'rgba(99,102,241,0.1)',
+            fill: true,
+            tension: 0.4
+          },
+          {
+            label: 'Expenses',
+            data: expenses,
+            borderColor: '#DC2626',
+            backgroundColor: 'rgba(220,38,38,0.1)',
+            fill: true,
+            tension: 0.4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#94A3B8', font: { size: 12 } }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#94A3B8' },
+            grid: { color: 'rgba(51,65,85,0.5)' }
+          },
+          y: {
+            ticks: {
+              color: '#94A3B8',
+              callback: function(v) { return '$' + v.toLocaleString(); }
+            },
+            grid: { color: 'rgba(51,65,85,0.5)' }
+          }
+        }
+      }
+    });
+  });
+}
+
+// ─── RECENT ORDERS ───
+function loadRecentOrders() {
+  callServer('uiGetOrders', { limit: 5 }).then(function(res) {
+    var list = (res.data && res.data.data) || res.data || [];
+    _orderCache = list;
+    var container = document.getElementById('recentOrdersTable');
+    if (!container) return;
+    if (!list.length) {
+      container.innerHTML = '<div class="empty-state" style="padding:30px;"><p style="color:var(--text-secondary);">No orders yet</p></div>';
+      return;
+    }
+    var html = '<table class="table"><thead><tr><th>ID</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
+    list.forEach(function(o) {
+      var status = o.status || 'Pending';
+      var badge = status === 'Delivered' ? 'badge-success' : status === 'Cancelled' ? 'badge-danger' : status === 'Shipped' ? 'badge-info' : 'badge-warning';
+      html += '<tr><td>' + esc((o.id || '-').substring(0, 12)) + '</td><td>' + esc(o.customerName || o.customer || '-') + '</td><td>$' + esc(String(o.amount || 0)) + '</td><td><span class="badge ' + badge + '">' + esc(status) + '</span></td></tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }).catch(function(err) {
+    var container = document.getElementById('recentOrdersTable');
+    if (container) container.innerHTML = '<p style="color:#F87171;font-size:13px;">Error: ' + esc(err.message) + '</p>';
+  });
+}
+
+// ─── KPI PAGE LOADER ───
+function loadKPIs() {
+  var period = document.getElementById('kpiPeriod') ? document.getElementById('kpiPeriod').value : 'monthly';
+  var refDate = document.getElementById('kpiRefDate') ? document.getElementById('kpiRefDate').value : '';
+  callServer('uiGetKPIs', { period: period, refDate: refDate }).then(function(res) {
+    var kpis = res.data || {};
+    var summary = kpis.summary || {};
+    var html = '';
+    var items = [
+      { label: 'Revenue', value: summary.revenue || 0 },
+      { label: 'Expenses', value: summary.expenses || 0 },
+      { label: 'Profit', value: summary.netProfit || 0 },
+      { label: 'Orders', value: kpis.orders || 0 }
+    ];
+    items.forEach(function(k) {
+      html += '<div class="kpi-card"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-value">$' + esc(String(k.value)) + '</div></div>';
+    });
+    var c1 = document.getElementById('kpiContainer');
+    if (c1) c1.innerHTML = html;
+    var c2 = document.getElementById('dashboardKpis');
+    if (c2) c2.innerHTML = html;
+  }).catch(function(err) {
+    var msg = '<div class="kpi-card"><div class="kpi-label">KPIs</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
+    var c1 = document.getElementById('kpiContainer');
+    if (c1) c1.innerHTML = msg;
+    var c2 = document.getElementById('dashboardKpis');
+    if (c2) c2.innerHTML = msg;
+  });
+}
+
+// ─── CUSTOMERS ───
 function loadCustomers() {
   callServer('uiGetCustomers', { limit: 1000 }).then(function(res) {
     var list = (res.data && res.data.data) || res.data || [];
-    if (!list.length) {
-      document.getElementById('customersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><p>No customers found</p></div>';
-      return;
-    }
-    var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th></tr></thead><tbody>';
-    list.forEach(function(c) {
-      var status = c.status || 'Active';
-      var badge = status === 'Active' ? 'badge-success' : 'badge-secondary';
-      html += '<tr><td>' + esc(c.name || c.fullName || '-') + '</td><td>' + esc(c.email || '-') + '</td><td>' + esc(c.phone || '-') + '</td><td><span class="badge ' + badge + '">' + esc(status) + '</span></td></tr>';
-    });
-    html += '</tbody></table>';
-    document.getElementById('customersTableContainer').innerHTML = html;
+    _customerCache = list;
+    renderCustomers(list);
   }).catch(function(err) {
     document.getElementById('customersTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
   });
 }
-function filterCustomers() { loadCustomers(); }
+
+function renderCustomers(list) {
+  if (!list || !list.length) {
+    document.getElementById('customersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><p>No customers found</p></div>';
+    return;
+  }
+  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+  list.forEach(function(c) {
+    var cid = c.id || '-';
+    var status = c.status || 'Active';
+    var badge = status === 'Active' ? 'badge-success' : 'badge-secondary';
+    html += '<tr><td>' + esc(c.name || c.fullName || '-') + '</td><td>' + esc(c.email || '-') + '</td><td>' + esc(c.phone || '-') + '</td><td><span class="badge ' + badge + '">' + esc(status) + '</span></td>';
+    html += '<td><div class="btn-group"><button class="btn btn-sm btn-outline" data-action="edit-customer" data-id="' + escAttr(cid) + '">Edit</button>';
+    if (isAdmin()) html += '<button class="btn btn-sm btn-danger" data-action="delete-customer" data-id="' + escAttr(cid) + '">Delete</button>';
+    html += '</div></td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('customersTableContainer').innerHTML = html;
+}
+
+function filterCustomers() {
+  var search = (document.getElementById('customerSearch').value || '').toLowerCase();
+  var statusFilter = document.getElementById('customerStatusFilter').value;
+  var filtered = _customerCache.filter(function(c) {
+    if (search) {
+      var match = (c.name || c.fullName || '').toLowerCase().indexOf(search) > -1 ||
+                  (c.email || '').toLowerCase().indexOf(search) > -1 ||
+                  (c.phone || '').toLowerCase().indexOf(search) > -1;
+      if (!match) return false;
+    }
+    if (statusFilter && (c.status || 'Active') !== statusFilter) return false;
+    return true;
+  });
+  renderCustomers(filtered);
+}
+
 function openAddCustomerModal() {
   openGenericModal('Add Customer',
-    '<div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="custName" placeholder="Customer full name"></div>' +
+    '<div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" id="custName" placeholder="Customer name"></div>' +
     '<div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="custEmail" placeholder="email@example.com"></div>' +
-    '<div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="custPhone" placeholder="+20 xxx xxx xxxx"></div></div>' +
-    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="custNotes" rows="2" placeholder="Optional notes..."></textarea></div>',
-    '<button class="btn btn-primary" data-action="submit-add-customer">Save Customer</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+    '<div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="custPhone" placeholder="Phone number"></div></div>' +
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="custNotes" rows="2" placeholder="Notes..."></textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-add-customer">Create</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
   );
 }
+
 function submitAddCustomer() {
   var data = {
-    name: document.getElementById('custName').value.trim(),
-    email: document.getElementById('custEmail').value.trim(),
-    phone: document.getElementById('custPhone').value.trim(),
-    notes: document.getElementById('custNotes').value.trim()
+    name: document.getElementById('custName').value,
+    email: document.getElementById('custEmail').value,
+    phone: document.getElementById('custPhone').value,
+    notes: document.getElementById('custNotes').value
   };
-  if (!data.name) { showToast('Name is required', 'error'); return; }
-  if (!data.email || data.email.indexOf('@') < 0) { showToast('Valid email is required', 'error'); return; }
+  if (!data.name || !data.email) { showToast('Name and email are required', 'error'); return; }
   callServer('uiCreateCustomer', data).then(function() {
-    showToast('Customer added successfully');
+    showToast('Customer created successfully');
     closeModal();
-    _customerCache = [];
     loadCustomers();
   }).catch(function(err) {
     showToast('Error: ' + err.message, 'error');
   });
 }
 
+function openEditCustomerModal(id) {
+  var customer = _customerCache.find(function(c) { return (c.id || '') === id; });
+  if (!customer) return;
+  openGenericModal('Edit Customer',
+    '<div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" id="editCustName" value="' + escAttr(customer.name || customer.fullName || '') + '"></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="editCustEmail" value="' + escAttr(customer.email || '') + '"></div>' +
+    '<div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="editCustPhone" value="' + escAttr(customer.phone || '') + '"></div></div>' +
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="editCustNotes" rows="2">' + esc(customer.notes || '') + '</textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-edit-customer" data-id="' + escAttr(id) + '">Update</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitEditCustomer(id) {
+  var data = {
+    name: document.getElementById('editCustName').value,
+    email: document.getElementById('editCustEmail').value,
+    phone: document.getElementById('editCustPhone').value,
+    notes: document.getElementById('editCustNotes').value
+  };
+  if (!data.name) { showToast('Name is required', 'error'); return; }
+  callServer('uiUpdateCustomer', id, data).then(function() {
+    showToast('Customer updated');
+    closeModal();
+    loadCustomers();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+function deleteCustomer(id) {
+  if (!confirm('Delete this customer?')) return;
+  callServer('uiDeleteCustomer', id).then(function() {
+    showToast('Customer deleted');
+    loadCustomers();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+// ─── ORDERS ───
 function loadOrders() {
   callServer('uiGetOrders', { limit: 1000 }).then(function(res) {
     var list = (res.data && res.data.data) || res.data || [];
-    if (!list.length) {
-      document.getElementById('ordersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><p>No orders found</p></div>';
-      return;
-    }
-    var html = '<table class="table"><thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
-    list.forEach(function(o) {
-      var status = o.status || 'Pending';
-      var badge = status === 'Delivered' ? 'badge-success' : status === 'Cancelled' ? 'badge-danger' : 'badge-warning';
-      html += '<tr><td>' + esc(o.id || '-') + '</td><td>' + formatDate(o.date || o.createdAt) + '</td><td>' + esc(o.customerName || o.customer || '-') + '</td><td>$' + esc(String(o.amount || 0)) + '</td><td><span class="badge ' + badge + '">' + esc(status) + '</span></td></tr>';
-    });
-    html += '</tbody></table>';
-    document.getElementById('ordersTableContainer').innerHTML = html;
+    _orderCache = list;
+    renderOrders(list);
   }).catch(function(err) {
     document.getElementById('ordersTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
   });
 }
-function filterOrders() { loadOrders(); }
-function openAddOrderModal() {
-  var customerOptions = '<option value="">— Select Customer —</option>';
-  (_customerCache || []).forEach(function(c) {
-    var cName = c.name || c.fullName || '';
-    var cEmail = c.email || '';
-    if (cName) customerOptions += '<option value="' + escAttr(cEmail) + '">' + esc(cName) + (cEmail ? ' (' + esc(cEmail) + ')' : '') + '</option>';
+
+function renderOrders(list) {
+  if (!list || !list.length) {
+    document.getElementById('ordersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><p>No orders found</p></div>';
+    return;
+  }
+  var html = '<table class="table"><thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+  list.forEach(function(o) {
+    var status = o.status || 'Pending';
+    var badge = status === 'Delivered' ? 'badge-success' : status === 'Cancelled' ? 'badge-danger' : status === 'Shipped' ? 'badge-info' : status === 'Confirmed' ? 'badge-primary' : 'badge-warning';
+    var oid = o.id || '-';
+    html += '<tr><td>' + esc(oid.substring(0, 15)) + '</td><td>' + formatDate(o.date || o.createdAt) + '</td><td>' + esc(o.customerName || o.customer || '-') + '</td><td>$' + esc(String(o.amount || 0)) + '</td><td><span class="badge ' + badge + '">' + esc(status) + '</span></td>';
+    html += '<td><select class="form-select" style="font-size:12px;padding:4px 8px;min-width:110px;" onchange="updateOrderStatus(\'' + escAttr(oid) + '\',this.value)">';
+    html += '<option value="' + status + '">' + esc(status) + '</option>';
+    if (status !== 'Confirmed') html += '<option value="Confirmed">Confirmed</option>';
+    if (status !== 'Shipped') html += '<option value="Shipped">Shipped</option>';
+    if (status !== 'Delivered') html += '<option value="Delivered">Delivered</option>';
+    if (status !== 'Cancelled') html += '<option value="Cancelled">Cancelled</option>';
+    html += '</select></td></tr>';
   });
-  var today = new Date().toISOString().split('T')[0];
+  html += '</tbody></table>';
+  document.getElementById('ordersTableContainer').innerHTML = html;
+}
+
+function filterOrders() {
+  var statusFilter = document.getElementById('orderStatusFilter').value;
+  var from = document.getElementById('orderDateFrom').value;
+  var to = document.getElementById('orderDateTo').value;
+  var filtered = _orderCache.filter(function(o) {
+    if (statusFilter && (o.status || 'Pending') !== statusFilter) return false;
+    if (from && (o.date || o.createdAt || '') < from) return false;
+    if (to && (o.date || o.createdAt || '') > to) return false;
+    return true;
+  });
+  renderOrders(filtered);
+}
+
+function updateOrderStatus(id, newStatus) {
+  if (!newStatus || newStatus === '') return;
+  callServer('uiUpdateOrderStatus', id, newStatus).then(function() {
+    showToast('Order status updated to ' + newStatus);
+    loadOrders();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+function openAddOrderModal() {
+  var custOptions = '<option value="">Select customer...</option>';
+  _customerCache.forEach(function(c) {
+    custOptions += '<option value="' + escAttr(c.id || '') + '">' + esc(c.name || c.fullName || c.email || '') + '</option>';
+  });
   openGenericModal('New Order',
-    '<div class="form-row"><div class="form-group"><label class="form-label">Customer *</label><select class="form-select" id="ordCustomer">' + customerOptions + '</select></div>' +
-    '<div class="form-group"><label class="form-label">Amount ($) *</label><input type="number" step="0.01" class="form-input" id="ordAmount" placeholder="0.00"></div></div>' +
-    '<div class="form-row"><div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="ordDate" value="' + today + '"></div>' +
-    '<div class="form-group"><label class="form-label">Status</label><select class="form-select" id="ordStatus"><option value="Pending">Pending</option><option value="Confirmed">Confirmed</option><option value="Shipped">Shipped</option><option value="Delivered">Delivered</option></select></div></div>' +
-    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="ordNotes" rows="2" placeholder="Order notes..."></textarea></div>',
+    '<div class="form-group"><label class="form-label">Customer *</label><select class="form-select" id="orderCustomer">' + custOptions + '</select></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Amount *</label><input type="number" step="0.01" class="form-input" id="orderAmount" placeholder="0.00"></div>' +
+    '<div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="orderNotes" placeholder="Order notes"></div></div>',
     '<button class="btn btn-primary" data-action="submit-add-order">Create Order</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
   );
 }
+
 function submitAddOrder() {
+  var customerId = document.getElementById('orderCustomer').value;
+  var amount = parseFloat(document.getElementById('orderAmount').value) || 0;
+  if (!customerId) { showToast('Please select a customer', 'error'); return; }
+  if (!amount) { showToast('Amount is required', 'error'); return; }
   var data = {
-    customer: document.getElementById('ordCustomer').value,
-    customerName: document.getElementById('ordCustomer').selectedOptions[0] ? document.getElementById('ordCustomer').selectedOptions[0].text.split(' (')[0] : '',
-    amount: parseFloat(document.getElementById('ordAmount').value) || 0,
-    date: document.getElementById('ordDate').value,
-    status: document.getElementById('ordStatus').value,
-    notes: document.getElementById('ordNotes').value.trim()
+    customerId: customerId,
+    totalAmount: amount,
+    notes: document.getElementById('orderNotes').value,
+    status: 'Pending'
   };
-  if (!data.customer) { showToast('Please select a customer', 'error'); return; }
-  if (!data.amount || data.amount <= 0) { showToast('Amount must be greater than 0', 'error'); return; }
   callServer('uiCreateOrder', data).then(function() {
-    showToast('Order created successfully');
+    showToast('Order created');
     closeModal();
     loadOrders();
   }).catch(function(err) {
@@ -257,6 +428,7 @@ function submitAddOrder() {
   });
 }
 
+// ─── SALES ───
 function loadSales() {
   callServer('uiGetSales', { limit: 1000 }).then(function(res) {
     var list = (res.data && res.data.data) || res.data || [];
@@ -274,43 +446,27 @@ function loadSales() {
     document.getElementById('salesTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
   });
 }
+
 function openAddSaleModal() {
-  var today = new Date().toISOString().split('T')[0];
   openGenericModal('Record Sale',
-    '<div class="form-row"><div class="form-group"><label class="form-label">Product Name *</label><input type="text" class="form-input" id="saleProduct" placeholder="Product or service name"></div>' +
-    '<div class="form-group"><label class="form-label">Quantity *</label><input type="number" class="form-input" id="saleQty" value="1" min="1" placeholder="1" oninput="calcSaleAmount()"></div></div>' +
-    '<div class="form-row"><div class="form-group"><label class="form-label">Unit Price ($) *</label><input type="number" step="0.01" class="form-input" id="salePrice" placeholder="0.00" oninput="calcSaleAmount()"></div>' +
-    '<div class="form-group"><label class="form-label">Total Amount ($)</label><input type="text" class="form-input" id="saleAmount" value="0.00" readonly style="opacity:0.7;background:var(--bg-tertiary);"></div></div>' +
-    '<div class="form-row"><div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="saleDate" value="' + today + '"></div>' +
-    '<div class="form-group"><label class="form-label">Customer</label><input type="text" class="form-input" id="saleCustomer" placeholder="Customer name (optional)"></div></div>' +
-    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="saleNotes" rows="2" placeholder="Sale notes..."></textarea></div>',
+    '<div class="form-group"><label class="form-label">Product *</label><input type="text" class="form-input" id="saleProduct" placeholder="Product name"></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Quantity *</label><input type="number" class="form-input" id="saleQty" value="1" min="1"></div>' +
+    '<div class="form-group"><label class="form-label">Amount *</label><input type="number" step="0.01" class="form-input" id="saleAmount" placeholder="0.00"></div></div>' +
+    '<div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="saleNotes" placeholder="Optional notes"></div>',
     '<button class="btn btn-primary" data-action="submit-add-sale">Record Sale</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
   );
 }
-function calcSaleAmount() {
-  var qty = parseFloat(document.getElementById('saleQty').value) || 0;
-  var price = parseFloat(document.getElementById('salePrice').value) || 0;
-  var total = (qty * price).toFixed(2);
-  document.getElementById('saleAmount').value = total;
-}
+
 function submitAddSale() {
-  var qty = parseFloat(document.getElementById('saleQty').value) || 0;
-  var price = parseFloat(document.getElementById('salePrice').value) || 0;
   var data = {
-    product: document.getElementById('saleProduct').value.trim(),
-    productName: document.getElementById('saleProduct').value.trim(),
-    quantity: qty,
-    qty: qty,
-    amount: qty * price,
-    date: document.getElementById('saleDate').value,
-    customer: document.getElementById('saleCustomer').value.trim(),
-    notes: document.getElementById('saleNotes').value.trim()
+    product: document.getElementById('saleProduct').value,
+    quantity: parseInt(document.getElementById('saleQty').value) || 1,
+    amount: parseFloat(document.getElementById('saleAmount').value) || 0,
+    notes: document.getElementById('saleNotes').value
   };
-  if (!data.product) { showToast('Product name is required', 'error'); return; }
-  if (qty <= 0) { showToast('Quantity must be at least 1', 'error'); return; }
-  if (price <= 0) { showToast('Price must be greater than 0', 'error'); return; }
+  if (!data.product || !data.amount) { showToast('Product and amount are required', 'error'); return; }
   callServer('uiCreateSale', data).then(function() {
-    showToast('Sale recorded successfully');
+    showToast('Sale recorded');
     closeModal();
     loadSales();
   }).catch(function(err) {

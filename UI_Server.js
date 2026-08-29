@@ -41,8 +41,8 @@ function _requireAuth(permission) {
     try { email = Session.getActiveUser().getEmail(); } catch(e) {}
     throw new Error("المستخدم غير مسجّل في النظام. البريد: " + email);
   }
-  var role = String(member[MEMBER_COL.ROLE] || "").trim().toLowerCase();
-  if (role === "admin" || role === "ceo") return member;
+  var role = member[MEMBER_COL.ROLE] || "";
+  if (role === "Admin" || role === "CEO") return member;
   var hasPerm = hasPermission(member, permission);
   if (!hasPerm) {
     try { logActivity(member, "Access Denied", "UI_Server", permission, "", "Unauthorized attempt"); } catch(e) {}
@@ -100,59 +100,157 @@ function _auditLog(action, target, details, status) {
 }
 
 // ============================================================
+// SAFE SERIALIZATION HELPERS
+// Prevents "illegal value in property: 0" from formula errors in sheets
+// ============================================================
+
+/**
+ * Converts ANY value to a safe JSON-serializable string.
+ * Catches Error objects (#N/A, #REF!, #DIV/0!) and Date objects.
+ */
+function _safeString(val) {
+  if (val === null || val === undefined) return '';
+  if (val instanceof Error) return '';
+  try { return String(val); } catch (e) { return ''; }
+}
+
+/**
+ * Sanitizes an entire row (array) from getValues().
+ * Converts Error objects and Dates to safe strings.
+ */
+function _safeRow(row) {
+  if (!row || !Array.isArray(row)) return [];
+  var out = [];
+  for (var i = 0; i < row.length; i++) {
+    var v = row[i];
+    if (v instanceof Error) { out.push(''); }
+    else if (v instanceof Date) {
+      try { out.push(Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd')); }
+      catch (e) { out.push(String(v)); }
+    }
+    else { out.push(v !== null && v !== undefined ? v : ''); }
+  }
+  return out;
+}
+
+// ============================================================
 // USER AUTH API
 // ============================================================
 
-function uiGetCurrentUser() {
-  try {
-    _checkRateLimit("uiGetCurrentUser");
-    var email = "";
-    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
-    var member = getCurrentMember();
 
-    if (!member) {
-      return {
-        success: false,
-        error: String(email) + " - غير مسجل. تحقق: (1) الإيميل في Members (2) Status=Active (3) لا تكرار."
+/**
+ * Get current user data — NUCLEAR FIX
+ * Uses JSON round-trip to guarantee 100% serializable return value.
+ * This prevents "illegal value in property: 0" from ANY source.
+ */
+function uiGetCurrentUser() {
+  // Nuclear safe fallback — always serializable
+  var SAFE_FALLBACK = { email: '', role: 'GUEST', member: null, permissions: [], ts: '' };
+
+  try {
+    var email = '';
+    try { email = Session.getActiveUser().getEmail() || ''; } catch(e) {}
+    if (!email) return SAFE_FALLBACK;
+
+    var rawMember = null;
+    try {
+      if (typeof getCurrentMember === 'function') {
+        rawMember = getCurrentMember();
+      }
+    } catch (e) {
+      console.warn('[uiGetCurrentUser] getCurrentMember failed: ' + e.message);
+    }
+
+    // Triple-sanitize row
+    if (rawMember && Array.isArray(rawMember)) {
+      for (var s = 0; s < rawMember.length; s++) {
+        var v = rawMember[s];
+        if (v instanceof Error || (v && typeof v === 'object' && !(v instanceof Date) && !(v instanceof Array))) {
+          rawMember[s] = '';
+        } else if (v instanceof Date) {
+          try { rawMember[s] = Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd'); } catch(e2) { rawMember[s] = ''; }
+        } else if (v === null || v === undefined) {
+          rawMember[s] = '';
+        }
+      }
+    }
+
+    var member = null;
+    if (rawMember && Array.isArray(rawMember) && rawMember.length > 0) {
+      member = {
+        id:     String(rawMember[0] != null ? rawMember[0] : ''),
+        name:   String(rawMember[1] != null ? rawMember[1] : ''),
+        role:   String(rawMember[2] != null ? rawMember[2] : 'GUEST'),
+        email:  String(rawMember[3] != null ? rawMember[3] : ''),
+        phone:  String(rawMember[4] != null ? rawMember[4] : ''),
+        status: String(rawMember[5] != null ? rawMember[5] : '')
       };
     }
 
-    // ── SAFE EXTRACTION: String() wrapper prevents Date/undefined serialization failure ──
-    var safeEmail = String(member[MEMBER_COL.EMAIL] || "").trim();
-    var safeName = String(member[MEMBER_COL.FULL_NAME] || "").trim();
-    var safeRole = String(member[MEMBER_COL.ROLE] || "").trim();
-
-    var safePermissions = [];
+    var role = 'GUEST';
     try {
-      var perms = getRolePermissions(safeRole);
-      if (Array.isArray(perms)) {
-        safePermissions = perms.filter(function(p) { return typeof p === "string"; });
+      if (typeof Security !== 'undefined' && typeof Security.getUserRole === 'function') {
+        var rawRole = Security.getUserRole();
+        role = String(rawRole || 'GUEST');
+      } else if (member && member.role) {
+        role = String(member.role);
       }
-    } catch (permErr) {
-      console.log("[AUTH] getRolePermissions failed: " + permErr.message);
+    } catch (e) {
+      if (member && member.role) role = String(member.role);
+    }
+    role = String(role || 'GUEST').toUpperCase().trim();
+
+    // Get permissions safely
+    var permissions = [];
+    try {
+      if (typeof Security !== 'undefined' && typeof Security.getUserPermissions === 'function') {
+        var rawPerms = Security.getUserPermissions();
+        if (Array.isArray(rawPerms)) {
+          for (var p = 0; p < rawPerms.length; p++) {
+            permissions.push(String(rawPerms[p] || ''));
+          }
+        }
+      }
+    } catch (e) {}
+
+    var result = {
+      email:       String(email),
+      role:       String(role),
+      member:      member,
+      permissions: permissions,
+      ts:         new Date().toISOString()
+    };
+
+    // ═══ NUCLEAR SAFETY: JSON round-trip ═══
+    // This STRIPS any non-serializable value (Error, Date, undefined, function)
+    try {
+      var jsonStr = JSON.stringify(result);
+      if (jsonStr) {
+        result = JSON.parse(jsonStr);
+      }
+    } catch (jsonErr) {
+      console.error('[uiGetCurrentUser] JSON strip failed: ' + jsonErr.message + ' — returning safe fallback');
+      return SAFE_FALLBACK;
     }
 
-    return {
-      success: true,
-      data: {
-        email: safeEmail,
-        name: safeName,
-        role: safeRole,
-        permissions: safePermissions
-      }
-    };
+    return result;
+
   } catch (e) {
-    return { success: false, error: String(e.message || "Unknown error") };
+    console.error('[uiGetCurrentUser] FATAL: ' + e.message);
+    return SAFE_FALLBACK;
   }
 }
 
-// ─── PASSWORD HASHING HELPER (for manual login security) ───
+// ============================================================
+// PASSWORD & AUTHENTICATION API
+// ============================================================
+
 var _LOGIN_SALT = 'PHINOX_BOS_v5_SALT_2026';
 
 function _hashPassword(plainText) {
   if (!plainText) return '';
-  var salted = plainText + _LOGIN_SALT;
-  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salted);
+  var raw = plainText + _LOGIN_SALT;
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
   var hex = '';
   for (var i = 0; i < bytes.length; i++) {
     var b = bytes[i];
@@ -162,333 +260,390 @@ function _hashPassword(plainText) {
   return hex;
 }
 
-// ─── MANUAL EMAIL+PASSWORD LOGIN (for non-Google accounts like Hotmail/Outlook) ───
-function uiLoginWithEmail(inputEmail, inputPassword) {
-  try {
-    _checkRateLimit("uiLoginWithEmail");
-    if (!inputEmail || typeof inputEmail !== 'string') throw new Error("البريد الإلكتروني مطلوب");
-    var cleanEmail = inputEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) throw new Error("صيغة الإيميل غير صحيحة");
-    if (!inputPassword || typeof inputPassword !== 'string') throw new Error("كلمة المرور مطلوبة");
-    if (inputPassword.length < 4) throw new Error("كلمة المرور قصيرة جداً (4 أحرف على الأقل)");
+// ============================================================
+// UNIFIED MEMBER ID GENERATOR
+// ============================================================
+// Format: MEM-XXXXXXXXX (9 chars)
+// ALL member creation paths MUST use this.
+// ============================================================
+function _generateMemberId() {
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  var id = 'MEM-';
+  for (var i = 0; i < 9; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
 
-    var allMembers = Members.getMembers();
-    var found = null;
-    var foundRow = null;
-    var rowIndex = -1;
-    for (var i = 0; i < allMembers.length; i++) {
-      var m = allMembers[i];
-      var mEmail = '';
-      if (Array.isArray(m)) {
-        mEmail = String(m[MEMBER_COL.EMAIL] || '').trim().toLowerCase();
-      } else if (m && typeof m === 'object') {
-        mEmail = String(m.email || '').trim().toLowerCase();
-      }
-      if (mEmail === cleanEmail) {
-        found = m;
-        foundRow = m;
-        rowIndex = i;
+// ============================================================
+// UNIFIED MEMBER ROW BUILDER (13 columns)
+// ============================================================
+function _buildMemberRow(id, fullName, role, email, phone, status, notes, passwordHash) {
+  return [
+    id,
+    fullName,
+    role || 'Operations',
+    email,
+    phone || '',
+    status || 'Active',
+    new Date().toISOString().split('T')[0],
+    0, 0, 0, 0,
+    notes || '',
+    passwordHash || ''
+  ];
+}
+
+// ============================================================
+// ENSURE 13 COLUMNS ON MEMBERS SHEET
+// ============================================================
+function _ensureMembers13Cols(sheet) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol >= 13) return;
+  for (var c = lastCol + 1; c <= 13; c++) {
+    var hdr = (c === 13) ? 'password' : '';
+    sheet.getRange(1, c, 1, 1).setValue(hdr);
+    sheet.getRange(1, c, 1, 1).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sheet.setColumnWidth(c, 30);
+  }
+}
+
+// ============================================================
+// STANDALONE FIX: Run to add password column
+// ============================================================
+function fixPasswordColumn() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Members');
+  if (!sheet) return 'ERROR: Members sheet not found';
+  var lastCol = sheet.getLastColumn();
+  if (lastCol >= 13) {
+    var hdr = sheet.getRange(1, 13, 1, 1).getValue();
+    if (String(hdr).toLowerCase() === 'password') return 'OK: Password column already exists (col 13)';
+  }
+  sheet.getRange(1, 13, 1, 1).setValue('password');
+  sheet.getRange(1, 13, 1, 1).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+  sheet.setColumnWidth(13, 30);
+  return 'FIXED: Password column added at col 13. Was ' + lastCol + ' columns.';
+}
+
+/**
+ * Set a member's password. Admin/CEO can set for others; any member can set own.
+ * Uses DIRECT sheet access (not BaseRepository) to avoid schema mismatch issues.
+ */
+function uiSetMemberPassword(targetEmail, newPassword) {
+  try {
+    // === INPUT VALIDATION ===
+    if (!targetEmail || !newPassword) return { success: false, error: 'بيانات مفقودة' };
+    targetEmail = String(targetEmail).trim().toLowerCase();
+    newPassword = String(newPassword);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) return { success: false, error: 'بريد إلكتروني غير صالح' };
+    if (newPassword.length < 4) return { success: false, error: 'كلمة المرور قصيرة جداً' };
+
+    // === AUTH: get current user email & role directly from sheet ===
+    var myEmail = '';
+    try { myEmail = Session.getActiveUser().getEmail().toLowerCase(); } catch(e) {}
+    if (!myEmail) return { success: false, error: 'غير مسجل الدخول' };
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) return { success: false, error: 'شيت الأعضاء غير موجود' };
+
+    // Read ALL data once
+    var allData = sheet.getDataRange().getValues();
+    if (allData.length < 2) return { success: false, error: 'لا يوجد أعضاء' };
+
+    // Find current user's role (direct scan, column 3 = email, column 2 = role)
+    var myRole = '';
+    for (var r = 1; r < allData.length; r++) {
+      if (String(allData[r][3] || '').toLowerCase() === myEmail) {
+        myRole = String(allData[r][2] || '');
         break;
       }
     }
-    if (!found) throw new Error("الإيميل غير موجود في النظام. تواصل مع الأدمن.");
-
-    // ── Verify password ──
-    var storedHash = '';
-    if (Array.isArray(foundRow) && foundRow.length > MEMBER_COL.PASSWORD) {
-      storedHash = String(foundRow[MEMBER_COL.PASSWORD] || '').trim();
+    if (myRole !== 'Admin' && myRole !== 'CEO' && targetEmail !== myEmail) {
+      return { success: false, error: 'ليس لديك صلاحية لتعديل كلمة مرور هذا العضو' };
     }
-    if (!storedHash) throw new Error("لم يتم تعيين كلمة مرور لهذا الحساب. تواصل مع الأدمن لتفعيل تسجيل الدخول اليدوي.");
+
+    // === ENSURE PASSWORD COLUMN (col 13) EXISTS ===
+    var lastCol = sheet.getLastColumn();
+    if (lastCol < 13) {
+      sheet.getRange(1, 13, 1, 1).setValue('password');
+      sheet.getRange(1, 13, 1, 1).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+      sheet.setColumnWidth(13, 30);
+      console.log('[uiSetMemberPassword] Added password column (13)');
+    }
+
+    // === FIND TARGET MEMBER & WRITE PASSWORD ===
+    for (var r = 1; r < allData.length; r++) {
+      if (String(allData[r][3] || '').toLowerCase() === targetEmail) {
+        var rowNum = r + 1; // 1-indexed for getRange
+        var hash = _hashPassword(newPassword);
+        sheet.getRange(rowNum, 13, 1, 1).setValue(hash);
+        console.log('[uiSetMemberPassword] Password set for ' + targetEmail + ' row=' + rowNum);
+        return { success: true, message: 'تم تغيير كلمة المرور بنجاح' };
+      }
+    }
+    return { success: false, error: 'العضو غير موجود: ' + targetEmail };
+
+  } catch (e) {
+    console.error('[uiSetMemberPassword] ERROR: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Login with email + password (for non-Google accounts).
+ */
+function uiLoginWithEmail(inputEmail, inputPassword) {
+  try {
+    inputEmail = _sanitizeEmail(inputEmail);
+    if (!inputEmail) return { success: false, error: 'بريد إلكتروني غير صالح' };
+    if (!inputPassword) return { success: false, error: 'كلمة المرور مطلوبة' };
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) return { success: false, error: 'شيت الأعضاء غير موجود' };
+
+    var dataRange = sheet.getDataRange();
+    var values = dataRange.getValues();
+    var foundRow = null;
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][3] || '').toLowerCase() === inputEmail) {
+        foundRow = values[i];
+        break;
+      }
+    }
+    if (!foundRow) return { success: false, error: 'البريد الإلكتروني غير مسجّل' };
+
+    // Check status
+    var status = String(foundRow[5] || '');
+    if (status !== 'Active') {
+      return { success: false, error: 'الحساب غير مفعّل: ' + status };
+    }
+
+    // Check password (column index 12 = 0-indexed, might not exist for Gmail users)
+    var storedHash = '';
+    if (foundRow.length > 12) {
+      storedHash = String(foundRow[12] || '');
+    }
+    if (!storedHash) {
+      return { success: false, error: 'لا توجد كلمة مرور مسجلة. استخدم تسجيل الدخول بـ Google.' };
+    }
 
     var inputHash = _hashPassword(inputPassword);
-    if (inputHash !== storedHash) throw new Error("كلمة المرور غير صحيحة");
-
-    // ── Check status ──
-    var status = '';
-    if (Array.isArray(foundRow)) {
-      status = String(foundRow[MEMBER_COL.STATUS] || '').trim();
-    } else {
-      status = String(found.status || '').trim();
-    }
-    if (status.toLowerCase() !== 'active') throw new Error("الحساب " + status + ". فقط الأعضاء النشطين يمكنهم تسجيل الدخول.");
-
-    var safeRole = '';
-    var safeName = '';
-    if (Array.isArray(foundRow)) {
-      safeRole = String(foundRow[MEMBER_COL.ROLE] || '').trim();
-      safeName = String(foundRow[MEMBER_COL.FULL_NAME] || '').trim();
-    } else {
-      safeRole = String(found.role || '').trim();
-      safeName = String(found.fullName || found.name || '').trim();
+    if (inputHash !== storedHash) {
+      return { success: false, error: 'كلمة المرور غير صحيحة' };
     }
 
-    var safePerms = [];
-    try {
-      var perms = getRolePermissions(safeRole);
-      if (Array.isArray(perms)) safePerms = perms.filter(function(p) { return typeof p === 'string'; });
-    } catch(pe) {}
-
-    _auditLog("MANUAL_LOGIN", cleanEmail, "Login via email+password (non-Google account)", "SUCCESS");
+    var role = String(foundRow[2] || 'Viewer');
+    _auditLog('LOGIN_SUCCESS', inputEmail, { method: 'password' }, 'SUCCESS');
 
     return {
       success: true,
-      data: {
-        email: cleanEmail,
-        name: safeName || cleanEmail.split('@')[0],
-        role: safeRole,
-        permissions: safePerms,
-        manualLogin: true
-      }
+      member: {
+        id: String(foundRow[0] || ''),
+        name: String(foundRow[1] || ''),
+        role: role,
+        email: String(foundRow[3] || ''),
+        phone: String(foundRow[4] || ''),
+        status: status
+      },
+      permissions: _getRolePermissions(role)
     };
   } catch (e) {
-    _auditLog("MANUAL_LOGIN", String(inputEmail || ''), String(e.message), "FAILED");
     return { success: false, error: e.message };
   }
 }
 
-// ─── SET/CHANGE MEMBER PASSWORD (Admin only, or self-change) ───
-function uiSetMemberPassword(targetEmail, newPassword) {
-  try {
-    _checkRateLimit("uiSetMemberPassword");
-    var member = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
-    var memberRole = String(member[MEMBER_COL.ROLE] || '').trim().toLowerCase();
-
-    if (!targetEmail || typeof targetEmail !== 'string') throw new Error("البريد الإلكتروني مطلوب");
-    var cleanTarget = targetEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanTarget)) throw new Error("صيغة الإيميل غير صحيحة");
-    if (!newPassword || typeof newPassword !== 'string') throw new Error("كلمة المرور الجديدة مطلوبة");
-    if (newPassword.length < 4) throw new Error("كلمة المرور يجب أن تكون 4 أحرف على الأقل");
-
-    // Only Admin/CEO can set passwords for others, or member can set their own
-    var memberEmail = String(member[MEMBER_COL.EMAIL] || '').trim().toLowerCase();
-    if (memberRole !== 'admin' && memberRole !== 'ceo' && memberEmail !== cleanTarget) {
-      throw new Error("فقط الأدمن يمكنه تعيين كلمات مرور للآخرين");
-    }
-
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName('Members');
-    if (!sheet) throw new Error("شيت Members غير موجود");
-
-    var lastRow = sheet.getLastRow();
-    if (lastRow < 2) throw new Error("لا يوجد أعضاء");
-
-    var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-    var foundIdx = -1;
-    for (var i = 0; i < data.length; i++) {
-      var rowEmail = String(data[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
-      if (rowEmail === cleanTarget) { foundIdx = i; break; }
-    }
-    if (foundIdx < 0) throw new Error("العضو غير موجود: " + cleanTarget);
-
-    // Ensure password column exists
-    var lastCol = sheet.getLastColumn();
-    var passCol = MEMBER_COL.PASSWORD + 1; // 1-indexed
-    if (lastCol < passCol) {
-      sheet.getRange(1, passCol, 1, 1).setValue('password')
-        .setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
-    }
-
-    var hash = _hashPassword(newPassword);
-    sheet.getRange(foundIdx + 2, passCol, 1, 1).setValue(hash);
-
-    _auditLog("SET_PASSWORD", cleanTarget, "Password updated by " + memberEmail, "SUCCESS");
-    return { success: true, data: { email: cleanTarget, message: 'تم تغيير كلمة المرور بنجاح' } };
-  } catch (e) {
-    return { success: false, error: e.message };
+function _getRolePermissions(role) {
+  if (!role) return [];
+  var perms = [];
+  if (typeof ROLE_PERMISSIONS === 'function') {
+    try { return ROLE_PERMISSIONS(role); } catch(e) {}
   }
+  if (typeof PERMISSIONS !== 'undefined') {
+    var allPerms = Object.values(PERMISSIONS);
+    if (role === 'Admin' || role === 'CEO') return allPerms;
+    if (role === 'Partner') {
+      var exclude = ['admin'];
+      allPerms.forEach(function(p) { if (exclude.indexOf(p) === -1) perms.push(p); });
+      return perms;
+    }
+  }
+  return perms;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// REGISTRATION & APPROVAL SYSTEM
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ─── Check if email exists and its status (NO auth required) ───
+/**
+ * Check if an email is already registered (no auth required).
+ */
 function uiCheckRegistrationStatus(inputEmail) {
   try {
-    if (!inputEmail || typeof inputEmail !== 'string') return { success: true, data: { exists: false } };
-    var cleanEmail = inputEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return { success: true, data: { exists: false } };
+    inputEmail = _sanitizeEmail(inputEmail);
+    if (!inputEmail) return { success: false, error: 'بريد إلكتروني غير صالح' };
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Members');
-    if (!sheet) return { success: true, data: { exists: false } };
+    if (!sheet) return { exists: false, canRegister: true };
 
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) return { success: true, data: { exists: false } };
-
-    var totalCols = sheet.getLastColumn();
-    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
-
-    for (var i = 0; i < data.length; i++) {
-      var row = data[i];
-      var colEmail = String(row[MEMBER_COL.EMAIL] || '').trim().toLowerCase();
-      if (colEmail === cleanEmail) {
-        var status = String(row[MEMBER_COL.STATUS] || 'Active').trim();
-        var role = String(row[MEMBER_COL.ROLE] || '').trim();
-        var name = String(row[MEMBER_COL.FULL_NAME] || '').trim();
+    var values = sheet.getDataRange().getValues();
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][3] || '').toLowerCase() === inputEmail) {
+        var isGmail = inputEmail.indexOf('gmail.com') !== -1;
         return {
-          success: true,
-          data: {
-            exists: true,
-            status: status,
-            role: role,
-            name: name,
-            isGmail: cleanEmail.indexOf('gmail.com') > -1 || cleanEmail.indexOf('googlemail.com') > -1
-          }
+          exists: true,
+          canRegister: false,
+          status: String(values[i][5] || ''),
+          role: String(values[i][2] || ''),
+          name: String(values[i][1] || ''),
+          isGmail: isGmail
         };
       }
     }
-    return { success: true, data: { exists: false, isGmail: cleanEmail.indexOf('gmail.com') > -1 || cleanEmail.indexOf('googlemail.com') > -1 } };
+    return { exists: false, canRegister: true };
   } catch (e) {
-    return { success: true, data: { exists: false } };
+    return { exists: false, canRegister: true, error: e.message };
   }
 }
 
-// ─── Self-registration (NO auth required — creates Pending member) ───
+/**
+ * Register a new member — works for BOTH Gmail and non-Gmail.
+ * 
+ * Gmail users (detected automatically):
+ *   - No password needed (Google OAuth handles auth)
+ *   - Status = 'Pending' (admin approves role assignment)
+ *   - Can also be called by uiQuickRegisterGmail for one-click flow
+ *
+ * Non-Gmail users:
+ *   - Password required & hashed
+ *   - Status = 'Pending' (admin must approve)
+ *
+ * Unified ID: MEM-XXXXXXXXX (same format as menu & UI paths)
+ */
 function uiRegisterNewMember(data) {
   try {
-    _checkRateLimit("uiRegisterNewMember");
-    if (!data || typeof data !== 'object') throw new Error("بيانات غير صحيحة");
-    var fullName = _sanitizeInput(data.fullName || data.name || '');
-    var email = _sanitizeEmail(data.email);
-    var phone = _sanitizeInput(data.phone || '');
-    var role = _sanitizeInput(data.role || '');
-    var password = data.password || '';
-    var message = _sanitizeInput(data.message || '');
+    var email = String(data.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { success: false, error: 'بريد إلكتروني غير صالح' };
+    }
+    var fullName = String(data.fullName || data.name || '').trim();
+    if (!fullName) return { success: false, error: 'الاسم مطلوب' };
 
-    if (!fullName) throw new Error("الاسم مطلوب");
-    if (!email) throw new Error("الإيميل مطلوب بصيغة صحيحة");
-    if (!role) throw new Error("المنصب مطلوب");
+    // Role: prevent self-registration as Admin/CEO
+    var role = String(data.role || 'Operations').trim();
+    if (role === 'Admin' || role === 'CEO') {
+      return { success: false, error: 'لا يمكن التسجيل كـ ' + role + '. تواصل مع المدير.' };
+    }
+    // Normalize role to Title Case
+    role = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 
-    // Prevent self-registering as Admin/CEO
-    var roleLower = role.toLowerCase();
-    if (roleLower === 'admin') throw new Error("لا يمكنك التسجيل كأدمن — تواصل مع الإدارة");
-    if (roleLower === 'ceo') throw new Error("لا يمكنك التسجيل كـ CEO — تواصل مع الإدارة");
+    var phone = String(data.phone || '').trim();
+    var notes = String(data.notes || '').trim();
 
-    // For non-Gmail, password is required
-    var isGmail = email.indexOf('gmail.com') > -1 || email.indexOf('googlemail.com') > -1;
-    var passHash = '';
+    // Detect Gmail
+    var isGmail = (email.indexOf('gmail.com') !== -1);
+    var passwordHash = '';
     if (!isGmail) {
-      if (!password || typeof password !== 'string') throw new Error("كلمة المرور مطلوبة (4 أحرف على الأقل)");
-      if (password.length < 4) throw new Error("كلمة المرور قصيرة جداً (4 أحرف على الأقل)");
-      passHash = _hashPassword(password);
+      if (!data.password || String(data.password).length < 4) {
+        return { success: false, error: 'كلمة المرور مطلوبة (4 أحرف على الأقل)' };
+      }
+      passwordHash = _hashPassword(String(data.password));
     }
 
-    // Check if email already exists
+    // Get sheet
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Members');
-    if (!sheet) throw new Error("شيت Members غير موجود");
+    if (!sheet) return { success: false, error: 'شيت الأعضاء غير موجود' };
 
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) lastRow = 1;
-    var totalCols = sheet.getLastColumn();
+    // Ensure 13 columns
+    _ensureMembers13Cols(sheet);
 
-    // Read existing data to check duplicates
-    if (lastRow > 1) {
-      var existing = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
-      for (var i = 0; i < existing.length; i++) {
-        var eEmail = String(existing[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
-        if (eEmail === email) {
-          var eStatus = String(existing[i][MEMBER_COL.STATUS] || '').trim();
-          if (eStatus.toLowerCase() === 'pending') {
-            throw new Error("لقد قمت بالتسجيل مسبقاً وانتظار الموافقة. برجاء الانتظار.");
-          } else if (eStatus.toLowerCase() === 'active') {
-            throw new Error("هذا الإيميل مسجل بالفعل كعضو نشط. حاول تسجيل الدخول.");
-          } else if (eStatus.toLowerCase() === 'rejected') {
-            throw new Error("تم رفض طلب التسجيل السابق. تواصل مع الإدارة.");
-          } else {
-            throw new Error("هذا الإيميل موجود بالفعل في النظام. تواصل مع الإدارة.");
-          }
-        }
+    // Check duplicate
+    var existing = sheet.getDataRange().getValues();
+    for (var i = 1; i < existing.length; i++) {
+      if (String(existing[i][3] || '').toLowerCase() === email) {
+        var existingStatus = String(existing[i][5] || '');
+        return {
+          success: false,
+          error: 'هذا البريد مسجّل مسبقاً (الحالة: ' + existingStatus + ')',
+          exists: true,
+          status: existingStatus
+        };
       }
     }
 
-    // Ensure password column exists
-    var passCol = MEMBER_COL.PASSWORD + 1;
-    if (totalCols < passCol) {
-      sheet.getRange(1, passCol, 1, 1).setValue('password')
-        .setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
-    }
+    // Build row using unified builder
+    var memberId = _generateMemberId();
+    var row = _buildMemberRow(memberId, fullName, role, email, phone, 'Pending', notes, passwordHash);
 
-    // Generate member ID
-    var memberId = 'MBR-' + Date.now().toString(36).toUpperCase();
-    var joinDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-
-    // Append new row — Status = Pending
-    var newRow = [];
-    newRow[MEMBER_COL.MEMBER_ID] = memberId;
-    newRow[MEMBER_COL.FULL_NAME] = fullName;
-    newRow[MEMBER_COL.ROLE] = role;
-    newRow[MEMBER_COL.EMAIL] = email;
-    newRow[MEMBER_COL.PHONE] = phone;
-    newRow[MEMBER_COL.STATUS] = 'Pending';
-    newRow[MEMBER_COL.JOIN_DATE] = joinDate;
-    newRow[MEMBER_COL.KPI_SCORE] = 0;
-    newRow[MEMBER_COL.TASKS_COMPLETED] = 0;
-    newRow[MEMBER_COL.TASKS_LATE] = 0;
-    newRow[MEMBER_COL.AVERAGE_QUALITY] = 0;
-    newRow[MEMBER_COL.NOTES] = 'Registration request' + (message ? ': ' + message : '');
-    newRow[MEMBER_COL.PASSWORD] = passHash;
-
-    sheet.appendRow(newRow);
-
-    _auditLog("MEMBER_REGISTER", email, { name: fullName, role: role, isGmail: isGmail }, "SUCCESS");
+    sheet.appendRow(row);
+    console.log('[uiRegisterNewMember] Created ' + memberId + ' (' + email + ') isGmail=' + isGmail);
 
     return {
       success: true,
-      data: {
-        email: email,
-        name: fullName,
-        role: role,
-        status: 'Pending',
-        message: 'تم تسجيل طلبك بنجاح! سيتم مراجعته من قبل الإدارة.'
-      }
+      id: memberId,
+      isGmail: isGmail,
+      message: isGmail
+        ? 'تم تسجيل طلب الانضمام بـ Gmail. في انتظار موافقة المدير.'
+        : 'تم التسجيل بنجاح. في انتظار موافقة المدير.'
     };
   } catch (e) {
-    _auditLog("MEMBER_REGISTER", String(data && data.email || ''), { error: e.message }, "FAILED");
+    console.error('[uiRegisterNewMember] ' + e.message);
     return { success: false, error: e.message };
   }
 }
 
-// ─── Get pending registrations (Admin/CEO/Partner only) ───
+/**
+ * Quick registration for Gmail users already authenticated via Google OAuth.
+ * Called from the web app when a Gmail user is not yet in the system.
+ * No password needed — Google is the identity provider.
+ */
+function uiQuickRegisterGmail(data) {
+  try {
+    // Verify the caller is actually authenticated as this Gmail user
+    var googleEmail = '';
+    try { googleEmail = Session.getActiveUser().getEmail().toLowerCase(); } catch(e) {}
+    if (!googleEmail) return { success: false, error: 'غير مسجل الدخول بـ Google' };
+
+    var inputEmail = String(data.email || '').trim().toLowerCase();
+    if (inputEmail && inputEmail !== googleEmail) {
+      return { success: false, error: 'البريد لا يتطابق مع حساب Google المسجل' };
+    }
+
+    // Use Google email as the registration email
+    data.email = googleEmail;
+    data.isGmailAuto = true;
+
+    return uiRegisterNewMember(data);
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Check if an email is already registered (no auth required).
+ */
 function uiGetPendingRegistrations() {
   try {
-    _checkRateLimit("uiGetPendingRegistrations");
+    _checkRateLimit('uiGetPendingRegistrations');
     _requireAuth(PERMISSIONS.MEMBERS_READ);
-    var member = getCurrentMember();
-    var myRole = String(member[MEMBER_COL.ROLE] || '').trim().toLowerCase();
-    if (myRole !== 'admin' && myRole !== 'ceo' && myRole !== 'partner') {
-      throw new Error("فقط Admin أو CEO أو Partner يمكنهم رؤية طلبات التسجيل");
-    }
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Members');
     if (!sheet) return { success: true, data: [] };
 
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) return { success: true, data: [] };
-
-    var totalCols = sheet.getLastColumn();
-    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+    var values = sheet.getDataRange().getValues();
     var pending = [];
-
-    for (var i = 0; i < data.length; i++) {
-      var row = data[i];
-      var status = String(row[MEMBER_COL.STATUS] || '').trim().toLowerCase();
-      if (status === 'pending') {
-        var m = {
-          email: String(row[MEMBER_COL.EMAIL] || '').trim(),
-          name: String(row[MEMBER_COL.FULL_NAME] || '').trim(),
-          role: String(row[MEMBER_COL.ROLE] || '').trim(),
-          phone: String(row[MEMBER_COL.PHONE] || '').trim(),
-          joinDate: row[MEMBER_COL.JOIN_DATE] instanceof Date
-            ? Utilities.formatDate(row[MEMBER_COL.JOIN_DATE], Session.getScriptTimeZone(), 'yyyy-MM-dd')
-            : String(row[MEMBER_COL.JOIN_DATE] || ''),
-          notes: String(row[MEMBER_COL.NOTES] || '').trim(),
-          isGmail: String(row[MEMBER_COL.EMAIL] || '').toLowerCase().indexOf('gmail.com') > -1,
-          hasPassword: !!String(row[MEMBER_COL.PASSWORD] || '').trim()
-        };
-        pending.push(m);
+    for (var i = 1; i < values.length; i++) {
+      var row = _safeRow(values[i]);
+      if (String(row[5] || '') === 'Pending') {
+        pending.push({
+          id: _safeString(row[0]),
+          name: _safeString(row[1]),
+          role: _safeString(row[2]),
+          email: _safeString(row[3]),
+          phone: _safeString(row[4]),
+          status: 'Pending',
+          joinDate: _safeString(row[6])
+        });
       }
     }
     return { success: true, data: pending };
@@ -497,145 +652,120 @@ function uiGetPendingRegistrations() {
   }
 }
 
-// ─── Approve a pending registration (Admin/CEO/Partner only) ───
+/**
+ * Approve a pending registration (Admin/CEO only).
+ */
 function uiApproveMemberRegistration(targetEmail, approvedRole) {
   try {
-    _checkRateLimit("uiApproveMemberRegistration");
+    _checkRateLimit('uiApproveMemberRegistration');
     var member = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
-    var myRole = String(member[MEMBER_COL.ROLE] || '').trim().toLowerCase();
-    if (myRole !== 'admin' && myRole !== 'ceo' && myRole !== 'partner') {
-      throw new Error("فقط Admin أو CEO أو Partner يمكنهم الموافقة على التسجيل");
+    var myRole = String(member[MEMBER_COL.ROLE] || '');
+    if (myRole !== 'Admin' && myRole !== 'CEO') {
+      return { success: false, error: 'ليس لديك صلاحية للموافقة على التسجيلات' };
     }
 
-    if (!targetEmail || typeof targetEmail !== 'string') throw new Error("الإيميل مطلوب");
-    var cleanTarget = targetEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanTarget)) throw new Error("صيغة الإيميل غير صحيحة");
-
-    // Validate role if provided
-    if (approvedRole) {
-      var roleLower = String(approvedRole).trim().toLowerCase();
-      if (roleLower === 'admin' || roleLower === 'ceo') {
-        var limitErr = _checkAdminCEOLimit(approvedRole, null);
-        if (limitErr) throw new Error(limitErr);
-      }
-    }
+    targetEmail = _sanitizeEmail(targetEmail);
+    if (!targetEmail) return { success: false, error: 'بريد إلكتروني غير صالح' };
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Members');
-    if (!sheet) throw new Error("شيت Members غير موجود");
+    if (!sheet) return { success: false, error: 'شيت الأعضاء غير موجود' };
 
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) throw new Error("لا يوجد أعضاء");
-
-    var totalCols = sheet.getLastColumn();
-    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
-    var foundIdx = -1;
-    var currentStatus = '';
-
-    for (var i = 0; i < data.length; i++) {
-      var eEmail = String(data[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
-      if (eEmail === cleanTarget) {
-        foundIdx = i;
-        currentStatus = String(data[i][MEMBER_COL.STATUS] || '').trim().toLowerCase();
+    var values = sheet.getDataRange().getValues();
+    var foundRow = -1;
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][3] || '').toLowerCase() === targetEmail) {
+        foundRow = i + 1;
         break;
       }
     }
-    if (foundIdx < 0) throw new Error("العضو غير موجود: " + cleanTarget);
-    if (currentStatus !== 'pending') throw new Error("هذا العضو ليس في حالة انتظار موافقة (الحالة: " + currentStatus + ")");
+    if (foundRow < 0) return { success: false, error: 'العضو غير موجود' };
 
-    // Update status to Active, and optionally change role
-    var targetRow = foundIdx + 2;
-    sheet.getRange(targetRow, MEMBER_COL.STATUS + 1, 1, 1).setValue('Active');
-    if (approvedRole && String(approvedRole).trim()) {
-      sheet.getRange(targetRow, MEMBER_COL.ROLE + 1, 1, 1).setValue(String(approvedRole).trim());
-    }
-    // Set join date to today if empty
-    var joinVal = data[foundIdx][MEMBER_COL.JOIN_DATE];
-    if (!joinVal || (typeof joinVal === 'string' && !joinVal.trim())) {
-      sheet.getRange(targetRow, MEMBER_COL.JOIN_DATE + 1, 1, 1).setValue(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'));
+    // Set status to Active
+    sheet.getRange(foundRow, 6, 1, 1).setValue('Active');
+
+    // Optionally change role
+    if (approvedRole) {
+      sheet.getRange(foundRow, 3, 1, 1).setValue(approvedRole);
     }
 
-    var adminEmail = String(member[MEMBER_COL.EMAIL] || '').trim();
-    _auditLog("MEMBER_APPROVE", cleanTarget, "Approved by " + adminEmail + (approvedRole ? " as " + approvedRole : ""), "SUCCESS");
-
-    return { success: true, data: { email: cleanTarget, status: 'Active', message: 'تمت الموافقة على العضو بنجاح' } };
+    _auditLog('MEMBER_APPROVED', targetEmail, { role: approvedRole }, 'SUCCESS');
+    return { success: true, message: 'تم قبول العضو: ' + targetEmail };
   } catch (e) {
-    _auditLog("MEMBER_APPROVE", String(targetEmail || ''), { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
-// ─── Reject a pending registration (Admin/CEO/Partner only) ───
+/**
+ * Reject a pending registration (Admin/CEO only).
+ */
 function uiRejectMemberRegistration(targetEmail, reason) {
   try {
-    _checkRateLimit("uiRejectMemberRegistration");
+    _checkRateLimit('uiRejectMemberRegistration');
     var member = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
-    var myRole = String(member[MEMBER_COL.ROLE] || '').trim().toLowerCase();
-    if (myRole !== 'admin' && myRole !== 'ceo' && myRole !== 'partner') {
-      throw new Error("فقط Admin أو CEO أو Partner يمكنهم رفض التسجيل");
+    var myRole = String(member[MEMBER_COL.ROLE] || '');
+    if (myRole !== 'Admin' && myRole !== 'CEO') {
+      return { success: false, error: 'ليس لديك صلاحية لرفض التسجيلات' };
     }
 
-    if (!targetEmail || typeof targetEmail !== 'string') throw new Error("الإيميل مطلوب");
-    var cleanTarget = targetEmail.trim().toLowerCase();
+    targetEmail = _sanitizeEmail(targetEmail);
+    if (!targetEmail) return { success: false, error: 'بريد إلكتروني غير صالح' };
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Members');
-    if (!sheet) throw new Error("شيت Members غير موجود");
+    if (!sheet) return { success: false, error: 'شيت الأعضاء غير موجود' };
 
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) throw new Error("لا يوجد أعضاء");
-
-    var totalCols = sheet.getLastColumn();
-    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
-    var foundIdx = -1;
-    var currentStatus = '';
-
-    for (var i = 0; i < data.length; i++) {
-      var eEmail = String(data[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
-      if (eEmail === cleanTarget) {
-        foundIdx = i;
-        currentStatus = String(data[i][MEMBER_COL.STATUS] || '').trim().toLowerCase();
+    var values = sheet.getDataRange().getValues();
+    var foundRow = -1;
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][3] || '').toLowerCase() === targetEmail) {
+        foundRow = i + 1;
         break;
       }
     }
-    if (foundIdx < 0) throw new Error("العضو غير موجود: " + cleanTarget);
-    if (currentStatus !== 'pending') throw new Error("هذا العضو ليس في حالة انتظار (الحالة: " + currentStatus + ")");
+    if (foundRow < 0) return { success: false, error: 'العضو غير موجود' };
 
-    var targetRow = foundIdx + 2;
-    sheet.getRange(targetRow, MEMBER_COL.STATUS + 1, 1, 1).setValue('Rejected');
-    // Add rejection reason to notes
-    var oldNotes = String(data[foundIdx][MEMBER_COL.NOTES] || '').trim();
-    var newNotes = oldNotes + (oldNotes ? ' | ' : '') + 'Rejected: ' + (reason || 'No reason provided');
-    sheet.getRange(targetRow, MEMBER_COL.NOTES + 1, 1, 1).setValue(newNotes);
+    // Set status to Rejected
+    sheet.getRange(foundRow, 6, 1, 1).setValue('Rejected');
 
-    var adminEmail = String(member[MEMBER_COL.EMAIL] || '').trim();
-    _auditLog("MEMBER_REJECT", cleanTarget, "Rejected by " + adminEmail + ": " + (reason || ''), "SUCCESS");
+    // Append reason to notes (column 12, 1-indexed)
+    if (reason) {
+      var currentNotes = String(sheet.getRange(foundRow, 12, 1, 1).getValue() || '');
+      var newNotes = currentNotes ? currentNotes + '\n[مرفوض: ' + reason + ']' : '[مرفوض: ' + reason + ']';
+      sheet.getRange(foundRow, 12, 1, 1).setValue(newNotes);
+    }
 
-    return { success: true, data: { email: cleanTarget, status: 'Rejected', message: 'تم رفض طلب التسجيل' } };
+    _auditLog('MEMBER_REJECTED', targetEmail, { reason: reason }, 'SUCCESS');
+    return { success: true, message: 'تم رفض العضو: ' + targetEmail };
   } catch (e) {
-    _auditLog("MEMBER_REJECT", String(targetEmail || ''), { error: e.message }, "FAILED");
     return { success: false, error: e.message };
   }
 }
 
-// ============================================================
+/**
+ * SAFE version of getCurrentMember — reads Members sheet directly
+ * Sanitizes all values to prevent "illegal value in property" errors
+ */
+// ─── DASHBOARD CACHE (1 hour) ───
+var _dashboardCache = { ts: 0, data: null };
+
+// ═══════════════════════════════════════════════════════
 // KPI APIs
-// ============================================================
+// ═══════════════════════════════════════════════════════
 
 function uiGetDashboardKpis() {
   try {
     _checkRateLimit("uiGetDashboardKpis");
     _requireAuth(PERMISSIONS.KPI_READ);
-    var dashboard = KpiService.getDashboardKpis();
-    // ── Contract normalization: ensure client-expected field names ──
-    if (dashboard && typeof dashboard === 'object') {
-      if (dashboard.totalRevenue !== undefined && dashboard.revenue === undefined) dashboard.revenue = dashboard.totalRevenue;
-      if (dashboard.totalExpenses !== undefined && dashboard.expenses === undefined) dashboard.expenses = dashboard.totalExpenses;
-      if (dashboard.netProfit !== undefined && dashboard.profit === undefined) dashboard.profit = dashboard.netProfit;
-      if (dashboard.totalCustomers !== undefined && dashboard.customers === undefined) dashboard.customers = dashboard.totalCustomers;
-      if (dashboard.totalItems !== undefined && dashboard.inventory === undefined) dashboard.inventory = dashboard.totalItems;
+    // Cache: return cached result if less than 1 hour old
+    var now = Date.now();
+    if (_dashboardCache.data && (now - _dashboardCache.ts) < 3600000) {
+      return _dashboardCache.data;
     }
-    return { success: true, data: dashboard };
+    var dashboard = KpiService.getDashboardKpis();
+    var result = { success: true, data: dashboard };
+    _dashboardCache = { ts: now, data: result };
+    return result;
   } catch (e) {
     return { success: false, error: e.message };
   }
@@ -1000,32 +1130,6 @@ function uiGetMembers() {
     _checkRateLimit("uiGetMembers");
     _requireAuth(PERMISSIONS.MEMBERS_READ);
     var members = Members.getMembers();
-    // ── Serialization safety: sanitize Date/Error objects in member rows ──
-    if (Array.isArray(members)) {
-      for (var i = 0; i < members.length; i++) {
-        if (Array.isArray(members[i])) {
-          for (var j = 0; j < members[i].length; j++) {
-            var val = members[i][j];
-            if (val instanceof Date) {
-              try { members[i][j] = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
-              catch(e) { members[i][j] = String(val); }
-            } else if (val instanceof Error) {
-              members[i][j] = '';
-            }
-          }
-        } else if (members[i] && typeof members[i] === 'object') {
-          for (var key in members[i]) {
-            var v = members[i][key];
-            if (v instanceof Date) {
-              try { members[i][key] = Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
-              catch(e2) { members[i][key] = String(v); }
-            } else if (v instanceof Error) {
-              members[i][key] = '';
-            }
-          }
-        }
-      }
-    }
     return { success: true, data: members };
   } catch (e) {
     return { success: false, error: e.message };
@@ -1046,18 +1150,60 @@ function uiGetMemberStats() {
 
 function uiAddMember(data) {
   try {
-    _checkRateLimit("uiAddMember");
-    _requireAuth(PERMISSIONS.MEMBERS_WRITE);
-    if (data && data.fullName) data.fullName = _sanitizeInput(data.fullName);
-    if (data && data.email) data.email = _sanitizeEmail(data.email);
-    if (data && data.phone) data.phone = _sanitizeInput(data.phone);
-    var limitErr = _checkAdminCEOLimit(data.role, null);
-    if (limitErr) throw new Error(limitErr);
-    var id = Members.addMember(data);
-    _auditLog("MEMBER_ADD", id, { email: data && data.email, role: data && data.role }, "SUCCESS");
-    return { success: true, id: id };
+    // Auth check (self-contained, no BaseRepository)
+    var myEmail = '';
+    try { myEmail = Session.getActiveUser().getEmail().toLowerCase(); } catch(e) {}
+    if (!myEmail) return { success: false, error: 'غير مسجل الدخول' };
+
+    var fullName = String(data.fullName || data.name || '').trim();
+    if (!fullName) return { success: false, error: 'الاسم مطلوب' };
+    var email = String(data.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { success: false, error: 'بريد إلكتروني غير صالح' };
+    }
+    var role = String(data.role || 'Operations').trim();
+    // Normalize role to Title Case
+    role = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+    var phone = String(data.phone || '').trim();
+    var notes = String(data.notes || '').trim();
+    var password = String(data.password || '').trim();
+    var passwordHash = password ? _hashPassword(password) : '';
+
+    // Get sheet
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) return { success: false, error: 'شيت الأعضاء غير موجود' };
+
+    // Ensure 13 columns
+    _ensureMembers13Cols(sheet);
+
+    // Check duplicate
+    var existing = sheet.getDataRange().getValues();
+    for (var i = 1; i < existing.length; i++) {
+      if (String(existing[i][3] || '').toLowerCase() === email) {
+        return { success: false, error: 'هذا البريد مسجّل مسبقاً' };
+      }
+    }
+
+    // Check Admin/CEO limit
+    if (role === 'Admin' || role === 'CEO') {
+      var count = 0;
+      for (var j = 1; j < existing.length; j++) {
+        if (String(existing[j][2] || '') === role) count++;
+      }
+      if (count >= 1) return { success: false, error: 'يوجد ' + role + ' واحد بالفعل' };
+    }
+
+    // Build row using unified builder
+    var memberId = _generateMemberId();
+    var row = _buildMemberRow(memberId, fullName, role, email, phone, 'Active', notes, passwordHash);
+
+    sheet.appendRow(row);
+    console.log('[uiAddMember] Created ' + memberId + ' (' + email + ') by ' + myEmail);
+
+    return { success: true, id: memberId };
   } catch (e) {
-    _auditLog("MEMBER_ADD", "", { error: e.message }, "FAILED");
+    console.error('[uiAddMember] ' + e.message);
     return { success: false, error: e.message };
   }
 }
@@ -1797,13 +1943,6 @@ function uiGetKPIs(params) {
     var p = params || {};
     var period = (p.period || "MONTHLY").toUpperCase();
     var refDate = p.refDate || new Date().toISOString().split("T")[0];
-    // ── Cache: avoid recalculating heavy KPIs within 5 minutes ──
-    var cache = CacheService.getScriptCache();
-    var cacheKey = 'kpis_' + period + '_' + refDate;
-    var cached = cache.get(cacheKey);
-    if (cached) {
-      return { success: true, data: JSON.parse(cached) };
-    }
     var periodType = period === "MONTHLY" ? "MONTHLY" : period === "QUARTERLY" ? "QUARTERLY" : "YEARLY";
     var kpis = KpiService.calculateAll(periodType, refDate);
     var finStats = FinanceService.getProfitAndLoss(refDate, refDate);
@@ -1817,13 +1956,6 @@ function uiGetKPIs(params) {
       kpis: kpis && kpis.success ? kpis.data : [],
       summary: { revenue: revenue, expenses: operatingExpenses, netProfit: netProfit }
     };
-    // ── Flat aliases for client contract compatibility ──
-    result.revenue = revenue;
-    result.expenses = operatingExpenses;
-    result.profit = netProfit;
-    result.orders = 0;
-    // ── Store in cache for 5 minutes (300 seconds) ──
-    cache.put(cacheKey, JSON.stringify(result), 300);
     return { success: true, data: result };
   } catch (e) {
     return { success: false, error: e.message };
@@ -1861,107 +1993,4 @@ function _handleDoGetInternal(e) {
   return HtmlService.createHtmlOutputFromFile("UI_Index")
     .setTitle("PHINOX BOS")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-// ============================================================
-// DIAGNOSTIC API (temporary - remove after fixing)
-// ============================================================
-
-function uiDiagnose() {
-  var result = { checks: [] };
-  function check(name, pass, detail) {
-    result.checks.push({ name: name, pass: !!pass, detail: detail || '' });
-  }
-
-  try {
-    // 1. Session email
-    var email = '';
-    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
-    check('Session.getEmail', email.length > 0, email || 'empty');
-
-    // 2. Spreadsheet
-    var ss = null;
-    try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
-    check('ActiveSpreadsheet', ss !== null, ss ? ss.getName() : e.message);
-
-    // 3. Members sheet
-    if (ss) {
-      var ms = ss.getSheetByName('Members');
-      check('Members sheet exists', ms !== null, '');
-
-      if (ms) {
-        var lastRow = ms.getLastRow();
-        var lastCol = ms.getLastColumn();
-        check('Members data rows', lastRow > 1, 'rows=' + lastRow + ' (1=header)');
-        check('Members columns', lastCol >= 12, 'cols=' + lastCol + ' (need 12)');
-
-        // 4. Read headers
-        var headers = ms.getRange(1, 1, 1, lastCol).getValues()[0];
-        check('Members headers', headers.length > 0, headers.join(' | '));
-
-        // 5. Find current user
-        if (email && lastRow > 1) {
-          var data = ms.getRange(2, 1, lastRow - 1, lastCol).getValues();
-          var found = false;
-          var matchInfo = [];
-          for (var i = 0; i < data.length; i++) {
-            var rowEmail = String(data[i][3] || '').trim().toLowerCase();
-            var rowStatus = String(data[i][5] || '').trim();
-            if (rowEmail === email.toLowerCase()) {
-              found = true;
-              matchInfo.push({ row: i+2, status: rowStatus, name: data[i][1], role: data[i][2] });
-            }
-          }
-          check('Email match in Members', found, matchInfo.length > 0 ? JSON.stringify(matchInfo) : 'No match for: ' + email);
-
-          if (found) {
-            var isActive = matchInfo.some(function(m) { return m.status === 'Active'; });
-            check('Status is Active', isActive, JSON.stringify(matchInfo));
-          }
-        }
-
-        // 6. Check CONFIG
-        check('CONFIG defined', typeof CONFIG !== 'undefined', CONFIG ? 'v' + CONFIG.APP.VERSION : 'missing');
-        check('CONFIG.SHEETS.MEMBERS', CONFIG && CONFIG.SHEETS && CONFIG.SHEETS.MEMBERS === 'Members', '');
-
-        // 7. Check BaseRepository
-        check('BaseRepository defined', typeof BaseRepository !== 'undefined', '');
-
-        // 8. Check ErrorHandler
-        check('ErrorHandler defined', typeof ErrorHandler !== 'undefined', '');
-
-        // 9. Check Logger
-        check('Logger defined', typeof Logger !== 'undefined', '');
-        check('console.log exists', typeof Logger !== 'undefined' && typeof console.log === 'function', typeof Logger !== 'undefined' ? Object.keys(Logger).join(',') : 'N/A');
-
-        // 10. Check RateLimiter
-        check('RateLimiter defined', typeof RateLimiter !== 'undefined', '');
-
-        // 11. Check Security
-        check('Security defined', typeof Security !== 'undefined', '');
-        if (typeof Security !== 'undefined' && typeof Security.getUserRole === 'function') {
-          var role = 'ERROR';
-          try { role = Security.getUserRole(); } catch(e) { role = 'ERROR: ' + e.message; }
-          check('Security.getUserRole()', role !== 'GUEST' && role !== 'ERROR', 'role=' + role);
-        }
-
-        // 12. Check getCurrentMember
-        if (typeof getCurrentMember === 'function') {
-          var member = null;
-          try { member = getCurrentMember(); } catch(e) {
-            check('getCurrentMember()', false, e.message);
-          }
-          if (member) {
-            check('getCurrentMember()', true, 'name=' + member[1] + ' role=' + member[2]);
-          } else if (!result.checks.some(function(c) { return c.name === 'getCurrentMember()'; })) {
-            check('getCurrentMember()', false, 'returned null');
-          }
-        }
-      }
-    }
-  } catch (e) {
-    check('DIAGNOSTIC ERROR', false, e.message);
-  }
-
-  return result;
 }

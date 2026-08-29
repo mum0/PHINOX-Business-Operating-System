@@ -3,8 +3,6 @@ function loadMembers() {
   callServer('uiGetMembers', null).then(function(res) {
     _memberCache = res.data || [];
     renderMembers(_memberCache);
-    // Also load pending registrations if admin
-    if (isAdmin()) loadPendingRegistrations();
   }).catch(function(err) {
     document.getElementById('membersTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
   });
@@ -15,28 +13,22 @@ function renderMembers(list) {
     document.getElementById('membersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🧑‍💼</div><p>No members found</p></div>';
     return;
   }
-  var canApprove = isAdmin();
-  var canSetPass = isAdmin();
-  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th>' + (canSetPass ? '<th>Password</th>' : '') + '</tr></thead><tbody>';
+  var canEdit = isAdmin();
+  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Position</th><th>Department</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
   list.forEach(function(m) {
     var role = m.role || (Array.isArray(m) ? m[2] : undefined) || '-';
+    var mid = m.id || (Array.isArray(m) ? m[0] : undefined) || '-';
     var badgeClass = role === 'CEO' ? 'badge-danger' : role === 'Admin' ? 'badge-warning' : 'badge-secondary';
-    var mEmail = esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-');
-    var mStatus = String(m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active');
-    var statusBadge = mStatus === 'Active' ? 'badge-success' : mStatus === 'Pending' ? 'badge-warning' : mStatus === 'Rejected' ? 'badge-danger' : 'badge-secondary';
-    html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + mEmail + '</td>';
+    html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-') + '</td>';
     html += '<td>' + esc(m.phone || '-') + '</td>';
     html += '<td><span class="badge ' + badgeClass + '">' + esc(role) + '</span></td>';
-    html += '<td><span class="badge ' + statusBadge + '">' + esc(mStatus) + '</span></td>';
-    if (canSetPass) {
-      html += '<td>';
-      if (mStatus === 'Pending' && canApprove) {
-        html += '<button class="btn btn-sm btn-success" data-action="approve-registration" data-email="' + mEmail + '" style="margin-right:4px;">✅</button>';
-        html += '<button class="btn btn-sm btn-danger" data-action="open-reject-registration" data-email="' + mEmail + '" data-name="' + escAttr(m.name || m.fullName || '') + '">❌</button>';
-      } else if (mStatus === 'Active') {
-        html += '<button class="btn btn-sm btn-outline" data-action="set-member-password" data-email="' + mEmail + '">🔑 Set</button>';
-      }
-      html += '</td>';
+    html += '<td>' + esc(m.position || '-') + '</td><td>' + esc(m.department || '-') + '</td>';
+    html += '<td><span class="badge ' + ((m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active') === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(m.status || 'Active') + '</span></td>';
+    if (canEdit) {
+      html += '<td><div class="btn-group"><button class="btn btn-sm btn-outline" data-action="edit-member" data-id="' + escAttr(mid) + '">Edit</button>';
+      html += '<button class="btn btn-sm btn-danger" data-action="delete-member" data-id="' + escAttr(mid) + '">Delete</button></div></td>';
+    } else {
+      html += '<td>-</td>';
     }
     html += '</tr>';
   });
@@ -44,77 +36,8 @@ function renderMembers(list) {
   document.getElementById('membersTableContainer').innerHTML = html;
 }
 
-// ─── PENDING REGISTRATIONS SECTION ───
-function loadPendingRegistrations() {
-  var container = document.getElementById('pendingRegistrationsContainer');
-  var card = document.getElementById('pendingRegistrationsCard');
-  if (!container || !card) return;
-  card.style.display = 'none';
-  container.innerHTML = '<div class="loading">Loading...</div>';
-  callServer('uiGetPendingRegistrations').then(function(res) {
-    var pending = res.data || [];
-    if (!pending.length) {
-      card.style.display = 'none';
-      return;
-    }
-    card.style.display = 'block';
-    var html = '<table class="table"><thead><tr><th>الاسم</th><th>الإيميل</th><th>الهاتف</th><th>المنصب المطلوب</th><th>التاريخ</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody>';
-    pending.forEach(function(p) {
-      var typeLabel = p.isGmail ? '<span style="color:#6366F1;font-size:10px;">Gmail</span>' : '<span style="color:#F59E0B;font-size:10px;">Manual</span>';
-      html += '<tr>';
-      html += '<td>' + esc(p.name) + '</td>';
-      html += '<td>' + esc(p.email) + ' ' + typeLabel + '</td>';
-      html += '<td>' + esc(p.phone || '-') + '</td>';
-      html += '<td>' + esc(p.role) + '</td>';
-      html += '<td>' + esc(p.joinDate || '-') + '</td>';
-      html += '<td style="max-width:150px;font-size:12px;color:var(--text-secondary);">' + esc(p.notes || '-') + '</td>';
-      html += '<td><div class="btn-group">';
-      html += '<button class="btn btn-sm btn-success" data-action="approve-registration" data-email="' + escAttr(p.email) + '" data-name="' + escAttr(p.name) + '" data-role="' + escAttr(p.role) + '">✅ موافقة</button>';
-      html += '<button class="btn btn-sm btn-danger" data-action="open-reject-registration" data-email="' + escAttr(p.email) + '" data-name="' + escAttr(p.name) + '">❌ رفض</button>';
-      html += '</div></td>';
-      html += '</tr>';
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
-  }).catch(function(err) {
-    container.innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
-  });
-}
-
-// ─── APPROVE REGISTRATION ───
-function approveRegistration(email, requestedRole) {
-  callServer('uiApproveMemberRegistration', email, requestedRole || null).then(function() {
-    showToast('تمت الموافقة على ' + email);
-    loadMembers();
-  }).catch(function(err) {
-    showToast('Error: ' + err.message, 'error');
-  });
-}
-
-// ─── REJECT REGISTRATION MODAL ───
-function openRejectRegistrationModal(email, name) {
-  openGenericModal('رفض طلب التسجيل',
-    '<p style="margin:0 0 12px;color:#94A3B8;font-size:13px;">رفض طلب: <strong>' + esc(name || email) + '</strong></p>' +
-    '<div class="form-group"><label class="form-label">سبب الرفض *</label>' +
-    '<textarea class="form-textarea" id="rejectReason" rows="3" placeholder="أدخل سبب الرفض..."></textarea></div>',
-    '<button class="btn btn-danger" data-action="submit-reject-registration" data-email="' + escAttr(email) + '">❌ تأكيد الرفض</button>' +
-    '<button class="btn btn-outline" onclick="closeModal()">إلغاء</button>'
-  );
-}
-
-function submitRejectRegistration(email) {
-  var reason = document.getElementById('rejectReason').value.trim();
-  if (!reason) { showToast('أدخل سبب الرفض', 'error'); return; }
-  callServer('uiRejectMemberRegistration', email, reason).then(function() {
-    showToast('تم رفض طلب ' + email);
-    closeModal();
-    loadMembers();
-  }).catch(function(err) {
-    showToast('Error: ' + err.message, 'error');
-  });
-}
-
 function openAddMemberModal() {
+  // Count existing Admin/CEO for warnings
   var adminCount = 0, ceoCount = 0;
   _memberCache.forEach(function(m) {
     var role = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
@@ -169,17 +92,17 @@ function updateRoleWarning() {
 
 function submitAddMember() {
   var data = {
-    name: document.getElementById('memName').value,
     fullName: document.getElementById('memName').value,
     email: document.getElementById('memEmail').value,
     role: document.getElementById('memRole').value,
     position: document.getElementById('memPosition').value,
     department: document.getElementById('memDept').value,
     phone: document.getElementById('memPhone').value,
-    status: document.getElementById('memStatus').value || 'Active'
+    status: document.getElementById('memStatus').value
   };
-  if (!data.name || !data.email) { showToast('Name and email are required', 'error'); return; }
+  if (!data.fullName || !data.email) { showToast('Name and email are required', 'error'); return; }
   
+  // Client-side check for Admin/CEO
   var adminCount = 0, ceoCount = 0;
   _memberCache.forEach(function(m) {
     var r = String(m.role || (Array.isArray(m) ? m[2] : undefined) || '').trim();
@@ -198,26 +121,62 @@ function submitAddMember() {
   });
 }
 
-function openSetPasswordModal(email) {
-  openGenericModal('Set Password',
-    '<p style="margin:0 0 12px;color:#94A3B8;font-size:13px;">Setting password for: <strong>' + esc(email) + '</strong></p>' +
-    '<div class="form-group"><label class="form-label">New Password *</label>' +
-    '<input type="password" class="form-input" id="newMemberPassword" placeholder="Enter new password (min 4 chars)"></div>' +
-    '<div class="form-group"><label class="form-label">Confirm Password *</label>' +
-    '<input type="password" class="form-input" id="confirmMemberPassword" placeholder="Confirm password"></div>',
-    '<button class="btn btn-primary" onclick="submitSetPassword(\'' + esc(email) + '\')">💾 Save Password</button>' +
-    '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+function openEditMemberModal(id) {
+  var member = _memberCache.find(function(m) { return (m.id || '') === id || (Array.isArray(m) && m[0] === id); });
+  if (!member) return;
+  var mRole = member.role || (Array.isArray(member) ? member[2] : '') || '';
+  var mName = member.name || member.fullName || (Array.isArray(member) ? member[1] : '') || '';
+  var mEmail = member.email || (Array.isArray(member) ? member[3] : '') || '';
+  var mPhone = member.phone || (Array.isArray(member) ? member[4] : '') || '';
+  var mPosition = member.position || '';
+  var mDept = member.department || '';
+  var mStatus = member.status || (Array.isArray(member) ? member[5] : '') || 'Active';
+  openGenericModal('Edit Member',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="editMemName" value="' + escAttr(mName) + '"></div>' +
+    '<div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="editMemEmail" value="' + escAttr(mEmail) + '"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Role *</label><select class="form-select" id="editMemRole">' +
+    '<option value="Operations"' + (mRole === 'Operations' ? ' selected' : '') + '>Operations</option>' +
+    '<option value="Finance"' + (mRole === 'Finance' ? ' selected' : '') + '>Finance</option>' +
+    '<option value="Marketing"' + (mRole === 'Marketing' ? ' selected' : '') + '>Marketing</option>' +
+    '<option value="Designer"' + (mRole === 'Designer' ? ' selected' : '') + '>Designer</option>' +
+    '<option value="Customer Service"' + (mRole === 'Customer Service' ? ' selected' : '') + '>Customer Service</option>' +
+    '<option value="Partner"' + (mRole === 'Partner' ? ' selected' : '') + '>Partner</option>' +
+    '<option value="Admin"' + (mRole === 'Admin' ? ' selected' : '') + '>Admin</option>' +
+    '<option value="CEO"' + (mRole === 'CEO' ? ' selected' : '') + '>CEO</option>' +
+    '</select></div>' +
+    '<div class="form-group"><label class="form-label">Status</label><select class="form-select" id="editMemStatus"><option value="Active"' + (mStatus === 'Active' ? ' selected' : '') + '>Active</option><option value="Inactive"' + (mStatus === 'Inactive' ? ' selected' : '') + '>Inactive</option></select></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Position</label><input type="text" class="form-input" id="editMemPosition" value="' + escAttr(mPosition) + '"></div>' +
+    '<div class="form-group"><label class="form-label">Department</label><input type="text" class="form-input" id="editMemDept" value="' + escAttr(mDept) + '"></div></div>' +
+    '<div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="editMemPhone" value="' + escAttr(mPhone) + '"></div>',
+    '<button class="btn btn-primary" data-action="submit-edit-member" data-id="' + escAttr(id) + '">Update</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
   );
 }
 
-function submitSetPassword(email) {
-  var pass = document.getElementById('newMemberPassword').value;
-  var confirm = document.getElementById('confirmMemberPassword').value;
-  if (!pass || pass.length < 4) { showToast('Password must be at least 4 characters', 'error'); return; }
-  if (pass !== confirm) { showToast('Passwords do not match', 'error'); return; }
-  callServer('uiSetMemberPassword', email, pass).then(function() {
-    showToast('Password set successfully for ' + email);
+function submitEditMember(id) {
+  var data = {
+    fullName: document.getElementById('editMemName').value,
+    email: document.getElementById('editMemEmail').value,
+    role: document.getElementById('editMemRole').value,
+    position: document.getElementById('editMemPosition').value,
+    department: document.getElementById('editMemDept').value,
+    phone: document.getElementById('editMemPhone').value,
+    status: document.getElementById('editMemStatus').value
+  };
+  if (!data.fullName) { showToast('Name is required', 'error'); return; }
+  callServer('uiUpdateMember', id, data).then(function() {
+    showToast('Member updated');
     closeModal();
+    loadMembers();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+function deleteMember(id) {
+  if (!confirm('Delete this member? This cannot be undone.')) return;
+  callServer('uiDeleteMember', id).then(function() {
+    showToast('Member deleted');
+    loadMembers();
   }).catch(function(err) {
     showToast('Error: ' + err.message, 'error');
   });
