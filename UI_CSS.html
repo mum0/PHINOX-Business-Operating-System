@@ -102,3 +102,10 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .role-note.danger { background: rgba(220,38,38,0.1); border-color: var(--danger); color: #F87171; }
 
 </style>
+
+  <style>
+    /* ─── Button Loading Effect ─── */
+    .btn[data-loading] { pointer-events: none; opacity: 0.7; position: relative; color: transparent !important; }
+    .btn[data-loading]::after { content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: btn-spin 0.6s linear infinite; }
+    @keyframes btn-spin { to { transform: rotate(360deg); } }
+  </style>

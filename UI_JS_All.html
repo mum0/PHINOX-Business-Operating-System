@@ -221,7 +221,7 @@ function initAuthSystem() {
   callServer('uiGetCurrentUser', null).then(function(res) {
     var user = res.data;
     if (!user || !user.email) {
-      setAuthStatus('❌ المستخدم غير مسجل في النظام. تواصل مع الأدمن.', true);
+      showManualLoginForm();
       return;
     }
     _currentUser = user;
@@ -234,19 +234,78 @@ function initAuthSystem() {
     document.getElementById('userPermissions').textContent = perms.join(', ');
     hideAuthOverlay();
     showToast('مرحباً ' + displayName + ' (' + role + ')', 'success');
-    // Pre-load customers cache for NPS/Satisfaction dropdowns
     callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
       _customerCache = (cres.data && cres.data.data) || cres.data || [];
     }).catch(function() {});
     navigateTo('dashboard');
   }).catch(function(err) {
     console.error('Auth error:', err);
-    setAuthStatus('❌ ' + (err.message || 'خطأ في الاتصال بالسيرفر'), true);
-    var btn = document.getElementById('authRetryBtn');
-    if (btn) {
-      btn.style.display = 'inline-flex';
-      btn.textContent = '🔄 إعادة المحاولة';
+    showManualLoginForm();
+  });
+}
+
+function showManualLoginForm() {
+  var overlay = document.getElementById('authOverlay');
+  if (!overlay) return;
+  var box = overlay.querySelector('div');
+  if (!box) return;
+  box.innerHTML =
+    '<div style="font-size:42px;margin-bottom:16px;">🔐</div>' +
+    '<h2 style="margin:0 0 8px;font-size:22px;">PHINOX BOS v5</h2>' +
+    '<p style="color:#94A3B8;margin:0 0 20px;font-size:13px;">تسجيل الدخول اليدوي — أدخل إيميلك وكلمة المرور</p>' +
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">البريد الإلكتروني *</label>' +
+    '<input type="email" id="manualLoginEmail" placeholder="email@example.com" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" />' +
+    '</div>' +
+    '<div style="margin-bottom:14px;text-align:left;">' +
+    '<label style="display:block;font-size:13px;color:#94A3B8;margin-bottom:6px;">كلمة المرور *</label>' +
+    '<input type="password" id="manualLoginPassword" placeholder="••••••••" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#F1F5F9;font-size:14px;box-sizing:border-box;outline:none;" onkeydown="if(event.key===\'Enter\')doManualLogin()" />' +
+    '</div>' +
+    '<div id="manualLoginError" style="display:none;padding:8px 12px;border-radius:6px;background:#1C1917;color:#F87171;font-size:12px;margin-bottom:12px;border:1px solid #DC2626;"></div>' +
+    '<button class="btn btn-primary" style="width:100%;" onclick="doManualLogin()">🔑 تسجيل الدخول</button>' +
+    '<p style="color:#64748B;font-size:11px;margin-top:16px;">يجب أن يكون الإيميل مسجلاً في شيت Members مع كلمة مرور معينة من الأدمن</p>';
+}
+
+function doManualLogin() {
+  var emailInput = document.getElementById('manualLoginEmail');
+  var passInput = document.getElementById('manualLoginPassword');
+  var errorDiv = document.getElementById('manualLoginError');
+  if (!emailInput || !passInput) return;
+  var email = emailInput.value.trim();
+  var password = passInput.value;
+  if (!email || email.indexOf('@') < 0) {
+    if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'أدخل إيميل صحيح'; }
+    return;
+  }
+  if (!password || password.length < 1) {
+    if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'أدخل كلمة المرور'; }
+    return;
+  }
+  if (errorDiv) errorDiv.style.display = 'none';
+  setAuthStatus('جاري التحقق...', false);
+
+  callServer('uiLoginWithEmail', email, password).then(function(res) {
+    var user = res.data;
+    if (!user || !user.email) {
+      if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = 'فشل تسجيل الدخول'; }
+      return;
     }
+    _currentUser = user;
+    var displayName = user.name || user.fullName || user.email.split('@')[0];
+    var role = user.role || 'User';
+    document.getElementById('userName').textContent = displayName;
+    document.getElementById('userRole').textContent = role;
+    document.getElementById('userAvatar').textContent = (displayName || 'U').charAt(0).toUpperCase();
+    var perms = user.permissions || [];
+    document.getElementById('userPermissions').textContent = perms.join(', ');
+    hideAuthOverlay();
+    showToast('مرحباً ' + displayName + ' (' + role + ')', 'success');
+    callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
+      _customerCache = (cres.data && cres.data.data) || cres.data || [];
+    }).catch(function() {});
+    navigateTo('dashboard');
+  }).catch(function(err) {
+    if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = err.message || 'خطأ في تسجيل الدخول'; }
   });
 }
 // ═══════════════════════════════════════════════════════
@@ -724,25 +783,20 @@ function calculateCostMargin() {
 function loadFinance() {
   var from = document.getElementById('financeDateFrom').value;
   var to = document.getElementById('financeDateTo').value;
+  document.getElementById('financeKpis').innerHTML = '<div class="kpi-card"><div class="loading">جاري التحميل...</div></div>';
   callServer('uiGetFinanceStats', from, to).then(function(res) {
-    var stats = res.data || {};
-    var pnl = stats.pnl || {};
-    var revenue = pnl.revenue || 0;
-    var expenses = pnl.expenses || 0;
-    var netProfit = revenue - expenses;
-    var html = '';
-    var items = [
-      { label: 'Total Revenue', value: revenue },
-      { label: 'Total Expenses', value: expenses },
-      { label: 'Net Profit', value: netProfit }
-    ];
-    items.forEach(function(k) {
-      var colorClass = k.label === 'Net Profit' && k.value < 0 ? 'text-danger' : 'text-success';
-      html += '<div class="kpi-card"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-value ' + colorClass + '">$' + esc(String(k.value)) + '</div></div>';
+    var stats = res.data || {}; var pnl = stats.pnl || {};
+    var revenue = pnl.revenue || 0; var expenses = pnl.expenses || pnl.operatingExpenses || 0;
+    var netProfit = pnl.netProfit || (revenue - expenses);
+    _renderFinanceKpis(revenue, expenses, netProfit);
+  }).catch(function() {
+    callServer('uiGetExpenses', { limit: 1000 }).then(function(res) {
+      var all = (res.data && res.data.data) || res.data || [];
+      var total = 0; (all || []).forEach(function(e) { total += parseFloat(e.amount) || 0; });
+      _renderFinanceKpis(0, total, -total);
+    }).catch(function(err) {
+      document.getElementById('financeKpis').innerHTML = '<div class="kpi-card"><div class="kpi-label">خطأ</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
     });
-    document.getElementById('financeKpis').innerHTML = html;
-  }).catch(function(err) {
-    document.getElementById('financeKpis').innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
   });
   
   callServer('uiGetLedger', { limit: 100 }).then(function(res) {
@@ -1278,15 +1332,21 @@ function renderMembers(list) {
     document.getElementById('membersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🧑‍💼</div><p>No members found</p></div>';
     return;
   }
-  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Position</th><th>Department</th><th>Status</th></tr></thead><tbody>';
+  var canSetPass = isAdmin();
+  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th>' + (canSetPass ? '<th>Password</th>' : '') + '</tr></thead><tbody>';
   list.forEach(function(m) {
     var role = m.role || (Array.isArray(m) ? m[2] : undefined) || '-';
     var badgeClass = role === 'CEO' ? 'badge-danger' : role === 'Admin' ? 'badge-warning' : 'badge-secondary';
-    html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-') + '</td>';
+    var mEmail = esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-');
+    var mStatus = String(m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active');
+    html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + mEmail + '</td>';
     html += '<td>' + esc(m.phone || '-') + '</td>';
     html += '<td><span class="badge ' + badgeClass + '">' + esc(role) + '</span></td>';
-    html += '<td>' + esc(m.position || '-') + '</td><td>' + esc(m.department || '-') + '</td>';
-    html += '<td><span class="badge ' + ((m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active') === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(m.status || 'Active') + '</span></td></tr>';
+    html += '<td><span class="badge ' + (mStatus === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(mStatus) + '</span></td>';
+    if (canSetPass) {
+      html += '<td><button class="btn btn-sm btn-outline" data-action="set-member-password" data-email="' + mEmail + '">🔑 Set</button></td>';
+    }
+    html += '</tr>';
   });
   html += '</tbody></table>';
   document.getElementById('membersTableContainer').innerHTML = html;
@@ -1377,6 +1437,32 @@ function submitAddMember() {
     showToast('Error: ' + err.message, 'error');
   });
 }
+
+function openSetPasswordModal(email) {
+  openGenericModal('Set Password',
+    '<p style="margin:0 0 12px;color:#94A3B8;font-size:13px;">Setting password for: <strong>' + esc(email) + '</strong></p>' +
+    '<div class="form-group"><label class="form-label">New Password *</label>' +
+    '<input type="password" class="form-input" id="newMemberPassword" placeholder="Enter new password (min 4 chars)"></div>' +
+    '<div class="form-group"><label class="form-label">Confirm Password *</label>' +
+    '<input type="password" class="form-input" id="confirmMemberPassword" placeholder="Confirm password"></div>',
+    '<button class="btn btn-primary" onclick="submitSetPassword(\'' + esc(email) + '\')">💾 Save Password</button>' +
+    '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitSetPassword(email) {
+  var pass = document.getElementById('newMemberPassword').value;
+  var confirm = document.getElementById('confirmMemberPassword').value;
+  if (!pass || pass.length < 4) { showToast('Password must be at least 4 characters', 'error'); return; }
+  if (pass !== confirm) { showToast('Passwords do not match', 'error'); return; }
+  callServer('uiSetMemberPassword', email, pass).then(function() {
+    showToast('Password set successfully for ' + email);
+    closeModal();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
@@ -1493,9 +1579,47 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
     submitAddMember();
   }
+  else if (action === 'set-member-password') {
+    e.preventDefault();
+    var email = btn.getAttribute('data-email');
+    if (email) openSetPasswordModal(email);
+  }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
   initAuthSystem();
 });
+
+// ═══════════════════════════════════════════════════════
+// BUTTON LOADING EFFECT — prevents double-click
+// ═══════════════════════════════════════════════════════
+(function() {
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.btn');
+    if (!btn || btn.hasAttribute('data-loading')) return;
+    // Only apply to action buttons (not nav, tabs, etc.)
+    if (btn.classList.contains('nav-item') || btn.classList.contains('tab')) return;
+    btn.setAttribute('data-loading', 'true');
+    setTimeout(function() { btn.removeAttribute('data-loading'); }, 3000);
+  });
+})();
+
+function _renderFinanceKpis(revenue, expenses, netProfit) {
+  var html = '';
+  var items = [
+    { label: 'إجمالي الإيرادات', value: revenue, icon: '💰' },
+    { label: 'إجمالي المصروفات', value: expenses, icon: '📊' },
+    { label: 'صافي الربح', value: netProfit, icon: '📈' }
+  ];
+  items.forEach(function(k) {
+    var colorClass = k.label === 'صافي الربح' && k.value < 0 ? 'text-danger' : 'text-success';
+    html += '<div class="card" style="padding:20px;border-left:3px solid var(--accent);"><div style="font-size:12px;color:var(--text-secondary);">' + k.icon + ' ' + esc(k.label) + '</div><div class="kpi-value ' + colorClass + '" style="margin-top:6px;">$' + esc(String(k.value)) + '</div></div>';
+  });
+  document.getElementById('financeKpis').innerHTML = '<div class="kpi-grid">' + html + '</div>';
+}
+function _dashCard(icon, label, value, id) {
+  return '<div class="card" style="padding:20px;border-left:3px solid var(--accent);position:relative;overflow:hidden;"><div style="position:absolute;top:-8px;right:-8px;font-size:48px;opacity:0.08;">' + icon + '</div><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">' + label + '</div><div id="dash-' + id + '" style="font-size:24px;font-weight:800;">' + value + '</div></div>';
+}
+function _dashUpdate(id, value) { var el = document.getElementById('dash-' + id); if (el) el.textContent = value; }
+function _fmtCurrency(v) { var n = parseFloat(v) || 0; return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 </script>

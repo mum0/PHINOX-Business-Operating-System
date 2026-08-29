@@ -13,15 +13,21 @@ function renderMembers(list) {
     document.getElementById('membersTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🧑‍💼</div><p>No members found</p></div>';
     return;
   }
-  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Position</th><th>Department</th><th>Status</th></tr></thead><tbody>';
+  var canSetPass = isAdmin();
+  var html = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th>' + (canSetPass ? '<th>Password</th>' : '') + '</tr></thead><tbody>';
   list.forEach(function(m) {
     var role = m.role || (Array.isArray(m) ? m[2] : undefined) || '-';
     var badgeClass = role === 'CEO' ? 'badge-danger' : role === 'Admin' ? 'badge-warning' : 'badge-secondary';
-    html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-') + '</td>';
+    var mEmail = esc(m.email || (Array.isArray(m) ? m[3] : undefined) || '-');
+    var mStatus = String(m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active');
+    html += '<tr><td>' + esc(m.name || m.fullName || (Array.isArray(m) ? m[1] : undefined) || '-') + '</td><td>' + mEmail + '</td>';
     html += '<td>' + esc(m.phone || '-') + '</td>';
     html += '<td><span class="badge ' + badgeClass + '">' + esc(role) + '</span></td>';
-    html += '<td>' + esc(m.position || '-') + '</td><td>' + esc(m.department || '-') + '</td>';
-    html += '<td><span class="badge ' + ((m.status || (Array.isArray(m) ? m[5] : undefined) || 'Active') === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(m.status || 'Active') + '</span></td></tr>';
+    html += '<td><span class="badge ' + (mStatus === 'Active' ? 'badge-success' : 'badge-secondary') + '">' + esc(mStatus) + '</span></td>';
+    if (canSetPass) {
+      html += '<td><button class="btn btn-sm btn-outline" data-action="set-member-password" data-email="' + mEmail + '">🔑 Set</button></td>';
+    }
+    html += '</tr>';
   });
   html += '</tbody></table>';
   document.getElementById('membersTableContainer').innerHTML = html;
@@ -108,6 +114,31 @@ function submitAddMember() {
     showToast('Member added successfully');
     closeModal();
     loadMembers();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
+function openSetPasswordModal(email) {
+  openGenericModal('Set Password',
+    '<p style="margin:0 0 12px;color:#94A3B8;font-size:13px;">Setting password for: <strong>' + esc(email) + '</strong></p>' +
+    '<div class="form-group"><label class="form-label">New Password *</label>' +
+    '<input type="password" class="form-input" id="newMemberPassword" placeholder="Enter new password (min 4 chars)"></div>' +
+    '<div class="form-group"><label class="form-label">Confirm Password *</label>' +
+    '<input type="password" class="form-input" id="confirmMemberPassword" placeholder="Confirm password"></div>',
+    '<button class="btn btn-primary" onclick="submitSetPassword(\'' + esc(email) + '\')">💾 Save Password</button>' +
+    '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+
+function submitSetPassword(email) {
+  var pass = document.getElementById('newMemberPassword').value;
+  var confirm = document.getElementById('confirmMemberPassword').value;
+  if (!pass || pass.length < 4) { showToast('Password must be at least 4 characters', 'error'); return; }
+  if (pass !== confirm) { showToast('Passwords do not match', 'error'); return; }
+  callServer('uiSetMemberPassword', email, pass).then(function() {
+    showToast('Password set successfully for ' + email);
+    closeModal();
   }).catch(function(err) {
     showToast('Error: ' + err.message, 'error');
   });

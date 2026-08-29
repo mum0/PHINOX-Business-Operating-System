@@ -34,11 +34,20 @@
   </aside>
   <main class="main-content" id="mainContent">
     <section class="page-section active" id="page-dashboard">
-      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Dashboard</h1>
-      <div class="kpi-grid" id="dashboardKpis"><div class="kpi-card"><div class="loading">Loading KPIs...</div></div></div>
-      <div class="grid-2">
-        <div class="card"><div class="card-header"><div class="card-title">Revenue Trend</div></div><div class="chart-container" id="revenueChart">Chart will render here</div></div>
-        <div class="card"><div class="card-header"><div class="card-title">Recent Orders</div></div><div id="recentOrdersTable"><div class="loading">Loading...</div></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h1 style="font-size:28px;font-weight:800;margin:0;">Dashboard</h1>
+          <p style="color:var(--text-secondary);margin:4px 0 0;font-size:14px;" id="dashboardGreeting">Welcome back</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-size:12px;color:var(--text-secondary);" id="dashboardDate"></span>
+          <button class="btn btn-primary" onclick="loadDashboard()" data-btn-loading>🔄 Refresh</button>
+        </div>
+      </div>
+      <div id="dashboardKpis"></div>
+      <div class="grid-2" style="margin-top:24px;">
+        <div class="card"><div class="card-header"><div class="card-title">📊 Expense Breakdown</div></div><div id="dashboardExpenseChart" style="padding:16px;min-height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:13px;">Loading...</div></div>
+        <div class="card"><div class="card-header"><div class="card-title">📋 Recent Activity</div></div><div id="dashboardRecentActivity" style="padding:0;max-height:320px;overflow-y:auto;">Loading...</div></div>
       </div>
     </section>
     <section class="page-section" id="page-kpi">

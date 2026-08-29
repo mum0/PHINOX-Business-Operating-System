@@ -63,7 +63,7 @@
   1. CONSTANTS (preserved exactly for backward compatibility)
   ─────────────────────────────────────────── */
  
-  var MEMBER_COL = { MEMBER_ID: 0, FULL_NAME: 1, ROLE: 2, EMAIL: 3, PHONE: 4, STATUS: 5, JOIN_DATE: 6, KPI_SCORE: 7, TASKS_COMPLETED: 8, TASKS_LATE: 9, AVERAGE_QUALITY: 10, NOTES: 11 };
+  var MEMBER_COL = { MEMBER_ID: 0, FULL_NAME: 1, ROLE: 2, EMAIL: 3, PHONE: 4, STATUS: 5, JOIN_DATE: 6, KPI_SCORE: 7, TASKS_COMPLETED: 8, TASKS_LATE: 9, AVERAGE_QUALITY: 10, NOTES: 11, PASSWORD: 12 };
   var AUDIT_COL = { LOG_ID: 0, DATE: 1, USER: 2, ACTION: 3, SHEET: 4, RECORD_ID: 5, OLD_VALUE: 6, NEW_VALUE: 7 };
  
   var PERMISSIONS = {
@@ -212,7 +212,7 @@
   var _permissionMatrixCache = null;
  
   function getPermissionMatrix(){
-  if(_permissionMatrixCache !== null) return _permissionMatrixCache;
+  _permissionMatrixCache = null; // Always refresh (security)
   ensureAppConstants();
   var matrix = {
    [APP.ROLES.ADMIN]: [
@@ -336,7 +336,7 @@
  
   function isAdmin(member){
   var role = getRole(member);
-  return role === APP.ROLES.CEO || role === APP.ROLES.PARTNER;
+  return role === APP.ROLES.ADMIN || role === APP.ROLES.CEO || role === APP.ROLES.PARTNER;
   }
  
   function isManager(member){
@@ -414,63 +414,80 @@
    */
   var _currentMemberCache = null;
  
-  function getCurrentMember() {
-    try {
-      var email = Session.getActiveUser().getEmail();
-      if (!email) return null;
-  
-      var ss = SpreadsheetApp.getActiveSpreadsheet();
-      var sheet = ss.getSheetByName('Members');
-      if (!sheet) return null;
-  
-      var data = sheet.getDataRange().getValues();
-      if (data.length < 2) return null;
-  
-      var headers = data[0];
-      var emailIdx = -1, roleIdx = -1, nameIdx = -1, statusIdx = -1;
-      for (var i = 0; i < headers.length; i++) {
-        var h = String(headers[i] || '').toLowerCase().trim();
-        if (h === 'email') emailIdx = i;
-        if (h === 'role') roleIdx = i;
-        if (h === 'fullname' || h === 'full_name' || h === 'name') nameIdx = i;
-        if (h === 'status') statusIdx = i;
-      }
-      if (emailIdx === -1) return null;
-  
-      for (var j = 1; j < data.length; j++) {
-        var rowEmail = String(data[j][emailIdx] || '').toLowerCase().trim();
-        if (rowEmail === email.toLowerCase().trim()) {
-                    // ✅ Check status — only Active members allowed
-                    if (statusIdx !== -1) {
-                      var rowStatus = String(data[j][statusIdx] || '').toLowerCase().trim();
-                      if (rowStatus !== 'active') return null;
-                    }
-          // ✅ sanitize: convert any Error objects to safe strings
-          var sanitized = [];
-          for (var k = 0; k < data[j].length; k++) {
-            var val = data[j][k];
-            if (val instanceof Error) {
-              sanitized.push('#ERROR');
-            } else if (val instanceof Date) {
-              try {
-                sanitized.push(Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd'));
-              } catch (e) {
-                sanitized.push(String(val));
-              }
-            } else {
-              sanitized.push(String(val !== null && val !== undefined ? val : ''));
-            }
-          }
-          return sanitized;
-        }
-      }
-      return null;
-    } catch (e) {
-      console.error('[getCurrentMember_PATCH] ' + e.message);
+  function getCurrentMember(){
+  // Return cached result within same execution context
+  if(_currentMemberCache !== null) return _currentMemberCache;
+ 
+  var email = null;
+  try{
+  email = Session.getActiveUser().getEmail();
+  }catch(e1){
+  try{ email = Session.getEffectiveUser().getEmail(); }catch(e2){ console.log('[AUTH] FAILED: Session fallback failed — ' + String(e2)); return null; }
+  }
+ 
+  email = String(email || '').trim().toLowerCase();
+  console.log('[AUTH] Email from session: ' + email);
+  if(isEmpty(email)) {
+  console.log('[AUTH] FAILED: Empty email from Session — check Web App deploy (Execute as: User accessing)');
+  return null;
+  }
+ 
+  // ── DIRECT SHEET READ — bypasses getMembers()/BaseRepository/MEMBER_SCHEMA ──
+  var matchedMember = null;
+  var matchCount = 0;
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) {
+      console.log('[AUTH] FAILED: No Members sheet found');
       return null;
     }
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      console.log('[AUTH] FAILED: Members sheet is empty (headers only)');
+      return null;
+    }
+    var totalCols = sheet.getLastColumn();
+    var headerRow = sheet.getRange(1, 1, 1, totalCols).getValues()[0];
+    console.log('[AUTH] Headers (' + totalCols + '): ' + headerRow.join(' | '));
+    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+    console.log('[AUTH] Direct read: ' + data.length + ' rows, ' + totalCols + ' cols');
+ 
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var colEmail = String(row[MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+      var colStatus = String(row[MEMBER_COL.STATUS] || '').trim();
+ 
+      if (colEmail === email) {
+        matchCount++;
+        console.log('[AUTH] Match at row ' + (i+2) + ' | Status: "' + colStatus + '"');
+        if (colStatus.toLowerCase() === 'active') {
+          matchedMember = row;
+        }
+      }
+    }
+  } catch (readErr) {
+    console.log('[AUTH] FAILED: Sheet read error — ' + readErr.message);
+    return null;
   }
-
+ 
+  if(matchCount > 1){
+  console.log('[AUTH] FAILED: Duplicate email (' + matchCount + ' times) — security block');
+  _currentMemberCache = null;
+  return null;
+  }
+ 
+  if(!matchedMember){
+  console.log('[AUTH] FAILED: No ACTIVE member found for ' + email + ' (matches: ' + matchCount + ', all inactive)');
+  _currentMemberCache = null;
+  return null;
+  }
+ 
+  console.log('[AUTH] SUCCESS: ' + matchedMember[MEMBER_COL.FULL_NAME] + ' (' + matchedMember[MEMBER_COL.ROLE] + ')');
+  _currentMemberCache = matchedMember;
+  return matchedMember;
+  }
+ 
   function getSheetPermission(sheetName){
   var map = {
   [APP.SHEETS.MEMBERS]: { read: PERMISSIONS.MEMBERS_READ, write: PERMISSIONS.MEMBERS_WRITE, delete: PERMISSIONS.MEMBERS_DELETE },

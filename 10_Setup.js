@@ -9,8 +9,8 @@
 
 var SHEET_CONFIGS = {
   'Members': {
-    headers: ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes'],
-    widths: [22, 20, 14, 28, 16, 12, 16, 10, 12, 10, 12, 30]
+    headers: ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes','password'],
+    widths: [22, 20, 14, 28, 16, 12, 16, 10, 12, 10, 12, 30, 30]
   },
   'Tasks': {
     headers: ['id','title','description','assigneeEmail','priority','status','dueDate','createdAt','completedAt','approvedBy','notes'],
@@ -166,6 +166,7 @@ function _migrateMembersIfNeeded(opt_ss) {
       new Date().toISOString().split('T')[0],
       oldIdx.kpi   !== undefined ? row[oldIdx.kpi]   : 0,
       0, 0, 0,
+      '',
       ''
     ]);
   }
@@ -181,7 +182,8 @@ function _migrateMembersIfNeeded(opt_ss) {
       'Active',
       new Date().toISOString().split('T')[0],
       0, 0, 0, 0,
-      'Initial admin created by Setup migration'
+      'Initial admin created by Setup migration',
+      ''
     ]);
     console.log('[SETUP] No existing data. Seeded default Admin: ' + currentUser);
   }
@@ -199,7 +201,45 @@ function _migrateMembersIfNeeded(opt_ss) {
     newSheet.setColumnWidth(w + 1, widths[w]);
   }
 
-  console.log('[SETUP] Members migration done! ' + newRows.length + ' rows → new 12-column format.');
+  console.log('[SETUP] Members migration done! ' + newRows.length + ' rows → new 13-column format (with password).');
+}
+
+
+// UPDATE (2026-08-29): Added password column migration for manual login (Hotmail/Outlook support)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Add password column to Members sheet if missing (for Hotmail/Outlook manual login).
+ * Only runs if the sheet exists and has exactly 12 columns (old format without password).
+ */
+function _addPasswordColumnIfNeeded(opt_ss) {
+  var ss = opt_ss || SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Members');
+  if (!sheet) {
+    console.log('[SETUP] No Members sheet — password column will be created by normal flow.');
+    return;
+  }
+
+  var lastCol = sheet.getLastColumn();
+  if (lastCol >= 13) {
+    // Check if column 13 header is already 'password'
+    var header13 = String(sheet.getRange(1, 13, 1, 1).getValue()).trim().toLowerCase();
+    if (header13 === 'password') {
+      console.log('[SETUP] Password column already exists. No migration needed.');
+      return;
+    }
+  }
+
+  if (lastCol < 12) {
+    console.log('[SETUP] Members sheet has fewer than 12 columns. Will be handled by normal setup.');
+    return;
+  }
+
+  console.log('[SETUP] Adding password column to Members...');
+  sheet.getRange(1, 13, 1, 1).setValue('password')
+    .setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+  sheet.setColumnWidth(13, 30);
+  console.log('[SETUP] Password column added successfully.');
 }
 
 
@@ -209,6 +249,9 @@ function run() {
 
   // ── Step 1: Migrate Members if columns are outdated ──
   _migrateMembersIfNeeded(ss);
+
+  // ── Step 1b: Add password column if missing (for Hotmail/Outlook login) ──
+  _addPasswordColumnIfNeeded(ss);
 
   // ── Step 2: Create / verify all sheets ──
   var sheetNames = Object.keys(SHEET_CONFIGS);

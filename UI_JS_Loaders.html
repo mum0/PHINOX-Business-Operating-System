@@ -35,56 +35,120 @@ function navigateTo(page) {
   }
 }
 
-// ─── DASHBOARD LOADER ───
+// ─── DASHBOARD LOADER (Professional v2 — lightweight) ───
 function loadDashboard() {
-  callServer('uiGetDashboardKpis').then(function(res) {
-    var kpis = (res.data && res.data.data) || res.data || {};
-    var items = [
-      { label: 'Revenue', value: kpis.revenue || kpis.totalRevenue || 0, format: 'currency' },
-      { label: 'Expenses', value: kpis.expenses || kpis.totalExpenses || 0, format: 'currency' },
-      { label: 'Profit', value: kpis.profit || kpis.netProfit || 0, format: 'currency' },
-      { label: 'Customers', value: kpis.customers || kpis.totalCustomers || 0, format: 'number' },
-      { label: 'Inventory Items', value: kpis.inventory || kpis.totalItems || 0, format: 'number' }
-    ];
-    var html = '';
-    items.forEach(function(k) {
-      var fmt = k.format === 'currency' ? '$' + Number(k.value).toLocaleString() : Number(k.value).toLocaleString();
-      html += '<div class="kpi-card"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-value">' + fmt + '</div></div>';
+  // Greeting
+  var greetEl = document.getElementById('dashboardGreeting');
+  var dateEl = document.getElementById('dashboardDate');
+  if (greetEl && _currentUser) {
+    var name = _currentUser.name || _currentUser.fullName || '';
+    var h = new Date().getHours();
+    var greeting = h < 12 ? 'صباح الخير' : h < 18 ? 'مساء الخير' : 'مساء الخير';
+    greetEl.textContent = greeting + '، ' + name;
+  }
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  // KPI cards
+  var kpiContainer = document.getElementById('dashboardKpis');
+  if (kpiContainer) kpiContainer.innerHTML = '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
+    _dashCard('💰', 'الإيرادات', '--', 'revenue') +
+    _dashCard('📈', 'المصروفات', '--', 'expenses') +
+    _dashCard('📊', 'صافي الربح', '--', 'profit') +
+    _dashCard('📦', 'الطلبات', '--', 'orders') +
+    _dashCard('🏷️', 'المخزون', '--', 'inventory') +
+    _dashCard('👥', 'العملاء', '--', 'customers') +
+    '</div>';
+
+  // Load data in parallel
+  var p1 = callServer('uiGetDashboardKpis').then(function(res) {
+    var d = (res.data && res.data.data) || res.data || {};
+    _dashUpdate('revenue', _fmtCurrency(d.revenue || d.totalRevenue || 0));
+    _dashUpdate('expenses', _fmtCurrency(d.expenses || d.totalExpenses || 0));
+    var profit = d.profit || d.netProfit || 0;
+    _dashUpdate('profit', _fmtCurrency(profit));
+    _dashUpdate('orders', String(d.orders || 0));
+    _dashUpdate('inventory', String(d.inventory || d.totalItems || 0));
+    _dashUpdate('customers', String(d.customers || d.totalCustomers || 0));
+  }).catch(function() {});
+
+  // Expense breakdown
+  var p2 = callServer('uiGetExpenses', { limit: 1000 }).then(function(res) {
+    var all = (res.data && res.data.data) || res.data || [];
+    var cats = {};
+    (all || []).forEach(function(e) {
+      var c = e.category || 'Other';
+      cats[c] = (cats[c] || 0) + (parseFloat(e.amount) || 0);
     });
-    var c = document.getElementById('dashboardKpis');
-    if (c) c.innerHTML = html;
-  }).catch(function(err) {
-    var c = document.getElementById('dashboardKpis');
-    if (c) c.innerHTML = '<div class="kpi-card"><div class="kpi-label">Error</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
-  });
+    var chartEl = document.getElementById('dashboardExpenseChart');
+    if (!chartEl) return;
+    var entries = Object.entries(cats).sort(function(a,b){ return b[1]-a[1]; });
+    if (!entries.length) { chartEl.innerHTML = '<div style='color:var(--text-secondary);'>لا توجد مصروفات</div>'; return; }
+    var total = entries.reduce(function(s,e){ return s+e[1]; }, 0);
+    var colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#F97316'];
+    var maxVal = entries[0][1];
+    var bars = entries.slice(0, 6).map(function(e, i) {
+      var pct = total > 0 ? ((e[1]/total)*100).toFixed(1) : 0;
+      var barW = maxVal > 0 ? Math.max(8, (e[1]/maxVal)*100) : 0;
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+        '<div style="width:90px;font-size:12px;color:var(--text-secondary);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(e[0]) + '</div>' +
+        '<div style="flex:1;background:var(--bg-secondary);border-radius:6px;height:24px;overflow:hidden;">' +
+        '<div style="width:' + barW + '%;height:100%;background:' + colors[i % colors.length] + ';border-radius:6px;transition:width 0.6s ease;"></div></div>' +
+        '<div style="width:80px;font-size:12px;font-weight:600;">' + _fmtCurrency(e[1]) + ' <span style="color:var(--text-secondary);font-weight:400;">(' + pct + '%)</span></div></div>';
+    }).join('');
+    chartEl.innerHTML = bars;
+  }).catch(function() {});
+
+  // Recent activity
+  var p3 = callServer('uiGetExpenses', { limit: 5 }).then(function(res) {
+    var all = (res.data && res.data.data) || res.data || [];
+    var actEl = document.getElementById('dashboardRecentActivity');
+    if (!actEl) return;
+    if (!all || !all.length) { actEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">لا يوجد نشاط حديث</div>'; return; }
+    var html = '<table class="table" style="margin:0;"><thead><tr><th>الوصف</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>';
+    all.slice(0, 5).forEach(function(e) {
+      var st = e.status || 'Draft';
+      var bc = st==='Approved'?'badge-success':st==='Posted'?'badge-info':st==='Rejected'?'badge-danger':'badge-warning';
+      html += '<tr><td>' + esc(e.description || e.category || '-') + '</td><td>' + _fmtCurrency(e.amount||0) + '</td><td><span class="badge ' + bc + '">' + esc(st) + '</span></td></tr>';
+    });
+    html += '</tbody></table>';
+    actEl.innerHTML = html;
+  }).catch(function() {});
+
+  Promise.all([p1, p2, p3]).catch(function() {});
 }
 
-// ─── KPI PAGE LOADER ───
+function _dashCard(icon, label, value, id) {
+  return '<div class="card" style="padding:20px;border-left:3px solid var(--accent);position:relative;overflow:hidden;">' +
+    '<div style="position:absolute;top:-8px;right:-8px;font-size:48px;opacity:0.08;">' + icon + '</div>' +
+    '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">' + label + '</div>' +
+    '<div id="dash-' + id + '" style="font-size:24px;font-weight:800;color:var(--text-primary);">' + value + '</div></div>';
+}
+function _dashUpdate(id, value) {
+  var el = document.getElementById('dash-' + id);
+  if (el) el.textContent = value;
+}
+function _fmtCurrency(v) {
+  var n = parseFloat(v) || 0;
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+// ─── KPI PAGE LOADER (Simplified — essential only) ───
 function loadKPIs() {
   var period = document.getElementById('kpiPeriod') ? document.getElementById('kpiPeriod').value : 'monthly';
   var refDate = document.getElementById('kpiRefDate') ? document.getElementById('kpiRefDate').value : '';
+  var c = document.getElementById('kpiContainer');
+  if (c) c.innerHTML = '<div class="kpi-grid">' +
+    '<div class="card" style="padding:20px;"><div class="kpi-label">الإيرادات</div><div class="kpi-value" id="kpiRev">...</div></div>' +
+    '<div class="card" style="padding:20px;"><div class="kpi-label">المصروفات</div><div class="kpi-value" id="kpiExp">...</div></div>' +
+    '<div class="card" style="padding:20px;"><div class="kpi-label">صافي الربح</div><div class="kpi-value" id="kpiProf">...</div></div>' +
+    '</div>';
   callServer('uiGetKPIs', { period: period, refDate: refDate }).then(function(res) {
-    var kpis = res.data || {};
-    var html = '';
-    var items = [
-      { label: 'Revenue', value: kpis.revenue || 0 },
-      { label: 'Expenses', value: kpis.expenses || 0 },
-      { label: 'Profit', value: kpis.profit || 0 },
-      { label: 'Orders', value: kpis.orders || 0 }
-    ];
-    items.forEach(function(k) {
-      html += '<div class="kpi-card"><div class="kpi-label">' + esc(k.label) + '</div><div class="kpi-value">$' + esc(String(k.value)) + '</div></div>';
-    });
-    var c1 = document.getElementById('kpiContainer');
-    if (c1) c1.innerHTML = html;
-    var c2 = document.getElementById('dashboardKpis');
-    if (c2) c2.innerHTML = html;
+    var d = res.data || {};
+    var r = document.getElementById('kpiRev'); if(r) r.textContent = _fmtCurrency(d.revenue||0);
+    var e = document.getElementById('kpiExp'); if(e) e.textContent = _fmtCurrency(d.expenses||0);
+    var p = document.getElementById('kpiProf'); if(p) p.textContent = _fmtCurrency(d.profit||0);
   }).catch(function(err) {
-    var msg = '<div class="kpi-card"><div class="kpi-label">KPIs</div><div class="kpi-value" style="font-size:14px;">' + esc(err.message) + '</div></div>';
-    var c1 = document.getElementById('kpiContainer');
-    if (c1) c1.innerHTML = msg;
-    var c2 = document.getElementById('dashboardKpis');
-    if (c2) c2.innerHTML = msg;
+    if (c) c.innerHTML = '<p style="color:var(--text-danger);">' + esc(err.message) + '</p>';
   });
 }
 

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHINOX BOS v5 — تقرير تحليل مشكلة البيانات</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0F172A; color: #E2E8F0; padding: 32px; max-width: 960px; margin: 0 auto; line-height: 1.7; }
+h1 { font-size: 24px; color: #818CF8; margin-bottom: 8px; }
+h2 { font-size: 18px; color: #F87171; margin: 24px 0 12px; border-bottom: 2px solid #334155; padding-bottom: 8px; }
+h2.ok { color: #4ADE80; border-color: #166534; }
+h2.warn { color: #FBBF24; border-color: #854D0E; }
+h3 { font-size: 15px; color: #94A3B8; margin: 16px 0 8px; }
+p { margin: 8px 0; font-size: 14px; }
+.code { background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 14px; margin: 10px 0; font-family: 'Consolas', monospace; font-size: 13px; direction: ltr; text-align: left; white-space: pre-wrap; word-break: break-all; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+.table th, .table td { padding: 10px 14px; text-align: right; border-bottom: 1px solid #334155; }
+.table th { background: #1E293B; color: #94A3B8; font-weight: 600; }
+.table td { background: #0F172A; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.badge-critical { background: #7F1D1D; color: #FCA5A5; }
+.badge-high { background: #713F12; color: #FDE68A; }
+.badge-medium { background: #1E3A5F; color: #93C5FD; }
+.badge-low { background: #14532D; color: #86EFAC; }
+ul { margin: 8px 0 8px 24px; font-size: 14px; }
+li { margin: 4px 0; }
+.section { background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin: 16px 0; }
+.arrow { color: #F87171; font-weight: bold; }
+.fix { color: #4ADE80; font-weight: bold; }
+.steps { counter-reset: step; list-style: none; padding: 0; margin: 10px 0; }
+.steps li { counter-increment: step; padding: 6px 0 6px 36px; position: relative; font-size: 14px; }
+.steps li::before { content: counter(step); position: absolute; right: 0; top: 6px; width: 24px; height: 24px; background: #6366F1; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>PHINOX BOS v5 — تقرير تحليل مشكلة &quot;الصفحة تفضل تحمل والبيانات ما تجيش&quot;</h1>
+<p style="color:#94A3B8;margin-bottom:24px;">التاريخ: 2026-08-29 | بناءً على تحليل الكود الفعلي في المشروع</p>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2>🔍 ملخص تنفيذي</h2>
+<div class="section">
+<p>تم تحليل <strong>كل الملفات</strong> (الكلينت + السيرفر) ووجدت <strong>5 مشاكل حقيقية</strong> في الكود، أعلاها خطورة:</p>
+
+<table class="table">
+<tr><th>#</th><th>المشكلة</th><th>الخطورة</th><th>الملف</th></tr>
+<tr><td>1</td><td><code>callServer</code> يستخدم <code>fn.apply()</code> — ممكن يفشل بصمت في بعض بيئات GAS</td><td><span class="badge badge-critical">حرج</span></td><td>UI_JS_Core.html</td></tr>
+<tr><td>2</td><td>13 Service غير موجودة في الريبو (KpiService, InventoryService...)</td><td><span class="badge badge-critical">حرج</span></td><td>UI_Server.js يعتمد عليهم</td></tr>
+<tr><td>3</td><td><code>getCurrentMember()</code> ترجع <code>null</code> → كل الدوال ترمي Error</td><td><span class="badge badge-high">عالي</span></td><td>13_Permissions.js</td></tr>
+<tr><td>4</td><td><code>_requireAuth()</code> ما عندها catch في الكلينت — الأخطاء بتفشل بصمت</td><td><span class="badge badge-high">عالي</span></td><td>UI_JS_Core.html</td></tr>
+<tr><td>5</td><td>لا يوجد Logging في <code>callServer</code> — الأخطاء مستحيل تُشخّص</td><td><span class="badge badge-medium">متوسط</span></td><td>UI_JS_Core.html</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2>❌ المشكلة #1: <code>callServer</code> يستخدم <code>fn.apply()</code></h2>
+<div class="section">
+<h3>الوصف</h3>
+<p>دالة <code>callServer</code> في الكلينت تستخدم نمط <code>fn.apply(runner, args)</code> لاستدعاء دوال السيرفر. هذا النمط فيه مشكلة مع <code>google.script.run</code> — الـ proxy functions بتاعة GAS ممكن ما تتعاملش مع <code>.apply()</code> بشكل سليم في كل الحالات.</p>
+
+<div class="code">// الكود الحالي (مشكلة محتملة)
+var fn = runner[action];
+if (typeof fn === 'function') {
+  var args = Array.prototype.slice.call(arguments, 1);
+  <span class="arrow">fn.apply(runner, args);  // ← ممكن ما يشتغلش!</span>
+}</div>
+
+<h3>الأثر</h3>
+<ul>
+<li>لو <code>.apply()</code> فشلت، الـ Promise ما بيحصلش resolve ولا reject <strong>أبداً</strong></li>
+<li>النتيجة: الـ loading spinner يدور للأبد بدون ما يعرض بيانات أو خطأ</li>
+<li>ده يفسر بالضبط مشكلة &quot;يفضل يحمل&quot;</li>
+</ul>
+
+<h3>الحل</h3>
+<div class="code">// الحل الآمن: استدعاء مباشر بدون .apply()
+var fn = runner[action];
+if (typeof fn === 'function') {
+  var args = Array.prototype.slice.call(arguments, 1);
+  <span class="fix">fn(args[0], args[1], args[2], args[3], args[4]);</span>
+} else {
+  reject(new Error('Server function "' + action + '" not found'));
+}</div>
+<p><strong>لماذا ده آمن:</strong> <code>google.script.run.uiGetDashboardKpis()</code> بيتعامل معاه GAS كـ proxy call مباشر. بدون <code>.apply()</code>، كل حاجة بتشتغل.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2>❌ المشكلة #2: 13 Service غير موجودة في الريبو</h2>
+<div class="section">
+<h3>الوصف</h3>
+<p><code>UI_Server.js</code> يعتمد على 13 Service object على السيرفر. <strong>ولا واحدة منهم موجودة في ملفات المشروع</strong> (لا في .js ولا في .gs). لو أي واحد فيهم مش موجود في GAS، كل الدوال اللي بتستخدمه هتThrow.</p>
+
+<div class="code">// الأمثلة:
+KpiService.getDashboardKpis()       // ← مش موجود في الريبو!
+InventoryService.getInventory()   // ← مش موجود!
+OrderService.getOrders()           // ← مش موجود!
+CustomerService.getAll()          // ← مش موجود!
+FinanceService.getStats()         // ← مش موجود!
+TaskService.getTasks()            // ← مش موجود!
+MktService.getRecords()           // ← مش موجود!
+SocService.getRecords()           // ← مش موجود!
+SatisfactionService.getRecords()  // ← مش موجود!
+NPSService.getRecords()           // ← مش موجود!
+BOMService.getBOM()               // ← مش موجود!
+StockMovementService.getMovements() // ← مش موجود!
+SaleService.getSales()            // ← مش موجود!</div>
+
+<h3>الأثر</h3>
+<p>لو <code>KpiService</code> مش موجود، دالة <code>uiGetDashboardKpis()</code> هتThrow:</p>
+<div class="code">ReferenceError: KpiService is not defined</div>
+<p>GAS هيلقط الخطأ ده للـ <code>withFailureHandler</code> في الكلينت، لكن الكلينت الحالي ما عندهش Console Logging — فالمستخدم مش هيشوف الخطأ.</p>
+
+<h3>الحل</h3>
+<p>شغّل أداة التشخيص (<code>?page=diagnose</code>) وشوف أي Services ناقصة. أداة التشخيص بتعرض قائمة بالـ Services الموجودة والناقصة.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 class="warn">⚠️ المشكلة #3: <code>getCurrentMember()</code> ترجع <code>null</code></h2>
+<div class="section">
+<h3>الوصف</h3>
+<p><code>getCurrentMember()</code> في <code>13_Permissions.js</code> ليها &quot;fail closed&quot; policy — ترجع <code>null</code> في أي حالة غير طبيعية. وده يخلي <code>_requireAuth()</code> ترمي Error في كل مكان.</p>
+
+<table class="table">
+<tr><th>الحالة</th><th>النتيجة</th><th>الكود</th></tr>
+<tr><td>الايميل فاضي من Session</td><td><code>null</code></td><td>Line 430-433</td></tr>
+<tr><td>شيت Members مش موجودة</td><td><code>null</code></td><td>Line 441-444</td></tr>
+<tr><td>شيت Members فاضية</td><td><code>null</code></td><td>Line 446-449</td></tr>
+<tr><td>الايميل مش موجود في الشيت</td><td><code>null</code></td><td>Line 480-484</td></tr>
+<tr><td>الايميل موجود لكن Status ≠ Active</td><td><code>null</code></td><td>Line 464</td></tr>
+<tr><td>الايميل مكرر أكثر من مرة</td><td><code>null</code> (security block)</td><td>Line 474-478</td></tr>
+</table>
+
+<h3>الأثر</h3>
+<ul>
+<li><code>uiGetCurrentUser()</code> → بيرجع <code>{ success: false, error: &quot;...&quot; }</code> ← <strong>ده OK، بيظهر خطأ</strong></li>
+<li>كل دوال البيانات (<code>uiGetDashboardKpis</code> الخ) → بتستدعي <code>_requireAuth()</code> → <strong>بتThrow Error</strong></li>
+<li>الكلينت بيCatch الخطأ لكن ما بيظهرش رسالة واضحة — السبنر بيفضل يدور</li>
+</ul>
+
+<h3>الحل</h3>
+<ol class="steps">
+<li>افتح شيت <strong>Members</strong> في Spreadsheet</li>
+<li>تأكد إن إيميلك موجود في العمود <strong>D (EMAIL)</strong> بالظبط</li>
+<li>تأكد إن الـ <strong>Status</strong> في العمود F = <code>Active</code></li>
+<li>تأكد إن ما فيش إيميل مكرر</li>
+<li>شغّل <code>?page=diagnose</code> وشوف النتيجة</li>
+</ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 class="warn">⚠️ المشكلة #4: الأخطاء بتحدث بس ما بتتعرض</h2>
+<div class="section">
+<h3>الوصف</h3>
+<p>في الكلينت، لما دالة بيانات تفشل (مثلاً <code>uiGetDashboardKpis</code>)، الـ <code>.catch()</code> بيحدث الـ DOM بـ error message. لكن:</p>
+<ul>
+<li>لو حصل Error في <code>callServer</code> نفسها (قبل ما الـ Promise يتعمل) — الأخطاء <strong>ما بتتعرضش</strong></li>
+<li>لو <code>google.script.run</code> مشتغلش — <strong>لا alert ولا console.log</strong></li>
+<li>الـ Auth overlay ممكن تفضل ظاهرة من غير ما توضح السبب</li>
+</ul>
+
+<h3>الحل</h3>
+<p>استخدم نسخة <code>callServer</code> المحسّنة بالـ Logging (في ملف <code>UI_JS_Core.html</code> الجديد).</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 class="ok">✅ المشكلة #5: لا يوجد Logging</h2>
+<div class="section">
+<h3>الوصف</h3>
+<p>دالة <code>callServer</code> الحالية ما عندها أي <code>console.log</code>. لما أي حاجة تفشل، المستخدم مش بيعرف ليه. أداة التشخيص (<code>DIAGNOSE.html</code>) وحالة <code>uiDiagnose.gs</code> بيحلوا ده.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 class="ok">📋 خطة التنفيذ</h2>
+<div class="section">
+
+<h3>الخطوة 1: تشخيص سريع (5 دقائق)</h3>
+<ol class="steps">
+<li>ارفع <code>DIAGNOSE.html</code> و <code>uiDiagnose.gs</code> على GAS</li>
+<li>افتح <code>?page=diagnose</code> في المتصفح</li>
+<li>اضغط <strong>&quot;Run All Tests&quot;</strong></li>
+<li>النتائج هتقولك بالضبط فين المشكلة</li>
+</ol>
+
+<h3>الخطوة 2: إصلاح <code>callServer</code> (أهم إصلاح)</h3>
+<p>غيّر <code>fn.apply(runner, args)</code> لـ <code>fn(args[0], args[1], args[2], args[3], args[4])</code> في <code>UI_JS_Core.html</code>. ده الملف المعدل جاهز في <code>gas_deploy/</code>.</p>
+
+<h3>الخطوة 3: تأكد من Members sheet</h3>
+<ol class="steps">
+<li>افتح الـ Spreadsheet</li>
+<li>شيت <strong>Members</strong> لازم يكون فيها 12 عمود على الأقل</li>
+<li>إيميلك لازم يكون في العمود D (EMAIL)</li>
+<li>Status لازم يكون <code>Active</code> في العمود F</li>
+</ol>
+
+<h3>الخطوة 4: تأكد من إعدادات النشر</h3>
+<ul>
+<li><strong>Execute as:</strong> <code>Me</code> (مش User accessing)</li>
+<li><strong>Who has access:</strong> Anyone أو Your domain</li>
+<li>افتكر تعمل <strong>New deployment</strong> بعد أي تعديل في السيرفر</li>
+</ul>
+
+<h3>الخطوة 5: تأكد من Services</h3>
+<p>لو التشخيص أظهر إن Services ناقصة، ده معناه ملفات .gs في الغير موجودة في مشروع GAS. لازم تتأكد إن كل الـ <code>*Service.gs</code> ملفات مرفوعة.</p>
+
+</div>
+
+<h2 class="ok">📁 الملفات المطلوبة للتنفيذ</h2>
+<div class="section">
+<table class="table">
+<tr><th>الملف</th><th>النوع</th><th>المكان</th><th>الوصف</th></tr>
+<tr><td><code>UI_JS_Core.html</code></td><td>تعديل</td><td>GAS HTML</td><td>إصلاح callServer + إضافة console.log</td></tr>
+<tr><td><code>DIAGNOSE.html</code></td><td>جديد</td><td>GAS HTML</td><td>صفحة تشخيص تفاعلية</td></tr>
+<tr><td><code>uiDiagnose.gs</code></td><td>جديد</td><td>GAS Script</td><td>دالة تشخيص سيرفرية</td></tr>
+<tr><td><code>doGet.gs</code></td><td>كما هو</td><td>GAS Script</td><td>بيدعم ?page=diagnose</td></tr>
+</table>
+</div>
+
+</body>
+</html>

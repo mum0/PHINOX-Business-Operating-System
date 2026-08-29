@@ -115,9 +115,28 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
     submitAddMember();
   }
+  else if (action === 'set-member-password') {
+    e.preventDefault();
+    var email = btn.getAttribute('data-email');
+    if (email) openSetPasswordModal(email);
+  }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
   initAuthSystem();
 });
+
+// ═══════════════════════════════════════════════════════
+// BUTTON LOADING EFFECT — prevents double-click
+// ═══════════════════════════════════════════════════════
+(function() {
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.btn');
+    if (!btn || btn.hasAttribute('data-loading')) return;
+    // Only apply to action buttons (not nav, tabs, etc.)
+    if (btn.classList.contains('nav-item') || btn.classList.contains('tab')) return;
+    btn.setAttribute('data-loading', 'true');
+    setTimeout(function() { btn.removeAttribute('data-loading'); }, 3000);
+  });
+})();
 </script>

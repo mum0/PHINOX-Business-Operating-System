@@ -145,6 +145,159 @@ function uiGetCurrentUser() {
     return { success: false, error: String(e.message || "Unknown error") };
   }
 }
+
+// ─── PASSWORD HASHING HELPER (for manual login security) ───
+var _LOGIN_SALT = 'PHINOX_BOS_v5_SALT_2026';
+
+function _hashPassword(plainText) {
+  if (!plainText) return '';
+  var salted = plainText + _LOGIN_SALT;
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salted);
+  var hex = '';
+  for (var i = 0; i < bytes.length; i++) {
+    var b = bytes[i];
+    if (b < 0) b += 256;
+    hex += ('0' + b.toString(16)).slice(-2);
+  }
+  return hex;
+}
+
+// ─── MANUAL EMAIL+PASSWORD LOGIN (for non-Google accounts like Hotmail/Outlook) ───
+function uiLoginWithEmail(inputEmail, inputPassword) {
+  try {
+    _checkRateLimit("uiLoginWithEmail");
+    if (!inputEmail || typeof inputEmail !== 'string') throw new Error("البريد الإلكتروني مطلوب");
+    var cleanEmail = inputEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) throw new Error("صيغة الإيميل غير صحيحة");
+    if (!inputPassword || typeof inputPassword !== 'string') throw new Error("كلمة المرور مطلوبة");
+    if (inputPassword.length < 4) throw new Error("كلمة المرور قصيرة جداً (4 أحرف على الأقل)");
+
+    var allMembers = Members.getMembers();
+    var found = null;
+    var foundRow = null;
+    var rowIndex = -1;
+    for (var i = 0; i < allMembers.length; i++) {
+      var m = allMembers[i];
+      var mEmail = '';
+      if (Array.isArray(m)) {
+        mEmail = String(m[MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+      } else if (m && typeof m === 'object') {
+        mEmail = String(m.email || '').trim().toLowerCase();
+      }
+      if (mEmail === cleanEmail) {
+        found = m;
+        foundRow = m;
+        rowIndex = i;
+        break;
+      }
+    }
+    if (!found) throw new Error("الإيميل غير موجود في النظام. تواصل مع الأدمن.");
+
+    // ── Verify password ──
+    var storedHash = '';
+    if (Array.isArray(foundRow) && foundRow.length > MEMBER_COL.PASSWORD) {
+      storedHash = String(foundRow[MEMBER_COL.PASSWORD] || '').trim();
+    }
+    if (!storedHash) throw new Error("لم يتم تعيين كلمة مرور لهذا الحساب. تواصل مع الأدمن لتفعيل تسجيل الدخول اليدوي.");
+
+    var inputHash = _hashPassword(inputPassword);
+    if (inputHash !== storedHash) throw new Error("كلمة المرور غير صحيحة");
+
+    // ── Check status ──
+    var status = '';
+    if (Array.isArray(foundRow)) {
+      status = String(foundRow[MEMBER_COL.STATUS] || '').trim();
+    } else {
+      status = String(found.status || '').trim();
+    }
+    if (status.toLowerCase() !== 'active') throw new Error("الحساب " + status + ". فقط الأعضاء النشطين يمكنهم تسجيل الدخول.");
+
+    var safeRole = '';
+    var safeName = '';
+    if (Array.isArray(foundRow)) {
+      safeRole = String(foundRow[MEMBER_COL.ROLE] || '').trim();
+      safeName = String(foundRow[MEMBER_COL.FULL_NAME] || '').trim();
+    } else {
+      safeRole = String(found.role || '').trim();
+      safeName = String(found.fullName || found.name || '').trim();
+    }
+
+    var safePerms = [];
+    try {
+      var perms = getRolePermissions(safeRole);
+      if (Array.isArray(perms)) safePerms = perms.filter(function(p) { return typeof p === 'string'; });
+    } catch(pe) {}
+
+    _auditLog("MANUAL_LOGIN", cleanEmail, "Login via email+password (non-Google account)", "SUCCESS");
+
+    return {
+      success: true,
+      data: {
+        email: cleanEmail,
+        name: safeName || cleanEmail.split('@')[0],
+        role: safeRole,
+        permissions: safePerms,
+        manualLogin: true
+      }
+    };
+  } catch (e) {
+    _auditLog("MANUAL_LOGIN", String(inputEmail || ''), String(e.message), "FAILED");
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── SET/CHANGE MEMBER PASSWORD (Admin only, or self-change) ───
+function uiSetMemberPassword(targetEmail, newPassword) {
+  try {
+    _checkRateLimit("uiSetMemberPassword");
+    var member = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
+    var memberRole = String(member[MEMBER_COL.ROLE] || '').trim().toLowerCase();
+
+    if (!targetEmail || typeof targetEmail !== 'string') throw new Error("البريد الإلكتروني مطلوب");
+    var cleanTarget = targetEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanTarget)) throw new Error("صيغة الإيميل غير صحيحة");
+    if (!newPassword || typeof newPassword !== 'string') throw new Error("كلمة المرور الجديدة مطلوبة");
+    if (newPassword.length < 4) throw new Error("كلمة المرور يجب أن تكون 4 أحرف على الأقل");
+
+    // Only Admin/CEO can set passwords for others, or member can set their own
+    var memberEmail = String(member[MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+    if (memberRole !== 'admin' && memberRole !== 'ceo' && memberEmail !== cleanTarget) {
+      throw new Error("فقط الأدمن يمكنه تعيين كلمات مرور للآخرين");
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Members');
+    if (!sheet) throw new Error("شيت Members غير موجود");
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) throw new Error("لا يوجد أعضاء");
+
+    var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+    var foundIdx = -1;
+    for (var i = 0; i < data.length; i++) {
+      var rowEmail = String(data[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+      if (rowEmail === cleanTarget) { foundIdx = i; break; }
+    }
+    if (foundIdx < 0) throw new Error("العضو غير موجود: " + cleanTarget);
+
+    // Ensure password column exists
+    var lastCol = sheet.getLastColumn();
+    var passCol = MEMBER_COL.PASSWORD + 1; // 1-indexed
+    if (lastCol < passCol) {
+      sheet.getRange(1, passCol, 1, 1).setValue('password')
+        .setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    }
+
+    var hash = _hashPassword(newPassword);
+    sheet.getRange(foundIdx + 2, passCol, 1, 1).setValue(hash);
+
+    _auditLog("SET_PASSWORD", cleanTarget, "Password updated by " + memberEmail, "SUCCESS");
+    return { success: true, data: { email: cleanTarget, message: 'تم تغيير كلمة المرور بنجاح' } };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 // ============================================================
 // KPI APIs
 // ============================================================
