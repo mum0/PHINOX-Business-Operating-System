@@ -900,19 +900,40 @@ function deleteExpense(id) {
   });
 }
 
+function submitExpenseForApproval(id) {
+  callServer('uiSubmitExpense', id).then(function() {
+    showToast('Expense submitted for approval');
+    loadExpenses();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
+
 function loadApprovals() {
   callServer('uiGetExpenses', { limit: 1000 }).then(function(res) {
     var all = (res.data && res.data.data) || res.data || [];
-    var pending = all.filter(function(e) { return (e.status || 'Pending') === 'Pending'; });
+    var pending = all.filter(function(e) {
+      var s = (e.status || '').toLowerCase();
+      return s === 'pending' || s === 'draft';
+    });
     if (!pending.length) {
       document.getElementById('approvalsTableContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div><p>No pending approvals</p></div>';
       return;
     }
-    var html = '<table class="table"><thead><tr><th>ID</th><th>Date</th><th>Requester</th><th>Category</th><th>Amount</th><th>Description</th><th>Actions</th></tr></thead><tbody>';
+    var html = '<table class="table"><thead><tr><th>ID</th><th>Date</th><th>Requester</th><th>Category</th><th>Amount</th><th>Description</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
     pending.forEach(function(e) {
+      var s = (e.status || 'Draft');
+      var badgeClass = s === 'Draft' ? 'badge-secondary' : 'badge-warning';
       html += '<tr><td>' + esc(e.id || '-') + '</td><td>' + formatDate(e.date || e.createdAt) + '</td><td>' + esc(e.requester || e.createdBy || '-') + '</td>';
       html += '<td>' + esc(e.category || '-') + '</td><td>$' + esc(String(e.amount || 0)) + '</td><td>' + esc(e.description || '-') + '</td>';
-      html += '<td><div class="btn-group"><button class="btn btn-sm btn-success" data-action="approve-expense" data-id="' + escAttr(e.id) + '">Approve</button><button class="btn btn-sm btn-danger" data-action="open-reject-expense" data-id="' + escAttr(e.id) + '">Reject</button></div></td></tr>';
+      html += '<td><span class="badge ' + badgeClass + '">' + esc(s) + '</span></td>';
+      html += '<td><div class="btn-group">';
+      if (s === 'Draft') {
+        html += '<button class="btn btn-sm btn-primary" data-action="submit-expense-approval" data-id="' + escAttr(e.id) + '">Submit</button>';
+      }
+      html += '<button class="btn btn-sm btn-success" data-action="approve-expense" data-id="' + escAttr(e.id) + '">Approve</button>';
+      html += '<button class="btn btn-sm btn-danger" data-action="open-reject-expense" data-id="' + escAttr(e.id) + '">Reject</button>';
+      html += '</div></td></tr>';
     });
     html += '</tbody></table>';
     document.getElementById('approvalsTableContainer').innerHTML = html;
@@ -1407,6 +1428,10 @@ document.addEventListener('click', function(e) {
   else if (action === 'open-reject-expense') {
     e.preventDefault();
     openRejectExpenseModal(id);
+  }
+  else if (action === 'submit-expense-approval') {
+    e.preventDefault();
+    submitExpenseForApproval(id);
   }
   else if (action === 'open-post-expense') {
     e.preventDefault();

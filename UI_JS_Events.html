@@ -51,6 +51,10 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
     openRejectExpenseModal(id);
   }
+  else if (action === 'submit-expense-approval') {
+    e.preventDefault();
+    submitExpenseForApproval(id);
+  }
   else if (action === 'open-post-expense') {
     e.preventDefault();
     openPostExpenseModal(id);
