@@ -1,4 +1,4 @@
-
+<script>
 // ═══════════════════════════════════════════════════════
 // SECURITY HELPERS
 // ═══════════════════════════════════════════════════════
@@ -25,34 +25,43 @@ var _expenseTab = 'all';
 var _bomComponents = [];
 var _currentBOM = null;
 
-// ─── SERVER BRIDGE (Fixed for GAS V8) ───
-function callServer(action, payload) {
+// ─── SERVER BRIDGE (Fixed for GAS V8 — NO .apply()) ───
+function callServer(action) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  console.log('[callServer] >>> ' + action + '(' + (args.length ? JSON.stringify(args).substring(0, 100) : '') + ')');
   return new Promise(function(resolve, reject) {
     if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      console.error('[callServer] google.script.run is NOT available');
       reject(new Error('google.script.run غير متاح — جرب من رابط Web App'));
       return;
     }
+    var startedAt = Date.now();
     var runner = google.script.run
       .withSuccessHandler(function(res) {
-        // Unwrap {success: true, data: X} → resolve with X directly
+        var ms = Date.now() - startedAt;
         if (res && typeof res === 'object' && res.success === true && 'data' in res) {
+          console.log('[callServer] <<< ' + action + ' OK (' + ms + 'ms)');
           resolve({ data: res.data });
         } else if (res && typeof res === 'object' && res.success === false && res.error) {
+          console.error('[callServer] <<< ' + action + ' REJECTED: ' + res.error);
           reject(new Error(res.error));
         } else {
-          // Legacy: return raw response
+          console.log('[callServer] <<< ' + action + ' LEGACY (' + ms + 'ms)');
           resolve({ data: res });
         }
       })
       .withFailureHandler(function(err) {
+        var ms = Date.now() - startedAt;
         var msg = (err && err.message) ? err.message : String(err);
+        console.error('[callServer] <<< ' + action + ' ERROR (' + ms + 'ms): ' + msg);
         reject(new Error(msg));
       });
     var fn = runner[action];
     if (typeof fn === 'function') {
-      var args = Array.prototype.slice.call(arguments, 1);
-      fn.apply(runner, args);
+      // Direct call — NO .apply() (GAS proxy incompatible with .apply)
+      fn(args[0], args[1], args[2], args[3], args[4]);
     } else {
+      console.error('[callServer] Function not found: ' + action);
       reject(new Error('Server function "' + action + '" not found'));
     }
   });
@@ -198,3 +207,4 @@ function initAuthSystem() {
     }
   });
 }
+</script>

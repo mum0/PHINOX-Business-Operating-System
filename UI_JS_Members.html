@@ -1,3 +1,4 @@
+<script>
 function loadMembers() {
   callServer('uiGetMembers', null).then(function(res) {
     _memberCache = res.data || [];
@@ -110,3 +111,4 @@ function submitAddMember() {
     showToast('Error: ' + err.message, 'error');
   });
 }
+</script>
