@@ -112,7 +112,7 @@ function submitAddInventory() {
     cost: parseFloat(document.getElementById('invCost').value) || 0,
     price: parseFloat(document.getElementById('invPrice').value) || 0,
     reorderLevel: parseFloat(document.getElementById('invMinStock').value) || 0,
-    description: document.getElementById('invDesc').value
+    notes: document.getElementById('invDesc').value
   };
   if (!data.name) { showToast('Name is required', 'error'); return; }
   callServer('uiCreateInventory', data).then(function() {

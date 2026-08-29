@@ -1324,6 +1324,13 @@ function uiGetKPIs(params) {
     var p = params || {};
     var period = (p.period || "MONTHLY").toUpperCase();
     var refDate = p.refDate || new Date().toISOString().split("T")[0];
+    // ── Cache: avoid recalculating heavy KPIs within 5 minutes ──
+    var cache = CacheService.getScriptCache();
+    var cacheKey = 'kpis_' + period + '_' + refDate;
+    var cached = cache.get(cacheKey);
+    if (cached) {
+      return { success: true, data: JSON.parse(cached) };
+    }
     var periodType = period === "MONTHLY" ? "MONTHLY" : period === "QUARTERLY" ? "QUARTERLY" : "YEARLY";
     var kpis = KpiService.calculateAll(periodType, refDate);
     var finStats = FinanceService.getProfitAndLoss(refDate, refDate);
@@ -1341,7 +1348,9 @@ function uiGetKPIs(params) {
     result.revenue = revenue;
     result.expenses = operatingExpenses;
     result.profit = netProfit;
-    result.orders = 0; // not provided by current services
+    result.orders = 0;
+    // ── Store in cache for 5 minutes (300 seconds) ──
+    cache.put(cacheKey, JSON.stringify(result), 300);
     return { success: true, data: result };
   } catch (e) {
     return { success: false, error: e.message };

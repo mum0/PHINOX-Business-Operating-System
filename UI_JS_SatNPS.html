@@ -38,9 +38,9 @@ function loadSatisfaction() {
 
 function openAddSatisfactionModal() {
   openGenericModal('Add Satisfaction Record',
-    '<div class="form-row"><div class="form-group"><label class="form-label">Customer</label><input type="text" class="form-input" id="satCustomer" placeholder="Customer name"></div>' +
-    '<div class="form-group"><label class="form-label">Score (1-5) *</label><select class="form-select" id="satScore"><option value="5">5 - Excellent</option><option value="4">4 - Good</option><option value="3">3 - Average</option><option value="2">2 - Poor</option><option value="1">1 - Very Poor</option></select></div></div>' +
-    '<div class="form-group"><label class="form-label">Feedback</label><textarea class="form-textarea" id="satFeedback" rows="3" placeholder="Customer feedback..."></textarea></div>',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Customer Email *</label><input type="email" class="form-input" id="satCustomer" placeholder="email@example.com"></div>' +
+    '<div class="form-group"><label class="form-label">Score (1-10) *</label><select class="form-select" id="satScore"><option value="10">10 - Excellent</option><option value="9">9</option><option value="8">8</option><option value="7">7</option><option value="6">6</option><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1 - Very Poor</option></select></div></div>' +
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="satFeedback" rows="3" placeholder="Additional notes..."></textarea></div>',
     '<button class="btn btn-primary" data-action="submit-add-satisfaction">Save</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
   );
 }
@@ -102,9 +102,9 @@ function loadNPS() {
 
 function openAddNPSModal() {
   openGenericModal('Add NPS Record',
-    '<div class="form-row"><div class="form-group"><label class="form-label">Customer</label><input type="text" class="form-input" id="npsCustomer" placeholder="Customer name"></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Customer Email *</label><input type="email" class="form-input" id="npsCustomer" placeholder="email@example.com"></div>' +
     '<div class="form-group"><label class="form-label">Score (0-10) *</label><input type="number" min="0" max="10" class="form-input" id="npsScore" value="10"></div></div>' +
-    '<div class="form-group"><label class="form-label">Reason</label><textarea class="form-textarea" id="npsReason" rows="2" placeholder="Why this score?"></textarea></div>',
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="npsReason" rows="2" placeholder="Why this score?"></textarea></div>',
     '<button class="btn btn-primary" data-action="submit-add-nps">Save</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
   );
 }
