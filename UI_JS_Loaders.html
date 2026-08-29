@@ -172,7 +172,33 @@ function loadCustomers() {
   });
 }
 function filterCustomers() { loadCustomers(); }
-function openAddCustomerModal() { showToast('Add Customer — implement form', 'warning'); }
+function openAddCustomerModal() {
+  openGenericModal('Add Customer',
+    '<div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="custName" placeholder="Customer full name"></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="custEmail" placeholder="email@example.com"></div>' +
+    '<div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="custPhone" placeholder="+20 xxx xxx xxxx"></div></div>' +
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="custNotes" rows="2" placeholder="Optional notes..."></textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-add-customer">Save Customer</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+function submitAddCustomer() {
+  var data = {
+    name: document.getElementById('custName').value.trim(),
+    email: document.getElementById('custEmail').value.trim(),
+    phone: document.getElementById('custPhone').value.trim(),
+    notes: document.getElementById('custNotes').value.trim()
+  };
+  if (!data.name) { showToast('Name is required', 'error'); return; }
+  if (!data.email || data.email.indexOf('@') < 0) { showToast('Valid email is required', 'error'); return; }
+  callServer('uiCreateCustomer', data).then(function() {
+    showToast('Customer added successfully');
+    closeModal();
+    _customerCache = [];
+    loadCustomers();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
 
 function loadOrders() {
   callServer('uiGetOrders', { limit: 1000 }).then(function(res) {
@@ -194,7 +220,42 @@ function loadOrders() {
   });
 }
 function filterOrders() { loadOrders(); }
-function openAddOrderModal() { showToast('Add Order — implement form', 'warning'); }
+function openAddOrderModal() {
+  var customerOptions = '<option value="">— Select Customer —</option>';
+  (_customerCache || []).forEach(function(c) {
+    var cName = c.name || c.fullName || '';
+    var cEmail = c.email || '';
+    if (cName) customerOptions += '<option value="' + escAttr(cEmail) + '">' + esc(cName) + (cEmail ? ' (' + esc(cEmail) + ')' : '') + '</option>';
+  });
+  var today = new Date().toISOString().split('T')[0];
+  openGenericModal('New Order',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Customer *</label><select class="form-select" id="ordCustomer">' + customerOptions + '</select></div>' +
+    '<div class="form-group"><label class="form-label">Amount ($) *</label><input type="number" step="0.01" class="form-input" id="ordAmount" placeholder="0.00"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="ordDate" value="' + today + '"></div>' +
+    '<div class="form-group"><label class="form-label">Status</label><select class="form-select" id="ordStatus"><option value="Pending">Pending</option><option value="Confirmed">Confirmed</option><option value="Shipped">Shipped</option><option value="Delivered">Delivered</option></select></div></div>' +
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="ordNotes" rows="2" placeholder="Order notes..."></textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-add-order">Create Order</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+function submitAddOrder() {
+  var data = {
+    customer: document.getElementById('ordCustomer').value,
+    customerName: document.getElementById('ordCustomer').selectedOptions[0] ? document.getElementById('ordCustomer').selectedOptions[0].text.split(' (')[0] : '',
+    amount: parseFloat(document.getElementById('ordAmount').value) || 0,
+    date: document.getElementById('ordDate').value,
+    status: document.getElementById('ordStatus').value,
+    notes: document.getElementById('ordNotes').value.trim()
+  };
+  if (!data.customer) { showToast('Please select a customer', 'error'); return; }
+  if (!data.amount || data.amount <= 0) { showToast('Amount must be greater than 0', 'error'); return; }
+  callServer('uiCreateOrder', data).then(function() {
+    showToast('Order created successfully');
+    closeModal();
+    loadOrders();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
 
 function loadSales() {
   callServer('uiGetSales', { limit: 1000 }).then(function(res) {
@@ -213,5 +274,47 @@ function loadSales() {
     document.getElementById('salesTableContainer').innerHTML = '<p class="text-danger">Error: ' + esc(err.message) + '</p>';
   });
 }
-function openAddSaleModal() { showToast('Add Sale — implement form', 'warning'); }
+function openAddSaleModal() {
+  var today = new Date().toISOString().split('T')[0];
+  openGenericModal('Record Sale',
+    '<div class="form-row"><div class="form-group"><label class="form-label">Product Name *</label><input type="text" class="form-input" id="saleProduct" placeholder="Product or service name"></div>' +
+    '<div class="form-group"><label class="form-label">Quantity *</label><input type="number" class="form-input" id="saleQty" value="1" min="1" placeholder="1" oninput="calcSaleAmount()"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Unit Price ($) *</label><input type="number" step="0.01" class="form-input" id="salePrice" placeholder="0.00" oninput="calcSaleAmount()"></div>' +
+    '<div class="form-group"><label class="form-label">Total Amount ($)</label><input type="text" class="form-input" id="saleAmount" value="0.00" readonly style="opacity:0.7;background:var(--bg-tertiary);"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="saleDate" value="' + today + '"></div>' +
+    '<div class="form-group"><label class="form-label">Customer</label><input type="text" class="form-input" id="saleCustomer" placeholder="Customer name (optional)"></div></div>' +
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="saleNotes" rows="2" placeholder="Sale notes..."></textarea></div>',
+    '<button class="btn btn-primary" data-action="submit-add-sale">Record Sale</button><button class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+  );
+}
+function calcSaleAmount() {
+  var qty = parseFloat(document.getElementById('saleQty').value) || 0;
+  var price = parseFloat(document.getElementById('salePrice').value) || 0;
+  var total = (qty * price).toFixed(2);
+  document.getElementById('saleAmount').value = total;
+}
+function submitAddSale() {
+  var qty = parseFloat(document.getElementById('saleQty').value) || 0;
+  var price = parseFloat(document.getElementById('salePrice').value) || 0;
+  var data = {
+    product: document.getElementById('saleProduct').value.trim(),
+    productName: document.getElementById('saleProduct').value.trim(),
+    quantity: qty,
+    qty: qty,
+    amount: qty * price,
+    date: document.getElementById('saleDate').value,
+    customer: document.getElementById('saleCustomer').value.trim(),
+    notes: document.getElementById('saleNotes').value.trim()
+  };
+  if (!data.product) { showToast('Product name is required', 'error'); return; }
+  if (qty <= 0) { showToast('Quantity must be at least 1', 'error'); return; }
+  if (price <= 0) { showToast('Price must be greater than 0', 'error'); return; }
+  callServer('uiCreateSale', data).then(function() {
+    showToast('Sale recorded successfully');
+    closeModal();
+    loadSales();
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  });
+}
 </script>

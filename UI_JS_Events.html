@@ -137,6 +137,18 @@ document.addEventListener('click', function(e) {
     var subRejEmail = btn.getAttribute('data-email');
     if (subRejEmail) submitRejectRegistration(subRejEmail);
   }
+  else if (action === 'submit-add-customer') {
+    e.preventDefault();
+    if (typeof submitAddCustomer === 'function') submitAddCustomer();
+  }
+  else if (action === 'submit-add-order') {
+    e.preventDefault();
+    if (typeof submitAddOrder === 'function') submitAddOrder();
+  }
+  else if (action === 'submit-add-sale') {
+    e.preventDefault();
+    if (typeof submitAddSale === 'function') submitAddSale();
+  }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
