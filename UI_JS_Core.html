@@ -12,6 +12,8 @@ function escAttr(str) {
 
 // ─── GLOBALS ───
 var _currentUser = null;
+var _currentLang = 'ar';
+var _currentTheme = 'dark';
 var _customerCache = [];
 var _inventoryCache = [];
 var _expenseCache = [];
@@ -33,22 +35,207 @@ var _notifications = {
 };
 var _revenueChartInstance = null;
 
+// ═══════════════════════════════════════════════════════
+// i18n — Arabic / English Translations
+// ═══════════════════════════════════════════════════════
+var _i18n = {
+  ar: {
+    nav_dashboard: 'لوحة التحكم', nav_kpi: 'المؤشرات', nav_customers: 'العملاء',
+    nav_orders: 'الطلبات', nav_sales: 'المبيعات', nav_inventory: 'المخزون',
+    nav_finance: 'المالية', nav_expenses: 'المصروفات', nav_approvals: 'الموافقات',
+    nav_tasks: 'المهام', nav_marketing: 'التسويق', nav_social: 'التواصل الاجتماعي',
+    nav_satisfaction: 'رضا العملاء', nav_nps: 'NPS', nav_members: 'أعضاء الفريق',
+    page_dashboard: 'لوحة التحكم', page_kpi: 'المؤشرات الرئيسية',
+    page_customers: 'العملاء', page_orders: 'الطلبات', page_sales: 'المبيعات',
+    page_inventory: 'المخزون', page_finance: 'المالية', page_expenses: 'المصروفات',
+    page_approvals: 'الموافقات المعلقة', page_tasks: 'المهام',
+    page_marketing: 'التسويق', page_social: 'التواصل الاجتماعي',
+    page_satisfaction: 'رضا العملاء', page_nps: 'مؤشر NPS', page_members: 'أعضاء الفريق',
+    loading: 'جاري التحميل...', loading_kpis: 'جاري تحميل المؤشرات...',
+    loading_customers: 'جاري تحميل العملاء...', loading_orders: 'جاري تحميل الطلبات...',
+    loading_sales: 'جاري تحميل المبيعات...', loading_inventory: 'جاري تحميل المخزون...',
+    loading_expenses: 'جاري تحميل المصروفات...', loading_tasks: 'جاري تحميل المهام...',
+    loading_members: 'جاري تحميل الأعضاء...',
+    revenue_trend: 'اتجاه الإيرادات', recent_orders: 'أحدث الطلبات',
+    add_customer: 'إضافة عميل', new_order: 'طلب جديد', record_sale: 'تسجيل بيع',
+    add_item: 'إضافة عنصر', new_expense: 'مصروف جديد', new_task: 'مهمة جديدة',
+    add_record: 'إضافة سجل', add_member: 'إضافة عضو',
+    low_stock: 'مخزون منخفض', out_of_stock: 'نفذ المخزون',
+    refresh: 'تحديث', search: 'بحث', status: 'الحالة', period: 'الفترة',
+    ref_date: 'تاريخ مرجعي', from: 'من', to: 'إلى', category: 'الفئة',
+    all: 'الكل', pending: 'معلّق', approved: 'مقبول', rejected: 'مرفوض',
+    posted: 'مرحّل', active: 'نشط', inactive: 'غير نشط',
+    confirmed: 'مؤكد', shipped: 'تم الشحن', delivered: 'تم التسليم', cancelled: 'ملغي',
+    in_progress: 'قيد التنفيذ', completed: 'مكتمل', overdue: 'متأخر',
+    in_stock: 'متوفر', all_categories: 'كل الفئات',
+    general_ledger: 'دفتر الأستاذ العام',
+    search_placeholder: 'الاسم، البريد، الهاتف...',
+    inv_search_placeholder: 'SKU، الاسم، الفئة...',
+    monthly: 'شهري', quarterly: 'ربع سنوي', yearly: 'سنوي',
+    logout: 'تسجيل الخروج', no_data: 'لا توجد بيانات',
+    revenue: 'الإيرادات', expenses: 'المصروفات', profit: 'الربح',
+    customers: 'العملاء', inventory_items: 'عناصر المخزون',
+    pending_registrations: 'طلب تسجيل معلّق', overdue_tasks: 'مهمة متأخرة',
+    low_stock_items: 'عنصر مخزون منخفض', pending_expenses: 'مصروف معلّق',
+    no_customers: 'لا يوجد عملاء', no_orders: 'لا يوجد طلبات',
+    no_sales: 'لا توجد مبيعات',
+    auth_checking: 'جاري التحقق من هويتك...', auth_connecting: 'جاري الاتصال بالسيرفر...',
+    auth_retry: 'إعادة المحاولة', auth_failed: 'المستخدم غير مسجل في النظام. تواصل مع الأدمن.',
+    auth_error: 'خطأ في الاتصال بالسيرفر',
+    welcome: 'مرحباً', guest_skip: 'متابعة كضيف',
+    dark_mode: 'الوضع الداكن', light_mode: 'الوضع الفاتح',
+    switch_lang: 'English', edit: 'تعديل', delete: 'حذف',
+    name: 'الاسم', email: 'البريد الإلكتروني', phone: 'الهاتف',
+    notes: 'ملاحظات', amount: 'المبلغ', date: 'التاريخ',
+    customer: 'العميل', product: 'المنتج', quantity: 'الكمية',
+    id: 'الرقم', actions: 'الإجراءات'
+  },
+  en: {
+    nav_dashboard: 'Dashboard', nav_kpi: 'KPIs', nav_customers: 'Customers',
+    nav_orders: 'Orders', nav_sales: 'Sales', nav_inventory: 'Inventory',
+    nav_finance: 'Finance', nav_expenses: 'Expenses', nav_approvals: 'Approvals',
+    nav_tasks: 'Tasks', nav_marketing: 'Marketing', nav_social: 'Social Media',
+    nav_satisfaction: 'Satisfaction', nav_nps: 'NPS', nav_members: 'Team Members',
+    page_dashboard: 'Dashboard', page_kpi: 'Key Performance Indicators',
+    page_customers: 'Customers', page_orders: 'Orders', page_sales: 'Sales',
+    page_inventory: 'Inventory', page_finance: 'Finance', page_expenses: 'Expenses',
+    page_approvals: 'Pending Approvals', page_tasks: 'Tasks',
+    page_marketing: 'Marketing', page_social: 'Social Media',
+    page_satisfaction: 'Customer Satisfaction', page_nps: 'Net Promoter Score',
+    page_members: 'Team Members',
+    loading: 'Loading...', loading_kpis: 'Loading KPIs...',
+    loading_customers: 'Loading customers...', loading_orders: 'Loading orders...',
+    loading_sales: 'Loading sales...', loading_inventory: 'Loading inventory...',
+    loading_expenses: 'Loading expenses...', loading_tasks: 'Loading tasks...',
+    loading_members: 'Loading members...',
+    revenue_trend: 'Revenue Trend', recent_orders: 'Recent Orders',
+    add_customer: 'Add Customer', new_order: 'New Order', record_sale: 'Record Sale',
+    add_item: 'Add Item', new_expense: 'New Expense', new_task: 'New Task',
+    add_record: 'Add Record', add_member: 'Add Member',
+    low_stock: 'Low Stock', out_of_stock: 'Out of Stock',
+    refresh: 'Refresh', search: 'Search', status: 'Status', period: 'Period',
+    ref_date: 'Reference Date', from: 'From', to: 'To', category: 'Category',
+    all: 'All', pending: 'Pending', approved: 'Approved', rejected: 'Rejected',
+    posted: 'Posted', active: 'Active', inactive: 'Inactive',
+    confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
+    in_progress: 'In Progress', completed: 'Completed', overdue: 'Overdue',
+    in_stock: 'In Stock', all_categories: 'All Categories',
+    general_ledger: 'General Ledger',
+    search_placeholder: 'Name, email, phone...',
+    inv_search_placeholder: 'SKU, name, category...',
+    monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly',
+    logout: 'Logout', no_data: 'No data',
+    revenue: 'Revenue', expenses: 'Expenses', profit: 'Profit',
+    customers: 'Customers', inventory_items: 'Inventory Items',
+    pending_registrations: 'Pending registration', overdue_tasks: 'Overdue task',
+    low_stock_items: 'Low stock item', pending_expenses: 'Pending expense',
+    no_customers: 'No customers found', no_orders: 'No orders found',
+    no_sales: 'No sales found',
+    auth_checking: 'Verifying your identity...', auth_connecting: 'Connecting to server...',
+    auth_retry: 'Retry', auth_failed: 'User not registered. Contact admin.',
+    auth_error: 'Server connection error',
+    welcome: 'Welcome', guest_skip: 'Continue as Guest',
+    dark_mode: 'Dark Mode', light_mode: 'Light Mode',
+    switch_lang: 'عربي', edit: 'Edit', delete: 'Delete',
+    name: 'Name', email: 'Email', phone: 'Phone',
+    notes: 'Notes', amount: 'Amount', date: 'Date',
+    customer: 'Customer', product: 'Product', quantity: 'Quantity',
+    id: 'ID', actions: 'Actions'
+  }
+};
+
+function t(key) {
+  return (_i18n[_currentLang] && _i18n[_currentLang][key]) || key;
+}
+
+function applyTranslations() {
+  // Translate all [data-i18n] elements
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  // Translate all [data-i18n-placeholder] elements
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n-placeholder');
+    el.setAttribute('placeholder', t(key));
+  });
+  // Translate all [data-i18n-opt] elements
+  document.querySelectorAll('[data-i18n-opt]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n-opt');
+    el.textContent = t(key);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// THEME TOGGLE (Dark / Light)
+// ═══════════════════════════════════════════════════════
+function toggleTheme() {
+  _currentTheme = (_currentTheme === 'dark') ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', _currentTheme);
+  var btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = _currentTheme === 'dark' ? '\u{1F319}' : '\u2600\uFE0F';
+  try { localStorage.setItem('phinox_theme', _currentTheme); } catch(e) {}
+  // Re-render chart if exists
+  if (_revenueChartInstance) {
+    try { loadRevenueChart(); } catch(e) {}
+  }
+}
+
+function _initTheme() {
+  try {
+    var saved = localStorage.getItem('phinox_theme');
+    if (saved === 'light' || saved === 'dark') _currentTheme = saved;
+  } catch(e) {}
+  document.documentElement.setAttribute('data-theme', _currentTheme);
+  var btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = _currentTheme === 'dark' ? '\u{1F319}' : '\u2600\uFE0F';
+}
+
+// ═══════════════════════════════════════════════════════
+// LANGUAGE TOGGLE (Arabic / English)
+// ═══════════════════════════════════════════════════════
+function toggleLang() {
+  _currentLang = (_currentLang === 'ar') ? 'en' : 'ar';
+  var html = document.documentElement;
+  html.setAttribute('lang', _currentLang);
+  html.setAttribute('dir', _currentLang === 'ar' ? 'rtl' : 'ltr');
+  var btn = document.getElementById('langToggle');
+  if (btn) btn.textContent = _currentLang === 'ar' ? 'EN' : 'عربي';
+  applyTranslations();
+  try { localStorage.setItem('phinox_lang', _currentLang); } catch(e) {}
+  // Re-render chart with new labels
+  if (_revenueChartInstance) {
+    try { loadRevenueChart(); } catch(e) {}
+  }
+}
+
+function _initLang() {
+  try {
+    var saved = localStorage.getItem('phinox_lang');
+    if (saved === 'ar' || saved === 'en') _currentLang = saved;
+  } catch(e) {}
+  var html = document.documentElement;
+  html.setAttribute('lang', _currentLang);
+  html.setAttribute('dir', _currentLang === 'ar' ? 'rtl' : 'ltr');
+  var btn = document.getElementById('langToggle');
+  if (btn) btn.textContent = _currentLang === 'ar' ? 'EN' : 'عربي';
+  applyTranslations();
+}
+
 // ─── SERVER BRIDGE (Fixed for GAS V8) ───
-function callServer(action, payload) {
+function callServer(action) {
   return new Promise(function(resolve, reject) {
     if (typeof google === 'undefined' || !google.script || !google.script.run) {
-      reject(new Error('google.script.run غير متاح — جرب من رابط Web App'));
+      reject(new Error('google.script.run ' + t('auth_error')));
       return;
     }
     var runner = google.script.run
       .withSuccessHandler(function(res) {
-        // Unwrap {success: true, data: X} → resolve with X directly
         if (res && typeof res === 'object' && res.success === true && 'data' in res) {
           resolve({ data: res.data });
         } else if (res && typeof res === 'object' && res.success === false && res.error) {
           reject(new Error(res.error));
         } else {
-          // Legacy: return raw response
           resolve({ data: res });
         }
       })
@@ -78,7 +265,7 @@ function showToast(message, type) {
   if (!container) return;
   var toast = document.createElement('div');
   toast.className = 'toast ' + type;
-  var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+  var icon = type === 'success' ? '\u2705' : type === 'error' ? '\u274C' : type === 'warning' ? '\u26A0\uFE0F' : '\u2139\uFE0F';
   toast.innerHTML = '<span style="font-size:18px">' + icon + '</span><span>' + esc(message) + '</span>';
   container.appendChild(toast);
   setTimeout(function() {
@@ -113,13 +300,15 @@ function formatDate(dt) {
   if (!dt) return '-';
   var d = new Date(dt);
   if (isNaN(d.getTime())) return String(dt);
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  var locale = _currentLang === 'ar' ? 'ar-EG' : 'en-US';
+  return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 function formatDateTime(dt) {
   if (!dt) return '-';
   var d = new Date(dt);
   if (isNaN(d.getTime())) return String(dt);
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  var locale = _currentLang === 'ar' ? 'ar-EG' : 'en-US';
+  return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 // ─── PERMISSIONS ───
@@ -133,26 +322,39 @@ function isAdmin() {
   return hasPerm('admin') || (_currentUser && (_currentUser.role === 'Admin' || _currentUser.role === 'CEO'));
 }
 
+// ─── LOGOUT ───
+function handleLogout() {
+  if (confirm(_currentLang === 'ar' ? 'هل تريد تسجيل الخروج؟' : 'Do you want to logout?')) {
+    try { google.script.host.close(); } catch(e) {
+      window.location.href = window.location.href;
+    }
+  }
+}
+
 // ═══════════════════════════════════════════════════════
-// AUTH & LOGIN OVERLAY
+// AUTH & LOGIN OVERLAY (with Guest bypass)
 // ═══════════════════════════════════════════════════════
+var _authRetryCount = 0;
+
 function showAuthOverlay() {
   var existing = document.getElementById('authOverlay');
   if (existing) { existing.style.display = 'flex'; return; }
 
   var overlay = document.createElement('div');
   overlay.id = 'authOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg-primary,rgba(15,23,42,0.95));z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
   overlay.innerHTML =
-    '<div style="background:#1E293B;border:1px solid #334155;border-radius:16px;padding:40px;max-width:420px;width:100%;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.5);">' +
-    '<div style="font-size:42px;margin-bottom:16px;">🔐</div>' +
+    '<div style="background:var(--bg-secondary,#1E293B);border:1px solid var(--bg-tertiary,#334155);border-radius:16px;padding:40px;max-width:420px;width:100%;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.5);">' +
+    '<div style="font-size:42px;margin-bottom:16px;">\u{1F510}</div>' +
     '<h2 style="margin:0 0 8px;font-size:22px;">PHINOX BOS v6</h2>' +
-    '<p style="color:#94A3B8;margin:0 0 24px;font-size:14px;">جاري التحقق من هويتك...</p>' +
-    '<div id="authStatus" style="padding:12px 16px;border-radius:8px;background:#0F172A;font-size:13px;color:#94A3B8;margin-bottom:16px;">' +
-    'جاري الاتصال بالسيرفر...' +
+    '<p style="color:var(--text-secondary,#94A3B8);margin:0 0 24px;font-size:14px;">' + t('auth_checking') + '</p>' +
+    '<div id="authStatus" style="padding:12px 16px;border-radius:8px;background:var(--bg-primary,#0F172A);font-size:13px;color:var(--text-secondary,#94A3B8);margin-bottom:16px;">' +
+    t('auth_connecting') +
     '</div>' +
-    '<button id="authRetryBtn" class="btn btn-primary" style="display:none;width:100%;" onclick="initAuthSystem()">🔄 إعادة المحاولة</button>' +
-    '</div>';
+    '<div style="display:flex;gap:10px;flex-direction:column;">' +
+    '<button id="authRetryBtn" class="btn btn-primary" style="display:none;width:100%;" onclick="initAuthSystem()">\u{1F504} ' + t('auth_retry') + '</button>' +
+    '<button id="authSkipBtn" class="btn btn-outline" style="display:none;width:100%;color:var(--accent);" onclick="_enterAsGuest()">\u23E9 ' + t('guest_skip') + '</button>' +
+    '</div></div>';
   document.body.appendChild(overlay);
 }
 
@@ -165,80 +367,59 @@ function setAuthStatus(msg, isError) {
   var el = document.getElementById('authStatus');
   if (!el) return;
   el.textContent = msg;
-  el.style.color = isError ? '#F87171' : '#94A3B8';
-  el.style.border = isError ? '1px solid #DC2626' : '1px solid #334155';
+  el.style.color = isError ? '#F87171' : 'var(--text-secondary,#94A3B8)';
+  el.style.border = isError ? '1px solid #DC2626' : '1px solid var(--bg-tertiary,#334155)';
   var btn = document.getElementById('authRetryBtn');
   if (btn) btn.style.display = isError ? 'inline-flex' : 'none';
 }
 
-var _authRetryCount = 0;
-
-function initAuthSystem() {
-  showAuthOverlay();
-  setAuthStatus('جاري التحقق من الجلسة...', false);
-
-  callServer('uiGetCurrentUser', null).then(function(res) {
-    var user = res.data;
-    if (!user || !user.email) {
-      setAuthStatus('❌ المستخدم غير مسجل في النظام. تواصل مع الأدمن.', true);
-      _showSkipButton();
-      return;
-    }
-    _currentUser = user;
-    _onAuthSuccess(user);
-  }).catch(function(err) {
-    console.error('Auth error:', err);
-    _authRetryCount++;
-    if (_authRetryCount >= 2) {
-      // بعد فشل مرتين — خلي المستخدم يدخل كـ Guest
-      setAuthStatus('⚠️ تعذر التحقق من البيانات. يمكنك الدخول كضيف.', true);
-      _showSkipButton();
-    } else {
-      setAuthStatus('❌ ' + (err.message || 'خطأ في الاتصال بالسيرفر'), true);
-      var btn = document.getElementById('authRetryBtn');
-      if (btn) {
-        btn.style.display = 'inline-flex';
-        btn.textContent = '🔄 إعادة المحاولة';
-      }
-    }
-  });
+function _showSkipButton() {
+  var btn = document.getElementById('authSkipBtn');
+  if (btn) btn.style.display = 'inline-flex';
 }
 
-function _showSkipButton() {
-  var container = document.getElementById('authOverlay');
-  if (!container) return;
-  // Remove old skip button if exists
-  var oldSkip = document.getElementById('authSkipBtn');
-  if (oldSkip) oldSkip.remove();
-  var skipBtn = document.createElement('button');
-  skipBtn.id = 'authSkipBtn';
-  skipBtn.style.cssText = 'display:block;width:100%;margin-top:12px;padding:12px;border-radius:8px;border:1px solid #334155;background:#1E293B;color:#94A3B8;font-size:14px;cursor:pointer;text-align:center;';
-  skipBtn.textContent = '⏩ متابعة كضيف (Guest)';
-  skipBtn.onclick = function() {
-    _currentUser = { email: 'guest', role: 'GUEST', name: 'Guest', permissions: [], member: null };
-    _onAuthSuccess(_currentUser);
-  };
-  container.querySelector('div').appendChild(skipBtn);
+function _enterAsGuest() {
+  _currentUser = { email: 'guest', role: 'GUEST', name: 'Guest', permissions: [], member: null };
+  _onAuthSuccess(_currentUser);
 }
 
 function _onAuthSuccess(user) {
-  var displayName = user.name || user.fullName || (user.email || '').split('@')[0] || 'User';
+  var displayName = user.name || user.fullName || user.email.split('@')[0];
   var role = user.role || 'User';
-  var nameEl = document.getElementById('userName');
-  var roleEl = document.getElementById('userRole');
-  var avatarEl = document.getElementById('userAvatar');
-  var permsEl = document.getElementById('userPermissions');
-  if (nameEl) nameEl.textContent = displayName;
-  if (roleEl) roleEl.textContent = role;
-  if (avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
+  document.getElementById('userName').textContent = displayName;
+  document.getElementById('userRole').textContent = role;
+  document.getElementById('userAvatar').textContent = (displayName || 'U').charAt(0).toUpperCase();
   var perms = user.permissions || [];
-  if (permsEl) permsEl.textContent = perms.join(', ');
+  document.getElementById('userPermissions').textContent = perms.join(', ');
   hideAuthOverlay();
-  showToast('مرحباً ' + displayName + ' (' + role + ')', 'success');
+  showToast(t('welcome') + ' ' + displayName + ' (' + role + ')', 'success');
+  // Pre-load customers cache
   callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
     _customerCache = (cres.data && cres.data.data) || cres.data || [];
   }).catch(function() {});
   navigateTo('dashboard');
+}
+
+function initAuthSystem() {
+  showAuthOverlay();
+  setAuthStatus(t('auth_connecting'), false);
+
+  callServer('uiGetCurrentUser', null).then(function(res) {
+    var user = res.data;
+    if (!user || !user.email) {
+      setAuthStatus(t('auth_failed'), true);
+      _authRetryCount++;
+      if (_authRetryCount >= 2) _showSkipButton();
+      return;
+    }
+    _currentUser = user;
+    _onAuthSuccess(_currentUser);
+  }).catch(function(err) {
+    console.error('Auth error:', err);
+    setAuthStatus('\u274C ' + (err.message || t('auth_error')), true);
+    _authRetryCount++;
+    if (_authRetryCount >= 2) _showSkipButton();
+  });
 }
 
 // ─── NOTIFICATION SYSTEM ───
@@ -251,17 +432,15 @@ function loadNotifications() {
   };
   var promises = [];
 
-  // 1. Pending registrations (admin only)
   if (isAdmin()) {
     promises.push(
       callServer('uiGetPendingRegistrations').then(function(res) {
         var data = (res.data && res.data.data) || res.data || [];
-        _notifications.pendingRegistrations = data.length;
+        _notifications.pendingRegistrations = Array.isArray(data) ? data.length : 0;
       }).catch(function() {})
     );
   }
 
-  // 2. Task stats (everyone)
   var today = new Date().toISOString().split('T')[0];
   var monthAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
   promises.push(
@@ -271,7 +450,6 @@ function loadNotifications() {
     }).catch(function() {})
   );
 
-  // 3. Low stock (admin/inventory roles)
   if (isAdmin() || hasPerm('inventory:read')) {
     promises.push(
       callServer('uiGetLowStock').then(function(res) {
@@ -281,7 +459,6 @@ function loadNotifications() {
     );
   }
 
-  // 4. Pending expenses (admin/finance)
   if (isAdmin() || hasPerm('expenses:read')) {
     promises.push(
       callServer('uiGetExpenses', { limit: 1000 }).then(function(res) {
@@ -309,25 +486,34 @@ function renderNotifications() {
   bar.style.display = 'block';
   var html = '';
   if (_notifications.pendingRegistrations > 0) {
-    html += '<div class="notif-item notif-danger" onclick="navigateTo(\'members\')" style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);display:flex;align-items:center;gap:8px;font-size:13px;">' +
-      '<span style="font-size:18px">👥</span>' +
-      '<span><strong>' + _notifications.pendingRegistrations + '</strong> طلب تسجيل معلّق</span></div>';
+    html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'members\')">' +
+      '<span style="font-size:18px">\u{1F465}</span>' +
+      '<span><strong>' + _notifications.pendingRegistrations + '</strong> ' + t('pending_registrations') + '</span></div>';
   }
   if (_notifications.overdueTasks > 0) {
-    html += '<div class="notif-item notif-warning" onclick="navigateTo(\'tasks\')" style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px;font-size:13px;">' +
-      '<span style="font-size:18px">⚠️</span>' +
-      '<span><strong>' + _notifications.overdueTasks + '</strong> مهمة متأخرة</span></div>';
+    html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'tasks\')">' +
+      '<span style="font-size:18px">\u26A0\uFE0F</span>' +
+      '<span><strong>' + _notifications.overdueTasks + '</strong> ' + t('overdue_tasks') + '</span></div>';
   }
   if (_notifications.lowStockItems > 0) {
-    html += '<div class="notif-item notif-info" onclick="navigateTo(\'inventory\')" style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(14,165,233,0.15);border:1px solid rgba(14,165,233,0.3);display:flex;align-items:center;gap:8px;font-size:13px;">' +
-      '<span style="font-size:18px">📦</span>' +
-      '<span><strong>' + _notifications.lowStockItems + '</strong> عنصر مخزون منخفض</span></div>';
+    html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(14,165,233,0.15);border:1px solid rgba(14,165,233,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'inventory\')">' +
+      '<span style="font-size:18px">\u{1F4E6}</span>' +
+      '<span><strong>' + _notifications.lowStockItems + '</strong> ' + t('low_stock_items') + '</span></div>';
   }
   if (_notifications.pendingExpenses > 0) {
-    html += '<div class="notif-item notif-warning" onclick="navigateTo(\'approvals\')" style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px;font-size:13px;">' +
-      '<span style="font-size:18px">🧾</span>' +
-      '<span><strong>' + _notifications.pendingExpenses + '</strong> مصروف معلّق</span></div>';
+    html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'approvals\')">' +
+      '<span style="font-size:18px">\u{1F9FE}</span>' +
+      '<span><strong>' + _notifications.pendingExpenses + '</strong> ' + t('pending_expenses') + '</span></div>';
   }
   document.getElementById('notificationItems').innerHTML = html;
 }
+
+// ═══════════════════════════════════════════════════════
+// INIT ON DOM READY
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  _initTheme();
+  _initLang();
+  initAuthSystem();
+});
 </script>

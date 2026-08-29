@@ -1,179 +1,188 @@
 <div class="app-container">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="logo">PHINOX BOS</div>
-      <div class="version">v6 Enterprise</div>
+      <div class="logo-area">
+        <div class="logo">PHINOX BOS</div>
+        <div class="version">v6 Enterprise</div>
+      </div>
+      <div class="toggle-row">
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="تبديل الوضع">🌙</button>
+        <button class="lang-toggle" id="langToggle" onclick="toggleLang()" title="تبديل اللغة">EN</button>
+      </div>
     </div>
     <nav class="nav-menu">
-      <button class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')"><span class="icon">📊</span> Dashboard</button>
-      <button class="nav-item" data-page="kpi" onclick="navigateTo('kpi')"><span class="icon">🎯</span> KPIs</button>
-      <button class="nav-item" data-page="customers" onclick="navigateTo('customers')"><span class="icon">👥</span> Customers</button>
-      <button class="nav-item" data-page="orders" onclick="navigateTo('orders')"><span class="icon">📦</span> Orders</button>
-      <button class="nav-item" data-page="sales" onclick="navigateTo('sales')"><span class="icon">💰</span> Sales</button>
-      <button class="nav-item" data-page="inventory" onclick="navigateTo('inventory')"><span class="icon">🏭</span> Inventory</button>
-      <button class="nav-item" data-page="finance" onclick="navigateTo('finance')"><span class="icon">📈</span> Finance</button>
-      <button class="nav-item" data-page="expenses" onclick="navigateTo('expenses')"><span class="icon">🧾</span> Expenses</button>
-      <button class="nav-item" data-page="approvals" onclick="navigateTo('approvals')"><span class="icon">✅</span> Approvals</button>
-      <button class="nav-item" data-page="tasks" onclick="navigateTo('tasks')"><span class="icon">✓</span> Tasks</button>
-      <button class="nav-item" data-page="marketing" onclick="navigateTo('marketing')"><span class="icon">📢</span> Marketing</button>
-      <button class="nav-item" data-page="social" onclick="navigateTo('social')"><span class="icon">🌐</span> Social</button>
-      <button class="nav-item" data-page="satisfaction" onclick="navigateTo('satisfaction')"><span class="icon">😊</span> Satisfaction</button>
-      <button class="nav-item" data-page="nps" onclick="navigateTo('nps')"><span class="icon">⭐</span> NPS</button>
-      <button class="nav-item" data-page="members" onclick="navigateTo('members')"><span class="icon">🧑‍💼</span> Members</button>
+      <button class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')"><span class="icon">📊</span> <span data-i18n="nav_dashboard">لوحة التحكم</span></button>
+      <button class="nav-item" data-page="kpi" onclick="navigateTo('kpi')"><span class="icon">🎯</span> <span data-i18n="nav_kpi">المؤشرات</span></button>
+      <button class="nav-item" data-page="customers" onclick="navigateTo('customers')"><span class="icon">👥</span> <span data-i18n="nav_customers">العملاء</span></button>
+      <button class="nav-item" data-page="orders" onclick="navigateTo('orders')"><span class="icon">📦</span> <span data-i18n="nav_orders">الطلبات</span></button>
+      <button class="nav-item" data-page="sales" onclick="navigateTo('sales')"><span class="icon">💰</span> <span data-i18n="nav_sales">المبيعات</span></button>
+      <button class="nav-item" data-page="inventory" onclick="navigateTo('inventory')"><span class="icon">🏭</span> <span data-i18n="nav_inventory">المخزون</span></button>
+      <button class="nav-item" data-page="finance" onclick="navigateTo('finance')"><span class="icon">📈</span> <span data-i18n="nav_finance">المالية</span></button>
+      <button class="nav-item" data-page="expenses" onclick="navigateTo('expenses')"><span class="icon">🧾</span> <span data-i18n="nav_expenses">المصروفات</span></button>
+      <button class="nav-item" data-page="approvals" onclick="navigateTo('approvals')"><span class="icon">✅</span> <span data-i18n="nav_approvals">الموافقات</span></button>
+      <button class="nav-item" data-page="tasks" onclick="navigateTo('tasks')"><span class="icon">✓</span> <span data-i18n="nav_tasks">المهام</span></button>
+      <button class="nav-item" data-page="marketing" onclick="navigateTo('marketing')"><span class="icon">📢</span> <span data-i18n="nav_marketing">التسويق</span></button>
+      <button class="nav-item" data-page="social" onclick="navigateTo('social')"><span class="icon">🌐</span> <span data-i18n="nav_social">التواصل الاجتماعي</span></button>
+      <button class="nav-item" data-page="satisfaction" onclick="navigateTo('satisfaction')"><span class="icon">😊</span> <span data-i18n="nav_satisfaction">رضا العملاء</span></button>
+      <button class="nav-item" data-page="nps" onclick="navigateTo('nps')"><span class="icon">⭐</span> <span data-i18n="nav_nps">NPS</span></button>
+      <button class="nav-item" data-page="members" onclick="navigateTo('members')"><span class="icon">🧑‍💼</span> <span data-i18n="nav_members">أعضاء الفريق</span></button>
     </nav>
     <div class="sidebar-footer">
       <div class="user-info">
         <div class="user-avatar" id="userAvatar">?</div>
         <div>
-          <div id="userName" style="font-weight:600;font-size:13px;">Loading...</div>
+          <div id="userName" style="font-weight:600;font-size:13px;"><span data-i18n="loading">جاري التحميل...</span></div>
           <div id="userRole" style="font-size:11px;color:var(--text-secondary);">...</div>
         </div>
       </div>
       <div id="userPermissions" style="font-size:10px;opacity:0.7;"></div>
+      <button class="btn btn-danger" style="width:100%;margin-top:10px;justify-content:center;" onclick="handleLogout()">
+        🧣 <span data-i18n="logout">تسجيل الخروج</span>
+      </button>
     </div>
   </aside>
   <main class="main-content" id="mainContent">
     <section class="page-section active" id="page-dashboard">
-      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Dashboard</h1>
-      <div id='notificationBar' style='display:none;margin-bottom:20px;'>
-        <div style='display:flex;gap:10px;flex-wrap:wrap;align-items:center;' id='notificationItems'></div>
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;" data-i18n="page_dashboard">لوحة التحكم</h1>
+      <div id="notificationBar" style="display:none;margin-bottom:20px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;" id="notificationItems"></div>
       </div>
-      <div class="kpi-grid" id="dashboardKpis"><div class="kpi-card"><div class="loading">Loading KPIs...</div></div></div>
+      <div class="kpi-grid" id="dashboardKpis"><div class="kpi-card"><div class="loading"><span data-i18n="loading_kpis">جاري تحميل المؤشرات...</span></div></div></div>
       <div class="grid-2">
-        <div class="card"><div class="card-header"><div class="card-title">Revenue Trend</div></div><div class="chart-container" id="revenueChart"><canvas id="revenueChartCanvas"></canvas></div></div>
-        <div class="card"><div class="card-header"><div class="card-title">Recent Orders</div></div><div id="recentOrdersTable"></div></div>
+        <div class="card"><div class="card-header"><div class="card-title" data-i18n="revenue_trend">اتجاه الإيرادات</div></div><div class="chart-container" id="revenueChart"><canvas id="revenueChartCanvas"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title" data-i18n="recent_orders">أحدث الطلبات</div></div><div id="recentOrdersTable"></div></div>
       </div>
     </section>
     <section class="page-section" id="page-kpi">
-      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Key Performance Indicators</h1>
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;" data-i18n="page_kpi">المؤشرات الرئيسية</h1>
       <div class="filter-bar">
-        <div class="filter-group"><label>Period</label><select class="form-select" id="kpiPeriod" style="width:160px;" onchange="loadKPIs()"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></div>
-        <div class="filter-group"><label>Reference Date</label><input type="date" class="form-input" id="kpiRefDate" style="width:160px;" onchange="loadKPIs()"></div>
-        <button class="btn btn-primary" onclick="loadKPIs()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="period">الفترة</label><select class="form-select" id="kpiPeriod" style="width:160px;" onchange="loadKPIs()"><option value="monthly" data-i18n-opt="monthly">شهري</option><option value="quarterly" data-i18n-opt="quarterly">ربع سنوي</option><option value="yearly" data-i18n-opt="yearly">سنوي</option></select></div>
+        <div class="filter-group"><label data-i18n="ref_date">تاريخ مرجعي</label><input type="date" class="form-input" id="kpiRefDate" style="width:160px;" onchange="loadKPIs()"></div>
+        <button class="btn btn-primary" onclick="loadKPIs()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
-      <div id="kpiContainer"><div class="loading">Loading KPIs...</div></div>
+      <div id="kpiContainer"><div class="loading"><span data-i18n="loading_kpis">جاري تحميل المؤشرات...</span></div></div>
     </section>
     <section class="page-section" id="page-customers">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Customers</h1><button class="btn btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_customers">العملاء</h1><button class="btn btn-primary" onclick="openAddCustomerModal()">+ <span data-i18n="add_customer">إضافة عميل</span></button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>Search</label><input type="text" class="form-input" id="customerSearch" placeholder="Name, email, phone..." style="width:240px;" onkeyup="filterCustomers()"></div>
-        <div class="filter-group"><label>Status</label><select class="form-select" id="customerStatusFilter" style="width:140px;" onchange="filterCustomers()"><option value="">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
+        <div class="filter-group"><label data-i18n="search">بحث</label><input type="text" class="form-input" id="customerSearch" data-i18n-placeholder="search_placeholder" placeholder="الاسم، البريد، الهاتف..." style="width:240px;" onkeyup="filterCustomers()"></div>
+        <div class="filter-group"><label data-i18n="status">الحالة</label><select class="form-select" id="customerStatusFilter" style="width:140px;" onchange="filterCustomers()"><option value="" data-i18n-opt="all">الكل</option><option value="Active" data-i18n-opt="active">نشط</option><option value="Inactive" data-i18n-opt="inactive">غير نشط</option></select></div>
       </div>
-      <div class="card"><div id="customersTableContainer"><div class="loading">Loading customers...</div></div></div>
+      <div class="card"><div id="customersTableContainer"><div class="loading"><span data-i18n="loading_customers">جاري تحميل العملاء...</span></div></div></div>
     </section>
     <section class="page-section" id="page-orders">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Orders</h1><button class="btn btn-primary" onclick="openAddOrderModal()">+ New Order</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_orders">الطلبات</h1><button class="btn btn-primary" onclick="openAddOrderModal()">+ <span data-i18n="new_order">طلب جديد</span></button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="orderDateFrom" onchange="loadOrders()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="orderDateTo" onchange="loadOrders()"></div>
-        <div class="filter-group"><label>Status</label><select class="form-select" id="orderStatusFilter" style="width:140px;" onchange="filterOrders()"><option value="">All</option><option value="Pending">Pending</option><option value="Confirmed">Confirmed</option><option value="Shipped">Shipped</option><option value="Delivered">Delivered</option><option value="Cancelled">Cancelled</option></select></div>
-        <button class="btn btn-primary" onclick="loadOrders()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="from">من</label><input type="date" class="form-input" id="orderDateFrom" onchange="loadOrders()"></div>
+        <div class="filter-group"><label data-i18n="to">إلى</label><input type="date" class="form-input" id="orderDateTo" onchange="loadOrders()"></div>
+        <div class="filter-group"><label data-i18n="status">الحالة</label><select class="form-select" id="orderStatusFilter" style="width:140px;" onchange="filterOrders()"><option value="" data-i18n-opt="all">الكل</option><option value="Pending" data-i18n-opt="pending">معلّق</option><option value="Confirmed" data-i18n-opt="confirmed">مؤكد</option><option value="Shipped" data-i18n-opt="shipped">تم الشحن</option><option value="Delivered" data-i18n-opt="delivered">تم التسليم</option><option value="Cancelled" data-i18n-opt="cancelled">ملغي</option></select></div>
+        <button class="btn btn-primary" onclick="loadOrders()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
-      <div class="card"><div id="ordersTableContainer"><div class="loading">Loading orders...</div></div></div>
+      <div class="card"><div id="ordersTableContainer"><div class="loading"><span data-i18n="loading_orders">جاري تحميل الطلبات...</span></div></div></div>
     </section>
     <section class="page-section" id="page-sales">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Sales</h1><button class="btn btn-primary" onclick="openAddSaleModal()">+ Record Sale</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_sales">المبيعات</h1><button class="btn btn-primary" onclick="openAddSaleModal()">+ <span data-i18n="record_sale">تسجيل بيع</span></button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="saleDateFrom" onchange="loadSales()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="saleDateTo" onchange="loadSales()"></div>
-        <button class="btn btn-primary" onclick="loadSales()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="from">من</label><input type="date" class="form-input" id="saleDateFrom" onchange="loadSales()"></div>
+        <div class="filter-group"><label data-i18n="to">إلى</label><input type="date" class="form-input" id="saleDateTo" onchange="loadSales()"></div>
+        <button class="btn btn-primary" onclick="loadSales()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
-      <div class="card"><div id="salesTableContainer"><div class="loading">Loading sales...</div></div></div>
+      <div class="card"><div id="salesTableContainer"><div class="loading"><span data-i18n="loading_sales">جاري تحميل المبيعات...</span></div></div></div>
     </section>
     <section class="page-section" id="page-inventory">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Inventory</h1>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_inventory">المخزون</h1>
         <div class="btn-group">
-          <button class="btn btn-warning" onclick="showLowStock()">⚠️ Low Stock</button>
-          <button class="btn btn-danger" onclick="showOutOfStock()">❌ Out of Stock</button>
-          <button class="btn btn-primary" onclick="openAddInventoryModal()">+ Add Item</button>
+          <button class="btn btn-warning" onclick="showLowStock()">⚠️ <span data-i18n="low_stock">مخزون منخفض</span></button>
+          <button class="btn btn-danger" onclick="showOutOfStock()">❌ <span data-i18n="out_of_stock">نفذ المخزون</span></button>
+          <button class="btn btn-primary" onclick="openAddInventoryModal()">+ <span data-i18n="add_item">إضافة عنصر</span></button>
         </div>
       </div>
       <div class="filter-bar">
-        <div class="filter-group"><label>Search</label><input type="text" class="form-input" id="inventorySearch" placeholder="SKU, name, category..." style="width:240px;" onkeyup="filterInventory()"></div>
-        <div class="filter-group"><label>Category</label><select class="form-select" id="inventoryCategoryFilter" style="width:160px;" onchange="filterInventory()"><option value="">All Categories</option></select></div>
-        <div class="filter-group"><label>Status</label><select class="form-select" id="inventoryStatusFilter" style="width:140px;" onchange="filterInventory()"><option value="">All</option><option value="In Stock">In Stock</option><option value="Low Stock">Low Stock</option><option value="Out of Stock">Out of Stock</option></select></div>
-        <button class="btn btn-primary" onclick="loadInventory()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="search">بحث</label><input type="text" class="form-input" id="inventorySearch" data-i18n-placeholder="inv_search_placeholder" placeholder="SKU، الاسم، الفئة..." style="width:240px;" onkeyup="filterInventory()"></div>
+        <div class="filter-group"><label data-i18n="category">الفئة</label><select class="form-select" id="inventoryCategoryFilter" style="width:160px;" onchange="filterInventory()"><option value="" data-i18n-opt="all_categories">كل الفئات</option></select></div>
+        <div class="filter-group"><label data-i18n="status">الحالة</label><select class="form-select" id="inventoryStatusFilter" style="width:140px;" onchange="filterInventory()"><option value="" data-i18n-opt="all">الكل</option><option value="In Stock" data-i18n-opt="in_stock">متوفر</option><option value="Low Stock" data-i18n-opt="low_stock">منخفض</option><option value="Out of Stock" data-i18n-opt="out_of_stock">نفذ</option></select></div>
+        <button class="btn btn-primary" onclick="loadInventory()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
-      <div class="card"><div id="inventoryTableContainer"><div class="loading">Loading inventory...</div></div></div>
+      <div class="card"><div id="inventoryTableContainer"><div class="loading"><span data-i18n="loading_inventory">جاري تحميل المخزون...</span></div></div></div>
     </section>
     <section class="page-section" id="page-finance">
-      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Finance</h1>
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;" data-i18n="page_finance">المالية</h1>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="financeDateFrom" onchange="loadFinance()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="financeDateTo" onchange="loadFinance()"></div>
-        <button class="btn btn-primary" onclick="loadFinance()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="from">من</label><input type="date" class="form-input" id="financeDateFrom" onchange="loadFinance()"></div>
+        <div class="filter-group"><label data-i18n="to">إلى</label><input type="date" class="form-input" id="financeDateTo" onchange="loadFinance()"></div>
+        <button class="btn btn-primary" onclick="loadFinance()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
-      <div class="grid-3" id="financeKpis"><div class="kpi-card"><div class="loading">Loading...</div></div><div class="kpi-card"><div class="loading">Loading...</div></div><div class="kpi-card"><div class="loading">Loading...</div></div></div>
-      <div class="card"><div class="card-header"><div class="card-title">General Ledger</div></div><div id="ledgerTableContainer"><div class="loading">Loading ledger...</div></div></div>
+      <div class="grid-3" id="financeKpis"><div class="kpi-card"><div class="loading">...</div></div><div class="kpi-card"><div class="loading">...</div></div><div class="kpi-card"><div class="loading">...</div></div></div>
+      <div class="card"><div class="card-header"><div class="card-title" data-i18n="general_ledger">دفتر الأستاذ العام</div></div><div id="ledgerTableContainer"><div class="loading">...</div></div></div>
     </section>
     <section class="page-section" id="page-expenses">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Expenses</h1><button class="btn btn-primary" onclick="openAddExpenseModal()">+ New Expense</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_expenses">المصروفات</h1><button class="btn btn-primary" onclick="openAddExpenseModal()">+ <span data-i18n="new_expense">مصروف جديد</span></button></div>
       <div class="tabs">
-        <div class="tab active" onclick="switchExpenseTab(this, 'all')">All</div>
-        <div class="tab" onclick="switchExpenseTab(this, 'pending')">Pending</div>
-        <div class="tab" onclick="switchExpenseTab(this, 'approved')">Approved</div>
-        <div class="tab" onclick="switchExpenseTab(this, 'rejected')">Rejected</div>
-        <div class="tab" onclick="switchExpenseTab(this, 'posted')">Posted</div>
+        <div class="tab active" onclick="switchExpenseTab(this, 'all')" data-i18n="all">الكل</div>
+        <div class="tab" onclick="switchExpenseTab(this, 'pending')" data-i18n="pending">معلّق</div>
+        <div class="tab" onclick="switchExpenseTab(this, 'approved')" data-i18n="approved">مقبول</div>
+        <div class="tab" onclick="switchExpenseTab(this, 'rejected')" data-i18n="rejected">مرفوض</div>
+        <div class="tab" onclick="switchExpenseTab(this, 'posted')" data-i18n="posted">مرحّل</div>
       </div>
-      <div class="card"><div id="expensesTableContainer"><div class="loading">Loading expenses...</div></div></div>
+      <div class="card"><div id="expensesTableContainer"><div class="loading"><span data-i18n="loading_expenses">جاري تحميل المصروفات...</span></div></div></div>
     </section>
     <section class="page-section" id="page-approvals">
-      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;">Pending Approvals</h1>
-      <div class="card"><div id="approvalsTableContainer"><div class="loading">Loading approvals...</div></div></div>
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;" data-i18n="page_approvals">الموافقات المعلّقة</h1>
+      <div class="card"><div id="approvalsTableContainer"><div class="loading">...</div></div></div>
     </section>
     <section class="page-section" id="page-tasks">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Tasks</h1><button class="btn btn-primary" onclick="openAddTaskModal()">+ New Task</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_tasks">المهام</h1><button class="btn btn-primary" onclick="openAddTaskModal()">+ <span data-i18n="new_task">مهمة جديدة</span></button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="taskDateFrom" onchange="loadTasks()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="taskDateTo" onchange="loadTasks()"></div>
-        <div class="filter-group"><label>Status</label><select class="form-select" id="taskStatusFilter" style="width:140px;" onchange="filterTasks()"><option value="">All</option><option value="Pending">Pending</option><option value="In Progress">In Progress</option><option value="Completed">Completed</option><option value="Overdue">Overdue</option></select></div>
-        <button class="btn btn-primary" onclick="loadTasks()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="from">من</label><input type="date" class="form-input" id="taskDateFrom" onchange="loadTasks()"></div>
+        <div class="filter-group"><label data-i18n="to">إلى</label><input type="date" class="form-input" id="taskDateTo" onchange="loadTasks()"></div>
+        <div class="filter-group"><label data-i18n="status">الحالة</label><select class="form-select" id="taskStatusFilter" style="width:140px;" onchange="filterTasks()"><option value="" data-i18n-opt="all">الكل</option><option value="Pending" data-i18n-opt="pending">معلّق</option><option value="In Progress" data-i18n-opt="in_progress">قيد التنفيذ</option><option value="Completed" data-i18n-opt="completed">مكتمل</option><option value="Overdue" data-i18n-opt="overdue">متأخر</option></select></div>
+        <button class="btn btn-primary" onclick="loadTasks()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
-      <div class="card"><div id="tasksTableContainer"><div class="loading">Loading tasks...</div></div></div>
+      <div class="card"><div id="tasksTableContainer"><div class="loading"><span data-i18n="loading_tasks">جاري تحميل المهام...</span></div></div></div>
     </section>
     <section class="page-section" id="page-marketing">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Marketing</h1><button class="btn btn-primary" onclick="openAddMarketingModal()">+ Add Record</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_marketing">التسويق</h1><button class="btn btn-primary" onclick="openAddMarketingModal()">+ <span data-i18n="add_record">إضافة سجل</span></button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="marketingDateFrom" onchange="loadMarketing()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="marketingDateTo" onchange="loadMarketing()"></div>
-        <button class="btn btn-primary" onclick="loadMarketing()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="from">من</label><input type="date" class="form-input" id="marketingDateFrom" onchange="loadMarketing()"></div>
+        <div class="filter-group"><label data-i18n="to">إلى</label><input type="date" class="form-input" id="marketingDateTo" onchange="loadMarketing()"></div>
+        <button class="btn btn-primary" onclick="loadMarketing()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
-      <div class="kpi-grid" id="marketingKpis"><div class="kpi-card"><div class="loading">Loading...</div></div></div>
-      <div class="card"><div id="marketingTableContainer"><div class="loading">Loading marketing data...</div></div></div>
+      <div class="kpi-grid" id="marketingKpis"><div class="kpi-card"><div class="loading">...</div></div></div>
+      <div class="card"><div id="marketingTableContainer"><div class="loading">...</div></div></div>
     </section>
     <section class="page-section" id="page-social">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Social Media</h1><button class="btn btn-primary" onclick="openAddSocialModal()">+ Add Record</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_social">التواصل الاجتماعي</h1><button class="btn btn-primary" onclick="openAddSocialModal()">+ <span data-i18n="add_record">إضافة سجل</span></button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="socialDateFrom" onchange="loadSocial()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="socialDateTo" onchange="loadSocial()"></div>
-        <button class="btn btn-primary" onclick="loadSocial()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="from">من</label><input type="date" class="form-input" id="socialDateFrom" onchange="loadSocial()"></div>
+        <div class="filter-group"><label data-i18n="to">إلى</label><input type="date" class="form-input" id="socialDateTo" onchange="loadSocial()"></div>
+        <button class="btn btn-primary" onclick="loadSocial()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
-      <div class="kpi-grid" id="socialKpis"><div class="kpi-card"><div class="loading">Loading...</div></div></div>
-      <div class="card"><div id="socialTableContainer"><div class="loading">Loading social data...</div></div></div>
+      <div class="kpi-grid" id="socialKpis"><div class="kpi-card"><div class="loading">...</div></div></div>
+      <div class="card"><div id="socialTableContainer"><div class="loading">...</div></div></div>
     </section>
     <section class="page-section" id="page-satisfaction">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Customer Satisfaction</h1><button class="btn btn-primary" onclick="openAddSatisfactionModal()">+ Add Record</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_satisfaction">رضا العملاء</h1><button class="btn btn-primary" onclick="openAddSatisfactionModal()">+ <span data-i18n="add_record">إضافة سجل</span></button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="satisfactionDateFrom" onchange="loadSatisfaction()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="satisfactionDateTo" onchange="loadSatisfaction()"></div>
-        <button class="btn btn-primary" onclick="loadSatisfaction()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="from">من</label><input type="date" class="form-input" id="satisfactionDateFrom" onchange="loadSatisfaction()"></div>
+        <div class="filter-group"><label data-i18n="to">إلى</label><input type="date" class="form-input" id="satisfactionDateTo" onchange="loadSatisfaction()"></div>
+        <button class="btn btn-primary" onclick="loadSatisfaction()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
       <div class="card" id="satisfactionStats"></div>
-      <div class="card"><div id="satisfactionTableContainer"><div class="loading">Loading...</div></div></div>
+      <div class="card"><div id="satisfactionTableContainer"><div class="loading">...</div></div></div>
     </section>
     <section class="page-section" id="page-nps">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Net Promoter Score</h1><button class="btn btn-primary" onclick="openAddNPSModal()">+ Add Record</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_nps">مؤشر NPS</h1><button class="btn btn-primary" onclick="openAddNPSModal()">+ <span data-i18n="add_record">إضافة سجل</span></button></div>
       <div class="filter-bar">
-        <div class="filter-group"><label>From</label><input type="date" class="form-input" id="npsDateFrom" onchange="loadNPS()"></div>
-        <div class="filter-group"><label>To</label><input type="date" class="form-input" id="npsDateTo" onchange="loadNPS()"></div>
-        <button class="btn btn-primary" onclick="loadNPS()">🔄 Refresh</button>
+        <div class="filter-group"><label data-i18n="from">من</label><input type="date" class="form-input" id="npsDateFrom" onchange="loadNPS()"></div>
+        <div class="filter-group"><label data-i18n="to">إلى</label><input type="date" class="form-input" id="npsDateTo" onchange="loadNPS()"></div>
+        <button class="btn btn-primary" onclick="loadNPS()">🔄 <span data-i18n="refresh">تحديث</span></button>
       </div>
       <div class="card" id="npsStats"></div>
-      <div class="card"><div id="npsTableContainer"><div class="loading">Loading...</div></div></div>
+      <div class="card"><div id="npsTableContainer"><div class="loading">...</div></div></div>
     </section>
     <section class="page-section" id="page-members">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;">Team Members</h1><button class="btn btn-primary" onclick="openAddMemberModal()">+ Add Member</button></div>
-      <div class="card"><div id="membersTableContainer"><div class="loading">Loading members...</div></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;"><h1 style="font-size:28px;font-weight:800;" data-i18n="page_members">أعضاء الفريق</h1><button class="btn btn-primary" onclick="openAddMemberModal()">+ <span data-i18n="add_member">إضافة عضو</span></button></div>
+      <div class="card"><div id="membersTableContainer"><div class="loading"><span data-i18n="loading_members">جاري تحميل الأعضاء...</span></div></div></div>
     </section>
   </main>
 </div>
