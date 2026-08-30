@@ -1,4 +1,5 @@
 /**
+ * UNIFICATION FIX (2026-08-31): Replaced Security_currentUser() with Session.getActiveUser().getEmail()
  * Global triggers: onEdit, time-based, event-based.
  */
 
@@ -12,7 +13,7 @@ function onEdit(e) {
       sheet: sheetName, 
       row: e.range.getRow(), 
       col: e.range.getColumn(),
-      user: Security.currentUser()
+      user: Session.getActiveUser().getEmail()
     });
     
     // Route to module-specific handlers via EventBus
@@ -21,7 +22,7 @@ function onEdit(e) {
       range: e.range,
       value: e.value,
       oldValue: e.oldValue,
-      user: Security.currentUser()
+      user: Session.getActiveUser().getEmail()
     });
   }
   

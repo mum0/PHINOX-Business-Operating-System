@@ -26,12 +26,25 @@ var CONFIG = (function() {
         INVENTORY: 'Inventory',
         FINANCE: 'Finance',
         SALES: 'Sales',
-        LOGS: 'Logs',
         SETTINGS: 'Settings',
+        KPI: 'KPI',
         KPI_RESULTS: 'KPI Results',
         FINANCE_LEDGER: 'Finance Ledger',
-        FINANCE_EXPENSES: 'Finance Expenses'
- 
+        FINANCE_EXPENSES: 'Finance Expenses',
+        SUPPLIERS: 'Suppliers',
+        ORDERS: 'Orders',
+        REPORTS: 'Reports',
+        CUSTOMERS: 'Customers',
+        MARKETING: 'Marketing',
+        SOCIAL: 'Social',
+        SATISFACTION: 'Satisfaction',
+        NPS: 'NPS',
+        BOM: 'BOM',
+        BOM_ITEM: 'BOM_ITEM',
+        EXPENSES: 'Expenses',
+        AUDIT: 'Audit Log',
+        APPROVALS: 'Approval Requests',
+        ARCHIVE: 'Archive'
       },
       
       COLUMNS: {

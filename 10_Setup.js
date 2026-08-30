@@ -3,14 +3,21 @@
 // ═══════════════════════════════════════════════════════════════════════════════════
 // CRITICAL: Members headers MUST match MEMBER_COL in 13_Permissions.js exactly.
 // Any column order change here MUST be reflected in MEMBER_COL constants.
-// Also includes auto-migration from old 9-column to new 12-column Members format.
+// Also includes auto-migration from old 9-column to new 14-column Members format.
 // UPDATE (2026-08-27): Added menu refresh after setup completes.
+// AUDIT FIXES (2026-08-31):
+//   - Added 'department' as 13th column in Members headers
+//   - Removed duplicate 'AuditLog' sheet (kept 'Audit Log')
+//   - Added cleanup of old/duplicate sheets in run()
+// AUTH SYSTEM (2026-08-31):
+//   - Added 'passwordHash' as 14th column in Members headers
+//   - Updated migration to support 14-column format
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 var SHEET_CONFIGS = {
   'Members': {
-    headers: ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes','password'],
-    widths: [22, 20, 14, 28, 16, 12, 16, 10, 12, 10, 12, 30, 30]
+    headers: ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes','department','passwordHash'],
+    widths: [22, 20, 14, 28, 16, 12, 16, 10, 12, 10, 12, 30, 18, 35]
   },
   'Tasks': {
     headers: ['id','title','description','assigneeEmail','priority','status','dueDate','createdAt','completedAt','approvedBy','notes'],
@@ -48,8 +55,8 @@ var SHEET_CONFIGS = {
     headers: ['id','date','user','action','sheet','recordId','oldValue','newValue'],
     widths: [22, 18, 25, 20, 14, 22, 30, 30]
   },
-  'Approvals': {
-    headers: ['id','type','requester','requestDate','targetSheet','targetId','details','status','approver','approvalDate','notes'],
+  'Approval Requests': {
+    headers: ['Request ID','Type','Requester','Date','Target Sheet','Target ID','Details','Status','Approver','Approval Date','Notes'],
     widths: [22, 18, 22, 16, 16, 22, 40, 14, 22, 16, 30]
   },
   'Archive': {
@@ -91,16 +98,14 @@ var SHEET_CONFIGS = {
   'Expenses': {
     headers: ['id','date','category','amount','description','submittedBy','status','approvedBy','approvedAt','postedToAccount','account','receiptUrl','notes'],
     widths: [22, 14, 16, 14, 30, 22, 14, 22, 16, 18, 18, 25, 30]
-  },
-  // NEW (2026-08-27): AuditLog sheet for security logging
-  'AuditLog': {
-    headers: ['timestamp','userEmail','userRole','action','target','details','status','ip'],
-    widths: [20, 25, 14, 20, 25, 40, 12, 20]
   }
+  // NOTE: 'AuditLog' removed — was duplicate of 'Audit Log'.
+  // NOTE: 'Approvals' renamed to 'Approval Requests'.
 };
 
 /**
- * Auto-migrate Members sheet from old 9-column format to new 12-column format.
+ * Auto-migrate Members sheet from old format to new 14-column format.
+ * Handles: 9-col -> 13-col, 13-col -> 14-col (add passwordHash)
  */
 function _migrateMembersIfNeeded(opt_ss) {
   var ss = opt_ss || SpreadsheetApp.getActiveSpreadsheet();
@@ -167,7 +172,8 @@ function _migrateMembersIfNeeded(opt_ss) {
       oldIdx.kpi   !== undefined ? row[oldIdx.kpi]   : 0,
       0, 0, 0,
       '',
-      ''
+      oldIdx.dept  !== undefined ? row[oldIdx.dept]  : 'General',
+      '' // passwordHash — empty for migrated users (they use Google login)
     ]);
   }
 
@@ -183,7 +189,8 @@ function _migrateMembersIfNeeded(opt_ss) {
       new Date().toISOString().split('T')[0],
       0, 0, 0, 0,
       'Initial admin created by Setup migration',
-      ''
+      'General',
+      '' // passwordHash
     ]);
     console.log('[SETUP] No existing data. Seeded default Admin: ' + currentUser);
   }
@@ -201,61 +208,32 @@ function _migrateMembersIfNeeded(opt_ss) {
     newSheet.setColumnWidth(w + 1, widths[w]);
   }
 
-  console.log('[SETUP] Members migration done! ' + newRows.length + ' rows → new 13-column format.');
+  console.log('[SETUP] Members migration done! ' + newRows.length + ' rows -> new 14-column format.');
 }
 
-
-/**
- * Ensure Members sheet has the 13th column (password).
- * Called by password functions before writing.
- */
-function _addPasswordColumnIfNeeded(opt_sheet) {
-  var sheet = opt_sheet || SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Members');
-  if (!sheet) return null;
-  var lastCol = sheet.getLastColumn();
-  if (lastCol >= 13) {
-    // Verify header
-    var hdr = sheet.getRange(1, 13, 1, 1).getValue();
-    if (String(hdr).toLowerCase() === 'password') return sheet;
-  }
-  console.log('[SETUP] Adding password column (col 13) to Members sheet. Current cols: ' + lastCol);
-  sheet.getRange(1, 13, 1, 1).setValue('password');
-  sheet.getRange(1, 13, 1, 1)
-    .setFontWeight('bold')
-    .setBackground('#1a237e')
-    .setFontColor('#ffffff');
-  sheet.setColumnWidth(13, 30);
-  console.log('[SETUP] Password column added successfully.');
-  return sheet;
-}
-
-/**
- * Migrate Members from 12 to 13 columns (add password column).
- */
-function _migrateMembers12to13(opt_ss) {
-  var ss = opt_ss || SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Members');
-  if (!sheet) return;
-  var lastCol = sheet.getLastColumn();
-  if (lastCol >= 13) {
-    var hdr = sheet.getRange(1, 13, 1, 1).getValue();
-    if (String(hdr).toLowerCase() === 'password') return;
-  }
-  _addPasswordColumnIfNeeded(sheet);
-  console.log('[SETUP] Members 12→13 migration done (password column added).');
-}
 
 function run() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   console.log('[SETUP] Starting sheet initialization...');
 
-  // ── Step 1: Migrate Members if columns are outdated ──
+  // -- Step 1: Migrate Members if columns are outdated --
   _migrateMembersIfNeeded(ss);
 
-  // ── Step 1.5: Migrate Members 12→13 (add password column) ──
-  _migrateMembers12to13(ss);
+  // -- Step 2: Clean up duplicate/old sheets --
+  var sheetsToRemove = ['AuditLog', 'Approvals'];
+  for (var s = 0; s < sheetsToRemove.length; s++) {
+    try {
+      var oldSheet = ss.getSheetByName(sheetsToRemove[s]);
+      if (oldSheet) {
+        console.log('[SETUP] Removing duplicate/old sheet: ' + sheetsToRemove[s]);
+        ss.deleteSheet(oldSheet);
+      }
+    } catch (e) {
+      console.log('[SETUP] Could not remove ' + sheetsToRemove[s] + ': ' + e.message);
+    }
+  }
 
-  // ── Step 2: Create / verify all sheets ──
+  // -- Step 3: Create / verify all sheets --
   var sheetNames = Object.keys(SHEET_CONFIGS);
   for (var i = 0; i < sheetNames.length; i++) {
     var name = sheetNames[i];
@@ -293,7 +271,7 @@ function run() {
 
   console.log('[SETUP] Done. ' + sheetNames.length + ' sheets verified.');
 
-  // ── Step 3: Refresh menu so new items appear immediately ──
+  // -- Step 4: Refresh menu so new items appear immediately --
   try {
     if (typeof onOpen === 'function') {
       onOpen();
@@ -303,9 +281,9 @@ function run() {
     console.log('[SETUP] Menu refresh skipped: ' + e.message);
   }
 
-  // ── Step 4: Show completion message ──
+  // -- Step 5: Show completion message --
   try {
-    SpreadsheetApp.getUi().alert('PHINOX BOS Setup Complete', 'All sheets verified and menu refreshed.\n\nNew security features active:\n• Rate Limiting\n• Audit Logging\n• Input Validation\n• Security Tests', SpreadsheetApp.getUi().ButtonSet.OK);
+    SpreadsheetApp.getUi().alert('PHINOX BOS Setup Complete', 'All sheets verified and menu refreshed.\n\n' + sheetNames.length + ' sheets active.\n\nChanges applied:\n- Members: 14 columns (added department + passwordHash)\n- Removed duplicate AuditLog\n- Renamed Approvals -> Approval Requests', SpreadsheetApp.getUi().ButtonSet.OK);
   } catch (e) {
     console.log('[SETUP] ' + e.message);
   }

@@ -1,5 +1,9 @@
 // 00_RateLimiter.gs — PHINOX BOS v5 Enterprise
 // ============================================
+// SECURITY FIX (2026-08-27) + UNIFICATION FIX (2026-08-31):
+//   - Replaced Security* calls with 13_Permissions.js functions
+//   - SecuritygetUserRole() → isAdmin(getCurrentMember())
+//   - SecurityrequireAdmin() → isAdmin(getCurrentMember())
 // SECURITY FIX (2026-08-27):
 //   - Replaced AppLogger with Logger module (03_Logger.js)
 //   - All logging calls now use Logger.info / Logger.error
@@ -34,8 +38,8 @@ var RateLimiter = (function() {
 
   function _isAdmin(email) {
     try {
-      var role = Security.getUserRole();
-      return ['ADMIN', 'CEO', 'SUPER_ADMIN', 'OWNER'].indexOf(role) !== -1;
+      var member = getCurrentMember();
+      return member ? isAdmin(member) : false;
     } catch (e) {
       return false;
     }
@@ -104,7 +108,7 @@ var RateLimiter = (function() {
     },
 
     reset: function(targetEmail) {
-      Security.requireAdmin();
+      if (!isAdmin(getCurrentMember())) throw new Error('Admin access required');
       var cache = _getCache();
       var key = _getKey(targetEmail, 'all');
       cache.put(key, '0', WINDOW_SECONDS);

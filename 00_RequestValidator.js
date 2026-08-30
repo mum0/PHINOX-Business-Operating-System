@@ -2,6 +2,7 @@
 // ============================================
 // جديد: طبقة التحقق من المدخلات والتطهير
 // يُستخدم في كل نقاط النهاية (UI_Server.js)
+// UNIFICATION FIX (2026-08-31): Replaced Security_* with 13_Permissions.js
 // تاريخ الإنشاء: 2026-08-27
 // ============================================
 
@@ -192,7 +193,9 @@ const RequestValidator = (function() {
      * @throws {Error}
      */
     validateRole: function(requiredPermission) {
-      Security.requirePermission(requiredPermission);
+      var member = getCurrentMember();
+      if (!member) throw new Error('Authentication required');
+      requirePermission(member, requiredPermission);
     },
 
     /**
@@ -200,7 +203,7 @@ const RequestValidator = (function() {
      * @throws {Error}
      */
     validateAdmin: function() {
-      Security.requireAdmin();
+      if (!isAdmin(getCurrentMember())) throw new Error('Admin access required');
     },
 
     // ─── 4. تطهير كائن كامل ───

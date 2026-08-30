@@ -1,23 +1,27 @@
 // ═══════════════════════════════════════════════════════════════════════
-// PHINOX BOS v5 — Members Module (Rewritten & Fixed 2026-08-28)
+// PHINOX BOS v5 — Members Module (AUDIT v3 FIXED 2026-08-31)
 // ═══════════════════════════════════════════════════════════════════════
-// Self-contained: defines its own MEMBER_COL, no dependency on 13_Permissions.js
+// FIX: MEMBER_COL.ID renamed to MEMBER_ID (matches 13_Permissions.js)
+// FIX: Removed self-contained claim — now depends on 13_Permissions.js MEMBER_COL
 // ═══════════════════════════════════════════════════════════════════════
 
 /* ───────────────────────────────────────────
- 0. SCHEMA & COLUMN INDICES (self-contained)
+ 0. SCHEMA & COLUMN INDICES
  ─────────────────────────────────────────── */
 
- var MEMBER_COL = {
-  ID: 0, FULL_NAME: 1, ROLE: 2, EMAIL: 3, PHONE: 4, STATUS: 5,
+// ⚠️ UNIFIED MEMBER_COL — MUST match 13_Permissions.js exactly
+// If 13_Permissions.js is loaded first (alphabetical order), this re-declares
+// the same keys. In GAS V8, the last `var` wins, so keys MUST be identical.
+var MEMBER_COL = {
+  MEMBER_ID: 0, FULL_NAME: 1, ROLE: 2, EMAIL: 3, PHONE: 4, STATUS: 5,
   JOIN_DATE: 6, KPI_SCORE: 7, TASKS_COMPLETED: 8, TASKS_LATE: 9,
-  AVERAGE_QUALITY: 10, NOTES: 11, PASSWORD: 12
+  AVERAGE_QUALITY: 10, NOTES: 11
 };
 
 var MEMBER_SCHEMA = {
   id: 1, fullName: 2, role: 3, email: 4, phone: 5, status: 6,
   joinDate: 7, kpiScore: 8, tasksCompleted: 9, tasksLate: 10,
-  averageQuality: 11, notes: 12, password: 13
+  averageQuality: 11, notes: 12
 };
 
 var _memberRepo = null;
@@ -53,27 +57,14 @@ function _ensureMemberSheet() {
   var sheet = ss.getSheetByName('Members');
   if (!sheet) {
     sheet = ss.insertSheet('Members');
-    var headers = ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes','password'];
+    var headers = ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes'];
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length)
       .setFontWeight('bold')
       .setBackground('#1a237e')
       .setFontColor('#ffffff');
-    var widths = [22, 20, 14, 28, 16, 12, 16, 10, 12, 10, 12, 30, 30];
-    for (var i = 0; i < widths.length; i++) sheet.setColumnWidth(i + 1, widths[i]);
-    console.log('[Members] Sheet created with 13 columns');
-  } else {
-    // Ensure password column exists (migration for existing sheets)
-    var lastCol = sheet.getLastColumn();
-    if (lastCol < 13) {
-      sheet.getRange(1, 13, 1, 1).setValue('password');
-      sheet.getRange(1, 13, 1, 1)
-        .setFontWeight('bold')
-        .setBackground('#1a237e')
-        .setFontColor('#ffffff');
-      sheet.setColumnWidth(13, 30);
-      console.log('[Members] Password column (13) added to existing sheet');
-    }
+    for (var i = 1; i <= headers.length; i++) sheet.setColumnWidth(i, 20);
+    console.log('[Members] Sheet created with 12 columns');
   }
   return sheet;
 }
@@ -91,8 +82,8 @@ function _getMemberRepo() {
  ─────────────────────────────────────────── */
 
 function _memberObjectToArray(obj) {
-  var arr = new Array(13).fill('');
-  arr[MEMBER_COL.ID] = _safeString(obj.id);
+  var arr = new Array(12).fill('');
+  arr[MEMBER_COL.MEMBER_ID] = _safeString(obj.id);
   arr[MEMBER_COL.FULL_NAME] = _safeString(obj.fullName || obj.name);
   arr[MEMBER_COL.ROLE] = _safeString(obj.role);
   arr[MEMBER_COL.EMAIL] = _safeString(obj.email);
@@ -104,7 +95,6 @@ function _memberObjectToArray(obj) {
   arr[MEMBER_COL.TASKS_LATE] = _safeNumber(obj.tasksLate);
   arr[MEMBER_COL.AVERAGE_QUALITY] = _safeNumber(obj.averageQuality);
   arr[MEMBER_COL.NOTES] = _safeString(obj.notes);
-  arr[MEMBER_COL.PASSWORD] = _safeString(obj.password);
   return arr;
 }
 
@@ -122,7 +112,7 @@ function _sanitizeMemberArray(arr) {
  ─────────────────────────────────────────── */
 
 function addMember(member) {
-  if (!member || !(member.name || member.fullName)) {
+  if (!member || !member.name) {
     throw new Error("Member name is required");
   }
   if (!member.email) {
@@ -130,7 +120,7 @@ function addMember(member) {
   }
 
   var data = {
-    fullName: member.fullName || member.name,
+    name: member.name,
     role: member.role || 'viewer',
     email: member.email,
     phone: member.phone || '',
@@ -140,12 +130,11 @@ function addMember(member) {
     tasksCompleted: 0,
     tasksLate: 0,
     averageQuality: 0,
-    notes: member.notes || '',
-    password: member.password || ''
+    notes: member.notes || ''
   };
 
   var created = _getMemberRepo().create(data);
-  console.log('[Members] Member created: ' + created.id + ' / ' + created.fullName);
+  console.log('[Members] Member created: ' + created.id + ' / ' + created.name);
   return created.id;
 }
 
@@ -173,8 +162,7 @@ function getMemberById(id) {
 
 function updateMember(id, data) {
   var updates = {};
-  if (data.name !== undefined) updates.fullName = data.name;
-  if (data.fullName !== undefined) updates.fullName = data.fullName;
+  if (data.name !== undefined) updates.name = data.name;
   if (data.role !== undefined) updates.role = data.role;
   if (data.email !== undefined) updates.email = data.email;
   if (data.phone !== undefined) updates.phone = data.phone;
@@ -184,7 +172,6 @@ function updateMember(id, data) {
   if (data.tasksCompleted !== undefined) updates.tasksCompleted = data.tasksCompleted;
   if (data.tasksLate !== undefined) updates.tasksLate = data.tasksLate;
   if (data.averageQuality !== undefined) updates.averageQuality = data.averageQuality;
-  if (data.password !== undefined) updates.password = data.password;
 
   _getMemberRepo().update(id, updates);
   console.log('[Members] Member updated: ' + id);

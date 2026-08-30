@@ -1,5 +1,9 @@
 // 00_AuditLog.gs — PHINOX BOS v5 Enterprise
 // ============================================
+// SECURITY FIX (2026-08-27) + UNIFICATION FIX (2026-08-31):
+//   - Replaced Security* calls with 13_Permissions.js functions
+//   - SecuritygetUserRole() → getCurrentMember() + getRole()
+//   - SecurityrequireAdmin() → isAdmin(getCurrentMember())
 // SECURITY FIX (2026-08-27):
 //   - Replaced AppLogger with Logger module (03_Logger.js)
 //   - All logging calls now use Logger.info / Logger.error
@@ -29,7 +33,8 @@ var AuditLog = (function() {
   function _getUserInfo() {
     try {
       var email = Session.getActiveUser().getEmail();
-      var role = Security.getUserRole();
+      var member = getCurrentMember();
+      var role = member ? getRole(member) : 'unknown';
       return { email: email, role: role };
     } catch (e) {
       return { email: 'unknown', role: 'unknown' };
@@ -80,7 +85,7 @@ var AuditLog = (function() {
     },
 
     getRecent: function(count) {
-      Security.requireAdmin();
+      if (!isAdmin(getCurrentMember())) throw new Error('Admin access required');
       try {
         var sheet = _getOrCreateSheet();
         var lastRow = sheet.getLastRow();
@@ -108,7 +113,7 @@ var AuditLog = (function() {
     },
 
     search: function(filters) {
-      Security.requireAdmin();
+      if (!isAdmin(getCurrentMember())) throw new Error('Admin access required');
       try {
         var sheet = _getOrCreateSheet();
         var lastRow = sheet.getLastRow();
