@@ -46,7 +46,8 @@ function navigateTo(page) {
     social: loadSocial,
     satisfaction: loadSatisfaction,
     nps: loadNPS,
-    members: loadMembers
+    members: loadMembers,
+    registrations: loadRegistrations
   };
 
   if (loaders[page] && typeof loaders[page] === 'function') {

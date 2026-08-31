@@ -242,8 +242,11 @@ function _initLang() {
   applyTranslations();
 }
 
-// ─── SERVER BRIDGE (FIXED: no .apply — direct calls for GAS V8) ───
+// ─── SERVER BRIDGE (FIXED: capture args BEFORE Promise executor) ───
+// ⚠️ BUG FIX: arguments داخل Promise callback = [resolve, reject] وليس [action, ...args]
+//    كان كل callServer يبعت دالة reject للسيرفر بدل البيانات الحقيقية!
 function callServer(action) {
+  var outerArgs = Array.prototype.slice.call(arguments, 1); // ✅ نلتقط الأرغمنتات هنا
   return new Promise(function(resolve, reject) {
     if (typeof google === 'undefined' || !google.script || !google.script.run) {
       reject(new Error('google.script.run ' + t('auth_error')));
@@ -274,15 +277,14 @@ function callServer(action) {
       reject(new Error('Server function "' + action + '" not found'));
       return;
     }
-    // ✅ FIXED: direct calls بدل fn.apply — يمنع أخطاء GAS V8
-    var args = Array.prototype.slice.call(arguments, 1);
-    if (args.length === 0) fn();
-    else if (args.length === 1) fn(args[0]);
-    else if (args.length === 2) fn(args[0], args[1]);
-    else if (args.length === 3) fn(args[0], args[1], args[2]);
-    else if (args.length === 4) fn(args[0], args[1], args[2], args[3]);
-    else if (args.length === 5) fn(args[0], args[1], args[2], args[3], args[4]);
-    else fn.apply(runner, args); // fallback نادر
+    // ✅ FIXED: نستخدم outerArgs اللي التقطناها قبل Promise
+    if (outerArgs.length === 0) fn();
+    else if (outerArgs.length === 1) fn(outerArgs[0]);
+    else if (outerArgs.length === 2) fn(outerArgs[0], outerArgs[1]);
+    else if (outerArgs.length === 3) fn(outerArgs[0], outerArgs[1], outerArgs[2]);
+    else if (outerArgs.length === 4) fn(outerArgs[0], outerArgs[1], outerArgs[2], outerArgs[3]);
+    else if (outerArgs.length === 5) fn(outerArgs[0], outerArgs[1], outerArgs[2], outerArgs[3], outerArgs[4]);
+    else fn.apply(runner, outerArgs); // fallback نادر
   });
 }
 
@@ -600,54 +602,187 @@ function showRegisterForm() {
   }, 100);
 }
 
-function submitRegister(event) {
-  event.preventDefault();
-  var status = document.getElementById('registerStatus');
-  var submitBtn = document.getElementById('registerSubmitBtn');
 
-  status.style.display = 'block';
-  status.style.background = 'rgba(14,165,233,0.1)';
-  status.style.border = '1px solid rgba(14,165,233,0.3)';
-  status.style.color = '#38BDF8';
-  status.textContent = _currentLang === 'ar' ? 'جاري التسجيل...' : 'Registering...';
-  if (submitBtn) submitBtn.disabled = true;
+/* ---------------------------------------------------------------
+   تحديث دالة التسجيل بالنقر العادي (بريد إلكتروني)
+   استبدل دالة submitRegister الحالية بهذا الكود
+   --------------------------------------------------------------- */
+   function submitRegister(e) {
+  if (e) e.preventDefault();
 
-  var data = {
-    fullName: document.getElementById('regFullName').value.trim(),
-    email: document.getElementById('regEmail').value.trim(),
-    password: document.getElementById('regPassword').value,
-    role: document.getElementById('regRole').value,
-    department: document.getElementById('regDepartment').value.trim()
-  };
+  var nameEl = document.getElementById('reg-name');
+  var emailEl = document.getElementById('reg-email');
+  var passEl = document.getElementById('reg-password');
+  var deptEl = document.getElementById('reg-department');
 
-  callServer('uiRegisterMember', data).then(function(res) {
-    var result = res.data;
-    if (result && result.token && result.user) {
-      status.style.background = 'rgba(22,163,74,0.1)';
-      status.style.border = '1px solid rgba(22,163,74,0.3)';
-      status.style.color = '#4ADE80';
-      status.textContent = _currentLang === 'ar' ? 'تم التسجيل بنجاح! جاري تسجيل الدخول...' : 'Registration successful! Signing in...';
+  var displayName = nameEl ? nameEl.value.trim() : '';
+  var email = emailEl ? emailEl.value.trim() : '';
+  var password = passEl ? passEl.value : '';
+  var department = deptEl ? deptEl.value : '';
 
-      _authToken = result.token;
-      try { localStorage.setItem('phinox_session', result.token); } catch(e) {}
-      _currentUser = result.user;
-      _onAuthSuccess(_currentUser);
-    } else {
-      _showRegisterError('حدث خطأ غير متوقع');
-    }
-  }).catch(function(err) {
-    _showRegisterError(err.message || 'خطأ غير معروف');
-  });
-
-  function _showRegisterError(msg) {
-    status.style.background = 'rgba(220,38,38,0.1)';
-    status.style.border = '1px solid rgba(220,38,38,0.3)';
-    status.style.color = '#F87171';
-    status.textContent = msg;
-    if (submitBtn) submitBtn.disabled = false;
+  if (!displayName || !email || !password) {
+    _showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
+    return;
   }
+  if (password.length < 6) {
+    _showToast('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+    return;
+  }
+
+  // إظهار حالة التحميل
+  var btn = document.querySelector('#register-form button[type=submit]');
+  var origText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'جاري الإرسال...'; }
+
+  callServer('uiRegisterWithEmail', {
+    displayName: displayName,
+    email: email,
+    password: password,
+    department: department
+  })
+  .then(function(result) {
+    _showRegisterSuccessOverlay(result.message);
+  })
+  .catch(function(err) {
+    _showToast(err.message || 'حدث خطأ في التسجيل', 'error');
+  })
+  .finally(function() {
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
+  });
 }
 
+/* ---------------------------------------------------------------
+   تحديث تسجيل Google ليعمل مع نظام الموافقة
+   استبدل دالة submitGoogleRegister أو أضفها إذا لم تكن موجودة
+   --------------------------------------------------------------- */
+function submitGoogleRegister(profile) {
+  // إظهار حالة التحميل
+  _showToast('جاري إرسال طلب التسجيل...', 'info');
+
+  callServer('uiRegisterWithGoogle', {
+    email: profile.email || profile.getEmail(),
+    name: profile.name || profile.getName(),
+    picture: profile.picture || profile.getImageUrl(),
+    id: profile.id || profile.getId()
+  })
+  .then(function(result) {
+    _showRegisterSuccessOverlay(result.message);
+  })
+  .catch(function(err) {
+    _showToast(err.message || 'حدث خطأ في التسجيل', 'error');
+  });
+}
+
+/* ---------------------------------------------------------------
+   نافذة نجاح التسجيل (بدلاً من تسجيل الدخول المباشر)
+   --------------------------------------------------------------- */
+function _showRegisterSuccessOverlay(message) {
+  // إخفاء نموذج التسجيل
+  var regSection = document.getElementById('register-section');
+  if (regSection) regSection.style.display = 'none';
+
+  // إنشاء نافذة النجاح
+  var overlay = document.createElement('div');
+  overlay.className = 'register-success-overlay';
+  overlay.id = 'register-success-overlay';
+  overlay.innerHTML =
+    '<div class="register-success-box">' +
+      '<div style="width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">' +
+        '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' +
+      '</div>' +
+      '<h3>تم إرسال طلب التسجيل</h3>' +
+      '<p>' + (message || 'تم إرسال طلبك بنجاح. سيتم مراجعته من قبل الإدارة وسيتم إشعارك بالنتيجة.') + '</p>' +
+      '<button class="btn btn-primary btn-lg" onclick="_closeRegisterSuccess()">حسناً</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function _closeRegisterSuccess() {
+  var overlay = document.getElementById('register-success-overlay');
+  if (overlay) overlay.remove();
+  // العودة لتسجيل الدخول
+  _showLoginOverlay();
+}
+
+/* ---------------------------------------------------------------
+   تحديث تسجيل الدخول بالبريد (مع التحقق من الحالة)
+   إذا كان العضو محظوراً، أظهر رسالة واضحة
+   --------------------------------------------------------------- */
+function submitLogin(e) {
+  if (e) e.preventDefault();
+
+  var emailEl = document.getElementById('login-email');
+  var passEl = document.getElementById('login-password');
+  var email = emailEl ? emailEl.value.trim() : '';
+  var password = passEl ? passEl.value : '';
+
+  if (!email || !password) {
+    _showToast('يرجى إدخال البريد وكلمة المرور', 'error');
+    return;
+  }
+
+  var btn = document.querySelector('#login-form button[type=submit]');
+  var origText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'جاري الدخول...'; }
+
+  callServer('uiLoginWithEmail', email, password)
+    .then(function(result) {
+      if (result.success) {
+        // التحقق من الدور لعرض الداشبورد
+        if (result.user && (result.user.role === 'admin' || result.user.role === 'ceo')) {
+          showDashboard();
+          _setupDashUser(result.user);
+        } else {
+          _showMemberView(result.user);
+        }
+      } else {
+        _showToast(result.message || 'فشل تسجيل الدخول', 'error');
+      }
+    })
+    .catch(function(err) {
+      _showToast(err.message || 'حدث خطأ', 'error');
+    })
+    .finally(function() {
+      if (btn) { btn.disabled = false; btn.textContent = origText; }
+    });
+}
+
+/* ---------------------------------------------------------------
+   إعداد بيانات المستخدم في الداشبورد
+   --------------------------------------------------------------- */
+function _setupDashUser(user) {
+  var userInfo = document.getElementById('dash-user-info');
+  if (userInfo && user) {
+    var avatarHtml = user.photoUrl
+      ? '<img src="' + user.photoUrl + '" class="user-avatar-sm" onerror="this.style.display=\'none\'">'
+      : '<div class="user-avatar-sm" style="background:' + _avatarColor(user.email) + ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">' + _initials(user.displayName) + '</div>';
+    userInfo.innerHTML = avatarHtml + '<span>' + (user.displayName || user.email) + '</span>';
+  }
+
+  hideDashboard();
+  showDashboard();
+}
+
+/* ---------------------------------------------------------------
+   عرض واجهة العضو العادي (غير الداشبورد)
+   --------------------------------------------------------------- */
+function _showMemberView(user) {
+  // إخفاء نموذج الدخول
+  var loginOverlay = document.getElementById('login-overlay');
+  if (loginOverlay) loginOverlay.style.display = 'none';
+
+  // يمكنك إضافة واجهة مخصصة للأعضاء العاديين هنا
+  // حالياً نظهر رسالة ترحيب
+  var main = document.getElementById('main-content') || document.querySelector('main') || document.body;
+  var welcome = document.createElement('div');
+  welcome.style.cssText = 'display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px;';
+  welcome.innerHTML =
+    '<div style="font-size:48px;color:#3b82f6;">PHINOX</div>' +
+    '<h2 style="color:#fff;margin:0;">مرحباً، ' + (user.displayName || user.email) + '</h2>' +
+    '<p style="color:#64748b;margin:0;">تم تسجيل الدخول بنجاح</p>' +
+    '<button class="btn btn-secondary" onclick="handleLogout()" style="margin-top:20px;">تسجيل الخروج</button>';
+  main.appendChild(welcome);
+}
 function _showLoginForm() {
   var overlay = document.getElementById('authOverlay');
   if (overlay) overlay.remove();

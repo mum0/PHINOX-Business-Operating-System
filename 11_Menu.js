@@ -162,6 +162,7 @@ function onOpen(e) {
       ui.createMenu('🛡️ Admin')
         .addItem('View Logs', 'menuViewLogs')
         .addItem('Flush Logger', 'menuFlushLogger')
+        .addItem('Pending Registrations', 'menuShowPendingRegistrations')
         .addItem('Audit Log', 'showAuditLog')
         .addSeparator()
         .addItem('Auth Session Summary', 'menuAdminSessionSummary')

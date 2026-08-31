@@ -13,9 +13,19 @@
 // If 13_Permissions.js is loaded first (alphabetical order), this re-declares
 // the same keys. In GAS V8, the last `var` wins, so keys MUST be identical.
 var MEMBER_COL = {
-  MEMBER_ID: 0, FULL_NAME: 1, ROLE: 2, EMAIL: 3, PHONE: 4, STATUS: 5,
-  JOIN_DATE: 6, KPI_SCORE: 7, TASKS_COMPLETED: 8, TASKS_LATE: 9,
-  AVERAGE_QUALITY: 10, NOTES: 11
+  ID:             0,
+  EMAIL:          1,
+  DISPLAY_NAME:   2,
+  PHOTO_URL:      3,
+  GOOGLE_ID:      4,
+  PROVIDER:       5,
+  ROLE:           6,
+  STATUS:         7,
+  CREATED_AT:     8,
+  UPDATED_AT:     9,
+  LAST_LOGIN:     10,
+  DEPARTMENT:     11,
+  PASSWORD_HASH:  12
 };
 
 var MEMBER_SCHEMA = {

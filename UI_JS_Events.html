@@ -179,6 +179,11 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
     submitAddSale();
   }
+  else if (action === 'confirm-reject-reg') {
+  e.preventDefault();
+  confirmRejectReg();
+  }
+
 });
 
 // initAuthSystem() مُستدعَى بالفعل من UI_JS_Core.html — لا حاجة لتكراره

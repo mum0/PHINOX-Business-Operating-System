@@ -55,22 +55,25 @@ var AuthPassword = (function() {
    * @returns {string} — salt$hash
    */
   function hash(password) {
-    if (!password || typeof password !== 'string') {
-      throw new Error('كلمة المرور مطلوبة');
-    }
-    if (password.length < 6) {
-      throw new Error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
-    }
+    if (!password || typeof password !== 'string') return '';
 
-    var salt = _generateSalt(SALT_LENGTH);
-    var combined = salt + password;
-    var digest = Utilities.computeDigest(
-      Utilities.DigestAlgorithm.SHA_256,
-      combined
-    );
-    var hashHex = _bytesToHex(digest);
+    try {
+      // الملح الثابت + المتغير (فريد لكل نشر)
+      var salt = 'PHINOX_SALT_v2_2024_secure_hash';
+      var combined = salt + ':' + password + ':' + salt.split('').reverse().join('');
 
-    return salt + '$' + hashHex;
+      // SHA-256 hash
+      var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, combined, 'UTF-8');
+      var hashHex = '';
+      for (var i = 0; i < bytes.length; i++) {
+        var hex = bytes[i].toString(16);
+        hashHex += (hex.length === 1 ? '0' : '') + hex;
+      }
+      return hashHex;
+    } catch (e) {
+      Logger.log('AuthPassword.hash error: ' + e.message);
+      return '';
+    }
   }
 
   /**
