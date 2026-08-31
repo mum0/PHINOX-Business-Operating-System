@@ -1,1080 +1,1060 @@
 <script>
-// ═══════════════════════════════════════════════════════
-// SECURITY HELPERS
-// ═══════════════════════════════════════════════════════
-function escAttr(str) {
-  return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// ═══════════════════════════════════════════════════════
-// CORE / AUTH / ROUTER — PHINOX BOS v6 (Auth-Integrated)
-// ═══════════════════════════════════════════════════════
-
-// ─── GLOBALS ───
-var _currentUser = null;
-var _currentLang = 'ar';
-var _currentTheme = 'dark';
-var _customerCache = [];
-var _inventoryCache = [];
-var _expenseCache = [];
-var _taskCache = [];
-var _memberCache = [];
-var _marketingCache = [];
-var _socialCache = [];
-var _satisfactionCache = [];
-var _npsCache = [];
-var _expenseTab = 'all';
-var _bomComponents = [];
-var _currentBOM = null;
-var _orderCache = [];
-var _notifications = { pendingRegistrations: 0, overdueTasks: 0, lowStockItems: 0, pendingExpenses: 0 };
-var _revenueChartInstance = null;
-var _authToken = null; // ✅ token الجلسة الحالية
-var _authInitStarted = false; // ✅ منع الاستدعاء المتكرر لـ initAuthSystem
-
-// ═══════════════════════════════════════════════════════
-// i18n — Arabic / English Translations
-// ═══════════════════════════════════════════════════════
-var _i18n = {
-  ar: {
-    nav_dashboard: 'لوحة التحكم', nav_kpi: 'المؤشرات', nav_customers: 'العملاء',
-    nav_orders: 'الطلبات', nav_sales: 'المبيعات', nav_inventory: 'المخزون',
-    nav_finance: 'المالية', nav_expenses: 'المصروفات', nav_approvals: 'الموافقات',
-    nav_tasks: 'المهام', nav_marketing: 'التسويق', nav_social: 'التواصل الاجتماعي',
-    nav_satisfaction: 'رضا العملاء', nav_nps: 'NPS', nav_members: 'أعضاء الفريق',
-    nav_section_main: 'الرئيسية',
-    nav_section_sales: 'المبيعات والعمليات',
-    nav_section_finance: 'المالية',
-    nav_section_mgmt: 'الإدارة',
-    nav_section_analytics: 'التحليلات',
-    nav_section_system: 'النظام',
-    pending_registrations: 'تسجيلات معلّقة',
-    overdue_tasks: 'مهام متأخرة',
-    low_stock_items: 'أصناف منخفضة المخزون',
-    pending_expenses: 'مصروفات معلّقة',
-    page_dashboard: 'لوحة التحكم', page_kpi: 'المؤشرات الرئيسية',
-    page_customers: 'العملاء', page_orders: 'الطلبات', page_sales: 'المبيعات',
-    page_inventory: 'المخزون', page_finance: 'المالية', page_expenses: 'المصروفات',
-    page_approvals: 'الموافقات المعلقة', page_tasks: 'المهام',
-    page_marketing: 'التسويق', page_social: 'التواصل الاجتماعي',
-    page_satisfaction: 'رضا العملاء', page_nps: 'مؤشر NPS', page_members: 'أعضاء الفريق',
-    loading: 'جاري التحميل...', loading_kpis: 'جاري تحميل المؤشرات...',
-    loading_customers: 'جاري تحميل العملاء...', loading_orders: 'جاري تحميل الطلبات...',
-    loading_sales: 'جاري تحميل المبيعات...', loading_inventory: 'جاري تحميل المخزون...',
-    loading_expenses: 'جاري تحميل المصروفات...', loading_tasks: 'جاري تحميل المهام...',
-    loading_members: 'جاري تحميل الأعضاء...',
-    revenue_trend: 'اتجاه الإيرادات', recent_orders: 'أحدث الطلبات',
-    add_customer: 'إضافة عميل', new_order: 'طلب جديد', record_sale: 'تسجيل بيع',
-    add_item: 'إضافة عنصر', new_expense: 'مصروف جديد', new_task: 'مهمة جديدة',
-    add_record: 'إضافة سجل', add_member: 'إضافة عضو',
-    low_stock: 'مخزون منخفض', out_of_stock: 'نفذ المخزون',
-    refresh: 'تحديث', search: 'بحث', status: 'الحالة', period: 'الفترة',
-    ref_date: 'تاريخ مرجعي', from: 'من', to: 'إلى', category: 'الفئة',
-    all: 'الكل', pending: 'معلّق', approved: 'مقبول', rejected: 'مرفوض',
-    posted: 'مرحّل', active: 'نشط', inactive: 'غير نشط',
-    confirmed: 'مؤكد', shipped: 'تم الشحن', delivered: 'تم التسليم', cancelled: 'ملغي',
-    in_progress: 'قيد التنفيذ', completed: 'مكتمل', overdue: 'متأخر',
-    in_stock: 'متوفر', all_categories: 'كل الفئات',
-    general_ledger: 'دفتر الأستاذ العام',
-    search_placeholder: 'الاسم، البريد، الهاتف...',
-    inv_search_placeholder: 'SKU، الاسم، الفئة...',
-    monthly: 'شهري', quarterly: 'ربع سنوي', yearly: 'سنوي',
-    logout: 'تسجيل الخروج', no_data: 'لا توجد بيانات',
-    revenue: 'الإيرادات', expenses: 'المصروفات', profit: 'الربح',
-    customers: 'العملاء', inventory_items: 'عناصر المخزون',
-    no_customers: 'لا يوجد عملاء', no_orders: 'لا يوجد طلبات',
-    no_sales: 'لا توجد مبيعات',
-    auth_login_title: 'تسجيل الدخول',
-    auth_email: 'البريد الإلكتروني',
-    auth_password: 'كلمة المرور',
-    auth_login_btn: 'تسجيل الدخول',
-    auth_login_google: 'تسجيل الدخول عبر Google',
-    auth_guest: 'متابعة كضيف',
-    auth_checking: 'جاري التحقق من هويتك...',
-    auth_connecting: 'جاري الاتصال بالسيرفر...',
-    auth_retry: 'إعادة المحاولة',
-    auth_failed: 'فشل تسجيل الدخول',
-    auth_error: 'خطأ في الاتصال بالسيرفر',
-    auth_invalid_session: 'انتهت صلاحية الجلسة',
-    auth_welcome: 'مرحباً',
-    welcome: 'مرحباً',
-    guest_skip: 'متابعة كضيف',
-    dark_mode: 'الوضع الداكن', light_mode: 'الوضع الفاتح',
-    switch_lang: 'English', edit: 'تعديل', delete: 'حذف',
-    name: 'الاسم', email: 'البريد الإلكتروني', phone: 'الهاتف',
-    notes: 'ملاحظات', amount: 'المبلغ', date: 'التاريخ',
-    customer: 'العميل', product: 'المنتج', quantity: 'الكمية',
-    id: 'الرقم', actions: 'الإجراءات'
-  },
-  en: {
-    nav_dashboard: 'Dashboard', nav_kpi: 'KPIs', nav_customers: 'Customers',
-    nav_orders: 'Orders', nav_sales: 'Sales', nav_inventory: 'Inventory',
-    nav_finance: 'Finance', nav_expenses: 'Expenses', nav_approvals: 'Approvals',
-    nav_tasks: 'Tasks', nav_marketing: 'Marketing', nav_social: 'Social Media',
-    nav_satisfaction: 'Satisfaction', nav_nps: 'NPS', nav_members: 'Team Members',
-    nav_section_main: 'Overview',
-    nav_section_sales: 'Sales & Operations',
-    nav_section_finance: 'Finance',
-    nav_section_mgmt: 'Management',
-    nav_section_analytics: 'Analytics',
-    nav_section_system: 'System',
-    pending_registrations: 'Pending registrations',
-    overdue_tasks: 'Overdue tasks',
-    low_stock_items: 'Low stock items',
-    pending_expenses: 'Pending expenses',
-    page_dashboard: 'Dashboard', page_kpi: 'Key Performance Indicators',
-    page_customers: 'Customers', page_orders: 'Orders', page_sales: 'Sales',
-    page_inventory: 'Inventory', page_finance: 'Finance', page_expenses: 'Expenses',
-    page_approvals: 'Pending Approvals', page_tasks: 'Tasks',
-    page_marketing: 'Marketing', page_social: 'Social Media',
-    page_satisfaction: 'Customer Satisfaction', page_nps: 'Net Promoter Score',
-    page_members: 'Team Members',
-    loading: 'Loading...', loading_kpis: 'Loading KPIs...',
-    loading_customers: 'Loading customers...', loading_orders: 'Loading orders...',
-    loading_sales: 'Loading sales...', loading_inventory: 'Loading inventory...',
-    loading_expenses: 'Loading expenses...', loading_tasks: 'Loading tasks...',
-    loading_members: 'Loading members...',
-    revenue_trend: 'Revenue Trend', recent_orders: 'Recent Orders',
-    add_customer: 'Add Customer', new_order: 'New Order', record_sale: 'Record Sale',
-    add_item: 'Add Item', new_expense: 'New Expense', new_task: 'New Task',
-    add_record: 'Add Record', add_member: 'Add Member',
-    low_stock: 'Low Stock', out_of_stock: 'Out of Stock',
-    refresh: 'Refresh', search: 'Search', status: 'Status', period: 'Period',
-    ref_date: 'Reference Date', from: 'From', to: 'To', category: 'Category',
-    all: 'All', pending: 'Pending', approved: 'Approved', rejected: 'Rejected',
-    posted: 'Posted', active: 'Active', inactive: 'Inactive',
-    confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
-    in_progress: 'In Progress', completed: 'Completed', overdue: 'Overdue',
-    in_stock: 'In Stock', all_categories: 'All Categories',
-    general_ledger: 'General Ledger',
-    search_placeholder: 'Name, email, phone...',
-    inv_search_placeholder: 'SKU, name, category...',
-    monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly',
-    logout: 'Logout', no_data: 'No data',
-    revenue: 'Revenue', expenses: 'Expenses', profit: 'Profit',
-    customers: 'Customers', inventory_items: 'Inventory Items',
-    no_customers: 'No customers found', no_orders: 'No orders found',
-    no_sales: 'No sales found',
-    auth_login_title: 'Login',
-    auth_email: 'Email',
-    auth_password: 'Password',
-    auth_login_btn: 'Login',
-    auth_login_google: 'Login with Google',
-    auth_guest: 'Continue as Guest',
-    auth_checking: 'Verifying your identity...',
-    auth_connecting: 'Connecting to server...',
-    auth_retry: 'Retry',
-    auth_failed: 'Login failed',
-    auth_error: 'Server connection error',
-    auth_invalid_session: 'Session expired',
-    auth_welcome: 'Welcome',
-    welcome: 'Welcome',
-    guest_skip: 'Continue as Guest',
-    dark_mode: 'Dark Mode', light_mode: 'Light Mode',
-    switch_lang: 'عربي', edit: 'Edit', delete: 'Delete',
-    name: 'Name', email: 'Email', phone: 'Phone',
-    notes: 'Notes', amount: 'Amount', date: 'Date',
-    customer: 'Customer', product: 'Product', quantity: 'Quantity',
-    id: 'ID', actions: 'Actions'
+  // ═══════════════════════════════════════════════════════
+  // SECURITY HELPERS
+  // ═══════════════════════════════════════════════════════
+  function escAttr(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
-};
-
-function t(key) {
-  return (_i18n[_currentLang] && _i18n[_currentLang][key]) || key;
-}
-
-function applyTranslations() {
-  document.querySelectorAll('[data-i18n]').forEach(function(el) {
-    var key = el.getAttribute('data-i18n');
-    el.textContent = t(key);
-  });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
-    var key = el.getAttribute('data-i18n-placeholder');
-    el.setAttribute('placeholder', t(key));
-  });
-  document.querySelectorAll('[data-i18n-opt]').forEach(function(el) {
-    var key = el.getAttribute('data-i18n-opt');
-    el.textContent = t(key);
-  });
-}
-
-// ═══════════════════════════════════════════════════════
-// THEME TOGGLE
-// ═══════════════════════════════════════════════════════
-function toggleTheme() {
-  _currentTheme = (_currentTheme === 'dark') ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', _currentTheme);
-  var btn = document.getElementById('themeToggle');
-  if (btn) btn.textContent = _currentTheme === 'dark' ? '\u{1F319}' : '\u2600\uFE0F';
-  try { localStorage.setItem('phinox_theme', _currentTheme); } catch(e) {}
-  if (_revenueChartInstance) { try { loadRevenueChart(); } catch(e) {} }
-}
-
-function _initTheme() {
-  try { var saved = localStorage.getItem('phinox_theme'); if (saved === 'light' || saved === 'dark') _currentTheme = saved; } catch(e) {}
-  document.documentElement.setAttribute('data-theme', _currentTheme);
-  var btn = document.getElementById('themeToggle');
-  if (btn) btn.textContent = _currentTheme === 'dark' ? '\u{1F319}' : '\u2600\uFE0F';
-}
-
-// ═══════════════════════════════════════════════════════
-// LANGUAGE TOGGLE
-// ═══════════════════════════════════════════════════════
-function toggleLang() {
-  _currentLang = (_currentLang === 'ar') ? 'en' : 'ar';
-  var html = document.documentElement;
-  html.setAttribute('lang', _currentLang);
-  html.setAttribute('dir', _currentLang === 'ar' ? 'rtl' : 'ltr');
-  var btn = document.getElementById('langToggle');
-  if (btn) btn.textContent = _currentLang === 'ar' ? 'EN' : 'عربي';
-  applyTranslations();
-  try { localStorage.setItem('phinox_lang', _currentLang); } catch(e) {}
-  if (_revenueChartInstance) { try { loadRevenueChart(); } catch(e) {} }
-}
-
-function _initLang() {
-  try { var saved = localStorage.getItem('phinox_lang'); if (saved === 'ar' || saved === 'en') _currentLang = saved; } catch(e) {}
-  var html = document.documentElement;
-  html.setAttribute('lang', _currentLang);
-  html.setAttribute('dir', _currentLang === 'ar' ? 'rtl' : 'ltr');
-  var btn = document.getElementById('langToggle');
-  if (btn) btn.textContent = _currentLang === 'ar' ? 'EN' : 'عربي';
-  applyTranslations();
-}
-
-// ─── SERVER BRIDGE (FIXED: capture args BEFORE Promise executor) ───
-// ⚠️ BUG FIX: arguments داخل Promise callback = [resolve, reject] وليس [action, ...args]
-//    كان كل callServer يبعت دالة reject للسيرفر بدل البيانات الحقيقية!
-function callServer(action) {
-  var outerArgs = Array.prototype.slice.call(arguments, 1); // ✅ نلتقط الأرغمنتات هنا
-  return new Promise(function(resolve, reject) {
-    if (typeof google === 'undefined' || !google.script || !google.script.run) {
-      reject(new Error('google.script.run ' + t('auth_error')));
-      return;
+  
+  // ═══════════════════════════════════════════════════════
+  // CORE / AUTH / ROUTER — PHINOX BOS v6 (Auth-Integrated)
+  // ═══════════════════════════════════════════════════════
+  
+  // ─── GLOBALS ───
+  var _currentUser = null;
+  var _currentLang = 'ar';
+  var _currentTheme = 'dark';
+  var _customerCache = [];
+  var _inventoryCache = [];
+  var _expenseCache = [];
+  var _taskCache = [];
+  var _memberCache = [];
+  var _marketingCache = [];
+  var _socialCache = [];
+  var _satisfactionCache = [];
+  var _npsCache = [];
+  var _expenseTab = 'all';
+  var _bomComponents = [];
+  var _currentBOM = null;
+  var _orderCache = [];
+  var _notifications = { pendingRegistrations: 0, overdueTasks: 0, lowStockItems: 0, pendingExpenses: 0 };
+  var _revenueChartInstance = null;
+  var _authToken = null; // ✅ token الجلسة الحالية
+  var _authInitStarted = false; // ✅ منع الاستدعاء المتكرر لـ initAuthSystem
+  
+  // ═══════════════════════════════════════════════════════
+  // i18n — Arabic / English Translations
+  // ═══════════════════════════════════════════════════════
+  var _i18n = {
+    ar: {
+      nav_dashboard: 'لوحة التحكم', nav_kpi: 'المؤشرات', nav_customers: 'العملاء',
+      nav_orders: 'الطلبات', nav_sales: 'المبيعات', nav_inventory: 'المخزون',
+      nav_finance: 'المالية', nav_expenses: 'المصروفات', nav_approvals: 'الموافقات',
+      nav_tasks: 'المهام', nav_marketing: 'التسويق', nav_social: 'التواصل الاجتماعي',
+      nav_satisfaction: 'رضا العملاء', nav_nps: 'NPS', nav_members: 'أعضاء الفريق',
+      nav_section_main: 'الرئيسية',
+      nav_section_sales: 'المبيعات والعمليات',
+      nav_section_finance: 'المالية',
+      nav_section_mgmt: 'الإدارة',
+      nav_section_analytics: 'التحليلات',
+      nav_section_system: 'النظام',
+      pending_registrations: 'تسجيلات معلّقة',
+      overdue_tasks: 'مهام متأخرة',
+      low_stock_items: 'أصناف منخفضة المخزون',
+      pending_expenses: 'مصروفات معلّقة',
+      page_dashboard: 'لوحة التحكم', page_kpi: 'المؤشرات الرئيسية',
+      page_customers: 'العملاء', page_orders: 'الطلبات', page_sales: 'المبيعات',
+      page_inventory: 'المخزون', page_finance: 'المالية', page_expenses: 'المصروفات',
+      page_approvals: 'الموافقات المعلقة', page_tasks: 'المهام',
+      page_marketing: 'التسويق', page_social: 'التواصل الاجتماعي',
+      page_satisfaction: 'رضا العملاء', page_nps: 'مؤشر NPS', page_members: 'أعضاء الفريق',
+      loading: 'جاري التحميل...', loading_kpis: 'جاري تحميل المؤشرات...',
+      loading_customers: 'جاري تحميل العملاء...', loading_orders: 'جاري تحميل الطلبات...',
+      loading_sales: 'جاري تحميل المبيعات...', loading_inventory: 'جاري تحميل المخزون...',
+      loading_expenses: 'جاري تحميل المصروفات...', loading_tasks: 'جاري تحميل المهام...',
+      loading_members: 'جاري تحميل الأعضاء...',
+      revenue_trend: 'اتجاه الإيرادات', recent_orders: 'أحدث الطلبات',
+      add_customer: 'إضافة عميل', new_order: 'طلب جديد', record_sale: 'تسجيل بيع',
+      add_item: 'إضافة عنصر', new_expense: 'مصروف جديد', new_task: 'مهمة جديدة',
+      add_record: 'إضافة سجل', add_member: 'إضافة عضو',
+      low_stock: 'مخزون منخفض', out_of_stock: 'نفذ المخزون',
+      refresh: 'تحديث', search: 'بحث', status: 'الحالة', period: 'الفترة',
+      ref_date: 'تاريخ مرجعي', from: 'من', to: 'إلى', category: 'الفئة',
+      all: 'الكل', pending: 'معلّق', approved: 'مقبول', rejected: 'مرفوض',
+      posted: 'مرحّل', active: 'نشط', inactive: 'غير نشط',
+      confirmed: 'مؤكد', shipped: 'تم الشحن', delivered: 'تم التسليم', cancelled: 'ملغي',
+      in_progress: 'قيد التنفيذ', completed: 'مكتمل', overdue: 'متأخر',
+      in_stock: 'متوفر', all_categories: 'كل الفئات',
+      general_ledger: 'دفتر الأستاذ العام',
+      search_placeholder: 'الاسم، البريد، الهاتف...',
+      inv_search_placeholder: 'SKU، الاسم، الفئة...',
+      monthly: 'شهري', quarterly: 'ربع سنوي', yearly: 'سنوي',
+      logout: 'تسجيل الخروج', no_data: 'لا توجد بيانات',
+      revenue: 'الإيرادات', expenses: 'المصروفات', profit: 'الربح',
+      customers: 'العملاء', inventory_items: 'عناصر المخزون',
+      no_customers: 'لا يوجد عملاء', no_orders: 'لا يوجد طلبات',
+      no_sales: 'لا توجد مبيعات',
+      auth_login_title: 'تسجيل الدخول',
+      auth_email: 'البريد الإلكتروني',
+      auth_password: 'كلمة المرور',
+      auth_login_btn: 'تسجيل الدخول',
+      auth_login_google: 'تسجيل الدخول عبر Google',
+      auth_guest: 'متابعة كضيف',
+      auth_checking: 'جاري التحقق من هويتك...',
+      auth_connecting: 'جاري الاتصال بالسيرفر...',
+      auth_retry: 'إعادة المحاولة',
+      auth_failed: 'فشل تسجيل الدخول',
+      auth_error: 'خطأ في الاتصال بالسيرفر',
+      auth_invalid_session: 'انتهت صلاحية الجلسة',
+      auth_welcome: 'مرحباً',
+      welcome: 'مرحباً',
+      guest_skip: 'متابعة كضيف',
+      dark_mode: 'الوضع الداكن', light_mode: 'الوضع الفاتح',
+      switch_lang: 'English', edit: 'تعديل', delete: 'حذف',
+      name: 'الاسم', email: 'البريد الإلكتروني', phone: 'الهاتف',
+      notes: 'ملاحظات', amount: 'المبلغ', date: 'التاريخ',
+      customer: 'العميل', product: 'المنتج', quantity: 'الكمية',
+      id: 'الرقم', actions: 'الإجراءات'
+    },
+    en: {
+      nav_dashboard: 'Dashboard', nav_kpi: 'KPIs', nav_customers: 'Customers',
+      nav_orders: 'Orders', nav_sales: 'Sales', nav_inventory: 'Inventory',
+      nav_finance: 'Finance', nav_expenses: 'Expenses', nav_approvals: 'Approvals',
+      nav_tasks: 'Tasks', nav_marketing: 'Marketing', nav_social: 'Social Media',
+      nav_satisfaction: 'Satisfaction', nav_nps: 'NPS', nav_members: 'Team Members',
+      nav_section_main: 'Overview',
+      nav_section_sales: 'Sales & Operations',
+      nav_section_finance: 'Finance',
+      nav_section_mgmt: 'Management',
+      nav_section_analytics: 'Analytics',
+      nav_section_system: 'System',
+      pending_registrations: 'Pending registrations',
+      overdue_tasks: 'Overdue tasks',
+      low_stock_items: 'Low stock items',
+      pending_expenses: 'Pending expenses',
+      page_dashboard: 'Dashboard', page_kpi: 'Key Performance Indicators',
+      page_customers: 'Customers', page_orders: 'Orders', page_sales: 'Sales',
+      page_inventory: 'Inventory', page_finance: 'Finance', page_expenses: 'Expenses',
+      page_approvals: 'Pending Approvals', page_tasks: 'Tasks',
+      page_marketing: 'Marketing', page_social: 'Social Media',
+      page_satisfaction: 'Customer Satisfaction', page_nps: 'Net Promoter Score',
+      page_members: 'Team Members',
+      loading: 'Loading...', loading_kpis: 'Loading KPIs...',
+      loading_customers: 'Loading customers...', loading_orders: 'Loading orders...',
+      loading_sales: 'Loading sales...', loading_inventory: 'Loading inventory...',
+      loading_expenses: 'Loading expenses...', loading_tasks: 'Loading tasks...',
+      loading_members: 'Loading members...',
+      revenue_trend: 'Revenue Trend', recent_orders: 'Recent Orders',
+      add_customer: 'Add Customer', new_order: 'New Order', record_sale: 'Record Sale',
+      add_item: 'Add Item', new_expense: 'New Expense', new_task: 'New Task',
+      add_record: 'Add Record', add_member: 'Add Member',
+      low_stock: 'Low Stock', out_of_stock: 'Out of Stock',
+      refresh: 'Refresh', search: 'Search', status: 'Status', period: 'Period',
+      ref_date: 'Reference Date', from: 'From', to: 'To', category: 'Category',
+      all: 'All', pending: 'Pending', approved: 'Approved', rejected: 'Rejected',
+      posted: 'Posted', active: 'Active', inactive: 'Inactive',
+      confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
+      in_progress: 'In Progress', completed: 'Completed', overdue: 'Overdue',
+      in_stock: 'In Stock', all_categories: 'All Categories',
+      general_ledger: 'General Ledger',
+      search_placeholder: 'Name, email, phone...',
+      inv_search_placeholder: 'SKU, name, category...',
+      monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly',
+      logout: 'Logout', no_data: 'No data',
+      revenue: 'Revenue', expenses: 'Expenses', profit: 'Profit',
+      customers: 'Customers', inventory_items: 'Inventory Items',
+      no_customers: 'No customers found', no_orders: 'No orders found',
+      no_sales: 'No sales found',
+      auth_login_title: 'Login',
+      auth_email: 'Email',
+      auth_password: 'Password',
+      auth_login_btn: 'Login',
+      auth_login_google: 'Login with Google',
+      auth_guest: 'Continue as Guest',
+      auth_checking: 'Verifying your identity...',
+      auth_connecting: 'Connecting to server...',
+      auth_retry: 'Retry',
+      auth_failed: 'Login failed',
+      auth_error: 'Server connection error',
+      auth_invalid_session: 'Session expired',
+      auth_welcome: 'Welcome',
+      welcome: 'Welcome',
+      guest_skip: 'Continue as Guest',
+      dark_mode: 'Dark Mode', light_mode: 'Light Mode',
+      switch_lang: 'عربي', edit: 'Edit', delete: 'Delete',
+      name: 'Name', email: 'Email', phone: 'Phone',
+      notes: 'Notes', amount: 'Amount', date: 'Date',
+      customer: 'Customer', product: 'Product', quantity: 'Quantity',
+      id: 'ID', actions: 'Actions'
     }
-    var runner = google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && typeof res === 'object' && res.success === true && 'data' in res) {
-          resolve({ data: res.data });
-        } else if (res && typeof res === 'object' && res.success === false && res.error) {
-          reject(new Error(res.error));
-        } else {
-          resolve({ data: res });
-        }
-      })
-      .withFailureHandler(function(err) {
-        var msg = (err && err.message) ? err.message : String(err);
-        // google.script.run يرمي هذا الخطأ عند وجود Date/undefined في القيمة المرجعة
-        if (msg.indexOf('illegal value in property') !== -1 || msg.indexOf('Failed due to') !== -1) {
-          console.info('[callServer] Serialization error in ' + action + ' — will retry if needed');
-          reject(new Error('SERVER_SERIALIZATION_ERROR'));
-        } else {
-          reject(new Error(msg));
-        }
-      });
-    var fn = runner[action];
-    if (typeof fn !== 'function') {
-      reject(new Error('Server function "' + action + '" not found'));
-      return;
-    }
-    // ✅ FIXED: نستخدم outerArgs اللي التقطناها قبل Promise
-    if (outerArgs.length === 0) fn();
-    else if (outerArgs.length === 1) fn(outerArgs[0]);
-    else if (outerArgs.length === 2) fn(outerArgs[0], outerArgs[1]);
-    else if (outerArgs.length === 3) fn(outerArgs[0], outerArgs[1], outerArgs[2]);
-    else if (outerArgs.length === 4) fn(outerArgs[0], outerArgs[1], outerArgs[2], outerArgs[3]);
-    else if (outerArgs.length === 5) fn(outerArgs[0], outerArgs[1], outerArgs[2], outerArgs[3], outerArgs[4]);
-    else fn.apply(runner, outerArgs); // fallback نادر
-  });
-}
-
-// ─── XSS ESCAPE ───
-function esc(str) {
-  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// ─── TOASTS ───
-function showToast(message, type) {
-  type = type || 'success';
-  var container = document.getElementById('toastContainer');
-  if (!container) return;
-  var toast = document.createElement('div');
-  toast.className = 'toast ' + type;
-  var icon = type === 'success' ? '\u2705' : type === 'error' ? '\u274C' : type === 'warning' ? '\u26A0\uFE0F' : '\u2139\uFE0F';
-  toast.innerHTML = '<span style="font-size:18px">' + icon + '</span><span>' + esc(message) + '</span>';
-  container.appendChild(toast);
-  setTimeout(function() {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(20px)';
-    setTimeout(function() { toast.remove(); }, 300);
-  }, 4000);
-}
-
-// ─── MODALS ───
-function openModal(id) {
-  var el = document.getElementById(id || 'modalGeneric');
-  if (el) el.classList.add('active');
-}
-function closeModal(id) {
-  if (id) {
-    var el = document.getElementById(id); if (el) el.classList.remove('active');
-  } else {
-    document.querySelectorAll('.modal-overlay').forEach(function(el) { el.classList.remove('active'); });
-  }
-}
-function openGenericModal(title, bodyHtml, footerHtml) {
-  document.getElementById('modalGenericTitle').textContent = title || '';
-  document.getElementById('modalGenericBody').innerHTML = bodyHtml || '';
-  document.getElementById('modalGenericFooter').innerHTML = footerHtml || '';
-  openModal('modalGeneric');
-}
-
-// ─── DATE FORMATTERS ───
-function formatDate(dt) {
-  if (!dt) return '-';
-  var d = new Date(dt);
-  if (isNaN(d.getTime())) return String(dt);
-  var locale = _currentLang === 'ar' ? 'ar-EG' : 'en-US';
-  return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-function formatDateTime(dt) {
-  if (!dt) return '-';
-  var d = new Date(dt);
-  if (isNaN(d.getTime())) return String(dt);
-  var locale = _currentLang === 'ar' ? 'ar-EG' : 'en-US';
-  return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-// ─── PERMISSIONS ───
-function hasPerm(perm) {
-  if (!_currentUser || !_currentUser.permissions) return false;
-  var perms = _currentUser.permissions;
-  if (perms.indexOf('*') > -1 || perms.indexOf('admin') > -1 || perms.indexOf('Admin') > -1) return true;
-  return perms.indexOf(perm) > -1;
-}
-function isAdmin() {
-  return hasPerm('admin') || (_currentUser && (_currentUser.role === 'Admin' || _currentUser.role === 'CEO'));
-}
-
-// ─── LOGOUT ───
-function handleLogout() {
-  // تدمير الجلسة على السيرفر
-  if (_authToken) {
-    callServer('uiAuthLogout', _authToken).catch(function() {});
-    _authToken = null;
-    try { localStorage.removeItem('phinox_session'); } catch(e) {}
-  }
-  _currentUser = null;
-  // إظهار شاشة تسجيل الدخول من جديد
-  _showLoginOverlay();
-}
-
-// ═══════════════════════════════════════════════════════
-// AUTH SYSTEM v6 — Session-based with Login Screen
-// ═══════════════════════════════════════════════════════
-
-/**
- * إظهار شاشة تسجيل الدخول
- */
-function _showLoginOverlay() {
-  var existing = document.getElementById('authOverlay');
-  if (existing) { existing.style.display = 'flex'; return; }
-
-  var overlay = document.createElement('div');
-  overlay.id = 'authOverlay';
-  overlay.className = 'auth-overlay';
-  overlay.innerHTML =
-    '<div class="auth-card">' +
-    '<span class="auth-icon">\u2699\uFE0F</span>' +
-    '<h2 class="auth-title">PHINOX BOS</h2>' +
-    '<p class="auth-subtitle">' + t('auth_login_title') + '</p>' +
-
-    '<div id="authLoginForm" class="auth-form auth-form-enter">' +
-    '<div class="auth-field">' +
-    '<label>' + t('auth_email') + '</label>' +
-    '<input type="email" id="authEmailInput" class="form-input" placeholder="email@example.com">' +
-    '</div>' +
-    '<div class="auth-field">' +
-    '<label>' + t('auth_password') + '</label>' +
-    '<input type="password" id="authPasswordInput" class="form-input" placeholder="********" onkeydown="if(event.key===\'Enter\')_doLogin()">' +
-    '</div>' +
-    '<div id="authErrorMsg" class="auth-error"></div>' +
-    '<button id="authLoginBtn" class="auth-btn auth-btn-primary" onclick="_doLogin()">\u2699\uFE0F ' + t('auth_login_btn') + '</button>' +
-    '<button class="auth-btn auth-btn-google" onclick="_doGoogleLogin()">\u2709\uFE0F ' + t('auth_login_google') + '</button>' +
-    '<div class="auth-divider">' + (_currentLang === 'ar' ? 'أو' : 'or') + '</div>' +
-    '<button class="auth-btn auth-btn-register" onclick="showRegisterForm()"><span>\u2795 ' + (t('auth_register_btn') || 'إنشاء حساب جديد') + '</span></button>' +
-    '<button class="auth-btn auth-btn-ghost" onclick="_enterAsGuest()">\u23E9 ' + t('auth_guest') + '</button>' +
-    '</div>' +
-
-    '<div id="authLoading" class="auth-loading">' +
-    '<div class="auth-loading-spinner"></div>' +
-    '<div>' + t('auth_connecting') + '</div>' +
-    '</div>' +
-
-    '</div>';
-  document.body.appendChild(overlay);
-
-  setTimeout(function() {
-    var emailInput = document.getElementById('authEmailInput');
-    if (emailInput) emailInput.focus();
-  }, 100);
-}
-
-function _hideAuthOverlay() {
-  var el = document.getElementById('authOverlay');
-  if (el) el.style.display = 'none';
-}
-
-function _showAuthError(msg) {
-  var el = document.getElementById('authErrorMsg');
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.add('visible');
-}
-
-function _hideAuthError() {
-  var el = document.getElementById('authErrorMsg');
-  if (el) el.classList.remove('visible');
-}
-
-function _showAuthLoading() {
-  var form = document.getElementById('authLoginForm');
-  var loading = document.getElementById('authLoading');
-  if (form) form.style.display = 'none';
-  if (loading) loading.classList.add('visible');
-}
-
-function _showAuthForm() {
-  var form = document.getElementById('authLoginForm');
-  var loading = document.getElementById('authLoading');
-  if (form) form.style.display = 'block';
-  if (loading) loading.classList.remove('visible');
-}
-
-/**
- * تسجيل الدخول بالبريد وكلمة المرور
- */
-function _doLogin() {
-  var emailInput = document.getElementById('authEmailInput');
-  var passInput = document.getElementById('authPasswordInput');
-  if (!emailInput || !passInput) return;
-
-  var email = emailInput.value.trim();
-  var password = passInput.value;
-
-  if (!email || !password) {
-    _showAuthError(_currentLang === 'ar' ? 'البريد وكلمة المرور مطلوبان' : 'Email and password required');
-    return;
-  }
-
-  _hideAuthError();
-  _showAuthLoading();
-
-  callServer('uiLoginWithEmail', email, password).then(function(res) {
-    var data = res.data;
-    if (data && data.token && data.user) {
-      _authToken = data.token;
-      try { localStorage.setItem('phinox_session', data.token); } catch(e) {}
-      _currentUser = data.user;
-      _onAuthSuccess(_currentUser);
-    } else {
-      _showAuthForm();
-      _showAuthError(t('auth_failed'));
-    }
-  }).catch(function(err) {
-    _showAuthForm();
-    _showAuthError(err.message || t('auth_error'));
-  });
-}
-
-/**
- * تسجيل الدخول عبر Google
- */
-function _doGoogleLogin() {
-  _hideAuthError();
-  _showAuthLoading();
-
-  callServer('uiLoginWithGoogle').then(function(res) {
-    var data = res.data;
-    if (data && data.token && data.user) {
-      _authToken = data.token;
-      try { localStorage.setItem('phinox_session', data.token); } catch(e) {}
-      _currentUser = data.user;
-      _onAuthSuccess(_currentUser);
-    } else {
-      _showAuthForm();
-      _showAuthError(t('auth_failed'));
-    }
-  }).catch(function(err) {
-    _showAuthForm();
-    _showAuthError(err.message || t('auth_error'));
-  });
-}
-
-/**
- * الدخول كضيف (بدون صلاحيات)
- */
-function _enterAsGuest() {
-  _currentUser = {
-    email: 'guest@phinox.local',
-    role: 'Guest',
-    name: _currentLang === 'ar' ? 'زائر' : 'Guest',
-    permissions: []
   };
-  _onAuthSuccess(_currentUser);
-}
-
-// ─── PASSWORD STRENGTH CHECKER ───
-function _checkPwdStrength(pwd) {
-  var bar = document.getElementById('pwdStrengthBar');
-  var txt = document.getElementById('pwdStrengthText');
-  if (!bar || !txt) return;
-  bar.className = 'pwd-strength-bar';
-  if (!pwd || pwd.length < 1) { txt.textContent = ''; return; }
-  var score = 0;
-  if (pwd.length >= 6) score++;
-  if (pwd.length >= 10) score++;
-  if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
-  if (/[0-9]/.test(pwd)) score++;
-  if (/[^a-zA-Z0-9]/.test(pwd)) score++;
-  if (score <= 2) {
-    bar.classList.add('strength-weak');
-    txt.textContent = _currentLang === 'ar' ? 'ضعيفة' : 'Weak';
-    txt.style.color = 'var(--danger)';
-  } else if (score <= 3) {
-    bar.classList.add('strength-medium');
-    txt.textContent = _currentLang === 'ar' ? 'متوسطة' : 'Medium';
-    txt.style.color = 'var(--warning)';
-  } else {
-    bar.classList.add('strength-strong');
-    txt.textContent = _currentLang === 'ar' ? 'قوية' : 'Strong';
-    txt.style.color = 'var(--success)';
+  
+  function t(key) {
+    return (_i18n[_currentLang] && _i18n[_currentLang][key]) || key;
   }
-}
-
-// ─── REGISTER NEW MEMBER ───
-function showRegisterForm() {
-  var overlay = document.getElementById('authOverlay');
-  if (!overlay) return;
-  overlay.innerHTML =
-    '<div class="auth-card">' +
-    '<span class="auth-icon">\u{1F4DD}</span>' +
-    '<h2 class="auth-title">' + (t('auth_register_title') || 'إنشاء حساب جديد') + '</h2>' +
-    '<p class="auth-subtitle">' + (t('auth_register_desc') || 'أدخل بياناتك للتسجيل في PHINOX BOS') + '</p>' +
-    '<form id="registerForm" class="auth-form auth-form-enter" onsubmit="submitRegister(event)">' +
-    '<div class="auth-field">' +
-    '<label>' + (t('auth_fullname') || 'الاسم الكامل') + ' *</label>' +
-    '<input type="text" id="regFullName" class="form-input" placeholder="' + (t('auth_fullname_ph') || 'مثال: أحمد محمد') + '" required>' +
-    '</div>' +
-    '<div class="auth-field">' +
-    '<label>' + (t('auth_email') || 'البريد الإلكتروني') + ' *</label>' +
-    '<input type="email" id="regEmail" class="form-input" placeholder="example@domain.com" required>' +
-    '</div>' +
-    '<div class="auth-field">' +
-    '<label>' + (t('auth_password') || 'كلمة المرور') + ' *</label>' +
-    '<input type="password" id="regPassword" class="form-input" placeholder="' + (t('auth_password_ph') || '6 أحرف على الأقل') + '" required minlength="6" oninput="_checkPwdStrength(this.value)">' +
-    '<div class="pwd-strength-bar" id="pwdStrengthBar"><div class="bar-segment"></div><div class="bar-segment"></div><div class="bar-segment"></div></div>' +
-    '<div class="pwd-strength-text" id="pwdStrengthText"></div>' +
-    '</div>' +
-    '<div class="auth-field">' +
-    '<label>' + (t('auth_role') || 'الدور') + ' (' + (t('auth_optional') || 'اختياري') + ')</label>' +
-    '<select id="regRole" class="form-select">' +
-    '<option value="Designer">مصمم (Designer)</option>' +
-    '<option value="Operations">عمليات (Operations)</option>' +
-    '<option value="Marketing">تسويق (Marketing)</option>' +
-    '<option value="Customer Service">خدمة عملاء</option>' +
-    '<option value="Finance">مالية (Finance)</option>' +
-    '</select>' +
-    '</div>' +
-    '<div class="auth-field">' +
-    '<label>' + (t('auth_department') || 'القسم') + ' (' + (t('auth_optional') || 'اختياري') + ')</label>' +
-    '<input type="text" id="regDepartment" class="form-input" placeholder="' + (t('auth_department_ph') || 'مثال: المبيعات') + '">' +
-    '</div>' +
-    '<div id="registerStatus" class="auth-error"></div>' +
-    '<button type="submit" id="registerSubmitBtn" class="auth-btn auth-btn-primary">' + (t('auth_register_submit') || 'إنشاء حساب') + '</button>' +
-    '<button type="button" class="auth-btn auth-btn-ghost" onclick="_showLoginForm()">\u21A9\uFE0F ' + (t('auth_back_to_login') || 'العودة لتسجيل الدخول') + '</button>' +
-    '</form>' +
-    '</div>';
-
-  setTimeout(function() {
-    var nameInput = document.getElementById('regFullName');
-    if (nameInput) nameInput.focus();
-  }, 100);
-}
-
-
-/* ---------------------------------------------------------------
-   تحديث دالة التسجيل بالنقر العادي (بريد إلكتروني)
-   استبدل دالة submitRegister الحالية بهذا الكود
-   --------------------------------------------------------------- */
-   function submitRegister(e) {
-  if (e) e.preventDefault();
-
-  var nameEl = document.getElementById('reg-name');
-  var emailEl = document.getElementById('reg-email');
-  var passEl = document.getElementById('reg-password');
-  var deptEl = document.getElementById('reg-department');
-
-  var displayName = nameEl ? nameEl.value.trim() : '';
-  var email = emailEl ? emailEl.value.trim() : '';
-  var password = passEl ? passEl.value : '';
-  var department = deptEl ? deptEl.value : '';
-
-  if (!displayName || !email || !password) {
-    _showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
-    return;
+  
+  function applyTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n');
+      el.textContent = t(key);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n-placeholder');
+      el.setAttribute('placeholder', t(key));
+    });
+    document.querySelectorAll('[data-i18n-opt]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n-opt');
+      el.textContent = t(key);
+    });
   }
-  if (password.length < 6) {
-    _showToast('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
-    return;
+  
+  // ═══════════════════════════════════════════════════════
+  // THEME TOGGLE
+  // ═══════════════════════════════════════════════════════
+  function toggleTheme() {
+    _currentTheme = (_currentTheme === 'dark') ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', _currentTheme);
+    var btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = _currentTheme === 'dark' ? '\u{1F319}' : '\u2600\uFE0F';
+    try { localStorage.setItem('phinox_theme', _currentTheme); } catch(e) {}
+    if (_revenueChartInstance) { try { loadRevenueChart(); } catch(e) {} }
   }
-
-  // إظهار حالة التحميل
-  var btn = document.querySelector('#register-form button[type=submit]');
-  var origText = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'جاري الإرسال...'; }
-
-  callServer('uiRegisterWithEmail', {
-    displayName: displayName,
-    email: email,
-    password: password,
-    department: department
-  })
-  .then(function(result) {
-    _showRegisterSuccessOverlay(result.message);
-  })
-  .catch(function(err) {
-    _showToast(err.message || 'حدث خطأ في التسجيل', 'error');
-  })
-  .finally(function() {
-    if (btn) { btn.disabled = false; btn.textContent = origText; }
-  });
-}
-
-/* ---------------------------------------------------------------
-   تحديث تسجيل Google ليعمل مع نظام الموافقة
-   استبدل دالة submitGoogleRegister أو أضفها إذا لم تكن موجودة
-   --------------------------------------------------------------- */
-function submitGoogleRegister(profile) {
-  // إظهار حالة التحميل
-  _showToast('جاري إرسال طلب التسجيل...', 'info');
-
-  callServer('uiRegisterWithGoogle', {
-    email: profile.email || profile.getEmail(),
-    name: profile.name || profile.getName(),
-    picture: profile.picture || profile.getImageUrl(),
-    id: profile.id || profile.getId()
-  })
-  .then(function(result) {
-    _showRegisterSuccessOverlay(result.message);
-  })
-  .catch(function(err) {
-    _showToast(err.message || 'حدث خطأ في التسجيل', 'error');
-  });
-}
-
-/* ---------------------------------------------------------------
-   نافذة نجاح التسجيل (بدلاً من تسجيل الدخول المباشر)
-   --------------------------------------------------------------- */
-function _showRegisterSuccessOverlay(message) {
-  // إخفاء نموذج التسجيل
-  var regSection = document.getElementById('register-section');
-  if (regSection) regSection.style.display = 'none';
-
-  // إنشاء نافذة النجاح
-  var overlay = document.createElement('div');
-  overlay.className = 'register-success-overlay';
-  overlay.id = 'register-success-overlay';
-  overlay.innerHTML =
-    '<div class="register-success-box">' +
-      '<div style="width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">' +
-        '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' +
-      '</div>' +
-      '<h3>تم إرسال طلب التسجيل</h3>' +
-      '<p>' + (message || 'تم إرسال طلبك بنجاح. سيتم مراجعته من قبل الإدارة وسيتم إشعارك بالنتيجة.') + '</p>' +
-      '<button class="btn btn-primary btn-lg" onclick="_closeRegisterSuccess()">حسناً</button>' +
-    '</div>';
-  document.body.appendChild(overlay);
-}
-
-function _closeRegisterSuccess() {
-  var overlay = document.getElementById('register-success-overlay');
-  if (overlay) overlay.remove();
-  // العودة لتسجيل الدخول
-  _showLoginOverlay();
-}
-
-/* ---------------------------------------------------------------
-   تحديث تسجيل الدخول بالبريد (مع التحقق من الحالة)
-   إذا كان العضو محظوراً، أظهر رسالة واضحة
-   --------------------------------------------------------------- */
-function submitLogin(e) {
-  if (e) e.preventDefault();
-
-  var emailEl = document.getElementById('login-email');
-  var passEl = document.getElementById('login-password');
-  var email = emailEl ? emailEl.value.trim() : '';
-  var password = passEl ? passEl.value : '';
-
-  if (!email || !password) {
-    _showToast('يرجى إدخال البريد وكلمة المرور', 'error');
-    return;
+  
+  function _initTheme() {
+    try { var saved = localStorage.getItem('phinox_theme'); if (saved === 'light' || saved === 'dark') _currentTheme = saved; } catch(e) {}
+    document.documentElement.setAttribute('data-theme', _currentTheme);
+    var btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = _currentTheme === 'dark' ? '\u{1F319}' : '\u2600\uFE0F';
   }
-
-  var btn = document.querySelector('#login-form button[type=submit]');
-  var origText = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'جاري الدخول...'; }
-
-  callServer('uiLoginWithEmail', email, password)
-    .then(function(result) {
-      if (result.success) {
-        // التحقق من الدور لعرض الداشبورد
-        if (result.user && (result.user.role === 'admin' || result.user.role === 'ceo')) {
-          showDashboard();
-          _setupDashUser(result.user);
-        } else {
-          _showMemberView(result.user);
-        }
-      } else {
-        _showToast(result.message || 'فشل تسجيل الدخول', 'error');
+  
+  // ═══════════════════════════════════════════════════════
+  // LANGUAGE TOGGLE
+  // ═══════════════════════════════════════════════════════
+  function toggleLang() {
+    _currentLang = (_currentLang === 'ar') ? 'en' : 'ar';
+    var html = document.documentElement;
+    html.setAttribute('lang', _currentLang);
+    html.setAttribute('dir', _currentLang === 'ar' ? 'rtl' : 'ltr');
+    var btn = document.getElementById('langToggle');
+    if (btn) btn.textContent = _currentLang === 'ar' ? 'EN' : 'عربي';
+    applyTranslations();
+    try { localStorage.setItem('phinox_lang', _currentLang); } catch(e) {}
+    if (_revenueChartInstance) { try { loadRevenueChart(); } catch(e) {} }
+  }
+  
+  function _initLang() {
+    try { var saved = localStorage.getItem('phinox_lang'); if (saved === 'ar' || saved === 'en') _currentLang = saved; } catch(e) {}
+    var html = document.documentElement;
+    html.setAttribute('lang', _currentLang);
+    html.setAttribute('dir', _currentLang === 'ar' ? 'rtl' : 'ltr');
+    var btn = document.getElementById('langToggle');
+    if (btn) btn.textContent = _currentLang === 'ar' ? 'EN' : 'عربي';
+    applyTranslations();
+  }
+  
+  // ─── SERVER BRIDGE (FIXED: capture args BEFORE Promise executor) ───
+  // ⚠️ BUG FIX: arguments داخل Promise callback = [resolve, reject] وليس [action, ...args]
+  //    كان كل callServer يبعت دالة reject للسيرفر بدل البيانات الحقيقية!
+  function callServer(action) {
+    var outerArgs = Array.prototype.slice.call(arguments, 1); // ✅ نلتقط الأرغمنتات هنا
+    return new Promise(function(resolve, reject) {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        reject(new Error('google.script.run ' + t('auth_error')));
+        return;
       }
+      var runner = google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && typeof res === 'object' && res.success === true && 'data' in res) {
+            resolve({ data: res.data });
+          } else if (res && typeof res === 'object' && res.success === false && res.error) {
+            reject(new Error(res.error));
+          } else {
+            resolve({ data: res });
+          }
+        })
+        .withFailureHandler(function(err) {
+          var msg = (err && err.message) ? err.message : String(err);
+          // google.script.run يرمي هذا الخطأ عند وجود Date/undefined في القيمة المرجعة
+          if (msg.indexOf('illegal value in property') !== -1 || msg.indexOf('Failed due to') !== -1) {
+            console.info('[callServer] Serialization error in ' + action + ' — will retry if needed');
+            reject(new Error('SERVER_SERIALIZATION_ERROR'));
+          } else {
+            reject(new Error(msg));
+          }
+        });
+      var fn = runner[action];
+      if (typeof fn !== 'function') {
+        reject(new Error('Server function "' + action + '" not found'));
+        return;
+      }
+      // ✅ FIXED: نستخدم outerArgs اللي التقطناها قبل Promise
+      if (outerArgs.length === 0) fn();
+      else if (outerArgs.length === 1) fn(outerArgs[0]);
+      else if (outerArgs.length === 2) fn(outerArgs[0], outerArgs[1]);
+      else if (outerArgs.length === 3) fn(outerArgs[0], outerArgs[1], outerArgs[2]);
+      else if (outerArgs.length === 4) fn(outerArgs[0], outerArgs[1], outerArgs[2], outerArgs[3]);
+      else if (outerArgs.length === 5) fn(outerArgs[0], outerArgs[1], outerArgs[2], outerArgs[3], outerArgs[4]);
+      else fn.apply(runner, outerArgs); // fallback نادر
+    });
+  }
+  
+  // ─── XSS ESCAPE ───
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  
+  // ─── TOASTS ───
+  function showToast(message, type) {
+    type = type || 'success';
+    var container = document.getElementById('toastContainer');
+    if (!container) return;
+    var toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    var icon = type === 'success' ? '\u2705' : type === 'error' ? '\u274C' : type === 'warning' ? '\u26A0\uFE0F' : '\u2139\uFE0F';
+    toast.innerHTML = '<span style="font-size:18px">' + icon + '</span><span>' + esc(message) + '</span>';
+    container.appendChild(toast);
+    setTimeout(function() {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(20px)';
+      setTimeout(function() { toast.remove(); }, 300);
+    }, 4000);
+  }
+  
+  // ─── MODALS ───
+  function openModal(id) {
+    var el = document.getElementById(id || 'modalGeneric');
+    if (el) el.classList.add('active');
+  }
+  function closeModal(id) {
+    if (id) {
+      var el = document.getElementById(id); if (el) el.classList.remove('active');
+    } else {
+      document.querySelectorAll('.modal-overlay').forEach(function(el) { el.classList.remove('active'); });
+    }
+  }
+  function openGenericModal(title, bodyHtml, footerHtml) {
+    document.getElementById('modalGenericTitle').textContent = title || '';
+    document.getElementById('modalGenericBody').innerHTML = bodyHtml || '';
+    document.getElementById('modalGenericFooter').innerHTML = footerHtml || '';
+    openModal('modalGeneric');
+  }
+  
+  // ─── DATE FORMATTERS ───
+  function formatDate(dt) {
+    if (!dt) return '-';
+    var d = new Date(dt);
+    if (isNaN(d.getTime())) return String(dt);
+    var locale = _currentLang === 'ar' ? 'ar-EG' : 'en-US';
+    return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  function formatDateTime(dt) {
+    if (!dt) return '-';
+    var d = new Date(dt);
+    if (isNaN(d.getTime())) return String(dt);
+    var locale = _currentLang === 'ar' ? 'ar-EG' : 'en-US';
+    return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  
+  // ─── PERMISSIONS ───
+  function hasPerm(perm) {
+    if (!_currentUser || !_currentUser.permissions) return false;
+    var perms = _currentUser.permissions;
+    if (perms.indexOf('*') > -1 || perms.indexOf('admin') > -1 || perms.indexOf('Admin') > -1) return true;
+    return perms.indexOf(perm) > -1;
+  }
+  function isAdmin() {
+    return hasPerm('admin') || (_currentUser && (_currentUser.role === 'Admin' || _currentUser.role === 'CEO'));
+  }
+  
+  // ─── LOGOUT ───
+  function handleLogout() {
+    // تدمير الجلسة على السيرفر
+    if (_authToken) {
+      callServer('uiAuthLogout', _authToken).catch(function() {});
+      _authToken = null;
+      try { localStorage.removeItem('phinox_session'); } catch(e) {}
+    }
+    _currentUser = null;
+    // إظهار شاشة تسجيل الدخول من جديد
+    _showLoginOverlay();
+  }
+  
+  // ═══════════════════════════════════════════════════════
+  // AUTH SYSTEM v6 — Session-based with Login Screen
+  // ═══════════════════════════════════════════════════════
+  
+  /**
+   * إظهار شاشة تسجيل الدخول
+   */
+  function _showLoginOverlay() {
+    var existing = document.getElementById('authOverlay');
+    if (existing) { existing.style.display = 'flex'; return; }
+  
+    var overlay = document.createElement('div');
+    overlay.id = 'authOverlay';
+    overlay.className = 'auth-overlay';
+    overlay.innerHTML =
+      '<div class="auth-card">' +
+      '<span class="auth-icon">\u2699\uFE0F</span>' +
+      '<h2 class="auth-title">PHINOX BOS</h2>' +
+      '<p class="auth-subtitle">' + t('auth_login_title') + '</p>' +
+  
+      '<div id="authLoginForm" class="auth-form auth-form-enter">' +
+      '<div class="auth-field">' +
+      '<label>' + t('auth_email') + '</label>' +
+      '<input type="email" id="authEmailInput" class="form-input" placeholder="email@example.com">' +
+      '</div>' +
+      '<div class="auth-field">' +
+      '<label>' + t('auth_password') + '</label>' +
+      '<input type="password" id="authPasswordInput" class="form-input" placeholder="********" onkeydown="if(event.key===\'Enter\')_doLogin()">' +
+      '</div>' +
+      '<div id="authErrorMsg" class="auth-error"></div>' +
+      '<button id="authLoginBtn" class="auth-btn auth-btn-primary" onclick="_doLogin()">\u2699\uFE0F ' + t('auth_login_btn') + '</button>' +
+      '<button class="auth-btn auth-btn-google" onclick="_doGoogleLogin()">\u2709\uFE0F ' + t('auth_login_google') + '</button>' +
+      '<div class="auth-divider">' + (_currentLang === 'ar' ? 'أو' : 'or') + '</div>' +
+      '<button class="auth-btn auth-btn-register" onclick="showRegisterForm()"><span>\u2795 ' + (t('auth_register_btn') || 'إنشاء حساب جديد') + '</span></button>' +
+      '<button class="auth-btn auth-btn-ghost" onclick="_enterAsGuest()">\u23E9 ' + t('auth_guest') + '</button>' +
+      '</div>' +
+  
+      '<div id="authLoading" class="auth-loading">' +
+      '<div class="auth-loading-spinner"></div>' +
+      '<div>' + t('auth_connecting') + '</div>' +
+      '</div>' +
+  
+      '</div>';
+    document.body.appendChild(overlay);
+  
+    setTimeout(function() {
+      var emailInput = document.getElementById('authEmailInput');
+      if (emailInput) emailInput.focus();
+    }, 100);
+  }
+  
+  function _hideAuthOverlay() {
+    var el = document.getElementById('authOverlay');
+    if (el) el.style.display = 'none';
+  }
+  
+  function _showAuthError(msg) {
+    var el = document.getElementById('authErrorMsg');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+  
+  function _hideAuthError() {
+    var el = document.getElementById('authErrorMsg');
+    if (el) el.classList.remove('visible');
+  }
+  
+  function _showAuthLoading() {
+    var form = document.getElementById('authLoginForm');
+    var loading = document.getElementById('authLoading');
+    if (form) form.style.display = 'none';
+    if (loading) loading.classList.add('visible');
+  }
+  
+  function _showAuthForm() {
+    var form = document.getElementById('authLoginForm');
+    var loading = document.getElementById('authLoading');
+    if (form) form.style.display = 'block';
+    if (loading) loading.classList.remove('visible');
+  }
+  
+  /**
+   * تسجيل الدخول بالبريد وكلمة المرور
+   */
+  function _doLogin() {
+    var emailInput = document.getElementById('authEmailInput');
+    var passInput = document.getElementById('authPasswordInput');
+    if (!emailInput || !passInput) return;
+  
+    var email = emailInput.value.trim();
+    var password = passInput.value;
+  
+    if (!email || !password) {
+      _showAuthError(_currentLang === 'ar' ? 'البريد وكلمة المرور مطلوبان' : 'Email and password required');
+      return;
+    }
+  
+    _hideAuthError();
+    _showAuthLoading();
+  
+    callServer('uiLoginWithEmail', email, password).then(function(res) {
+      var data = res.data;
+      if (data && data.token && data.user) {
+        _authToken = data.token;
+        try { localStorage.setItem('phinox_session', data.token); } catch(e) {}
+        _currentUser = data.user;
+        _onAuthSuccess(_currentUser);
+      } else {
+        _showAuthForm();
+        _showAuthError(t('auth_failed'));
+      }
+    }).catch(function(err) {
+      _showAuthForm();
+      _showAuthError(err.message || t('auth_error'));
+    });
+  }
+  
+  /**
+   * تسجيل الدخول عبر Google
+   */
+  function _doGoogleLogin() {
+    _hideAuthError();
+    _showAuthLoading();
+  
+    callServer('uiLoginWithGoogle').then(function(res) {
+      var data = res.data;
+      if (data && data.token && data.user) {
+        _authToken = data.token;
+        try { localStorage.setItem('phinox_session', data.token); } catch(e) {}
+        _currentUser = data.user;
+        _onAuthSuccess(_currentUser);
+      } else {
+        _showAuthForm();
+        _showAuthError(t('auth_failed'));
+      }
+    }).catch(function(err) {
+      _showAuthForm();
+      _showAuthError(err.message || t('auth_error'));
+    });
+  }
+  
+  /**
+   * الدخول كضيف (بدون صلاحيات)
+   */
+  function _enterAsGuest() {
+    _currentUser = {
+      email: 'guest@phinox.local',
+      role: 'Guest',
+      name: _currentLang === 'ar' ? 'زائر' : 'Guest',
+      permissions: []
+    };
+    _onAuthSuccess(_currentUser);
+  }
+  
+  // ─── PASSWORD STRENGTH CHECKER ───
+  function _checkPwdStrength(pwd) {
+    var bar = document.getElementById('pwdStrengthBar');
+    var txt = document.getElementById('pwdStrengthText');
+    if (!bar || !txt) return;
+    bar.className = 'pwd-strength-bar';
+    if (!pwd || pwd.length < 1) { txt.textContent = ''; return; }
+    var score = 0;
+    if (pwd.length >= 6) score++;
+    if (pwd.length >= 10) score++;
+    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+    if (score <= 2) {
+      bar.classList.add('strength-weak');
+      txt.textContent = _currentLang === 'ar' ? 'ضعيفة' : 'Weak';
+      txt.style.color = 'var(--danger)';
+    } else if (score <= 3) {
+      bar.classList.add('strength-medium');
+      txt.textContent = _currentLang === 'ar' ? 'متوسطة' : 'Medium';
+      txt.style.color = 'var(--warning)';
+    } else {
+      bar.classList.add('strength-strong');
+      txt.textContent = _currentLang === 'ar' ? 'قوية' : 'Strong';
+      txt.style.color = 'var(--success)';
+    }
+  }
+  
+  // ─── REGISTER NEW MEMBER ───
+  function showRegisterForm() {
+    var overlay = document.getElementById('authOverlay');
+    if (!overlay) return;
+    overlay.innerHTML =
+      '<div class="auth-card">' +
+      '<span class="auth-icon">\u{1F4DD}</span>' +
+      '<h2 class="auth-title">' + (t('auth_register_title') || 'إنشاء حساب جديد') + '</h2>' +
+      '<p class="auth-subtitle">' + (t('auth_register_desc') || 'أدخل بياناتك للتسجيل في PHINOX BOS') + '</p>' +
+      '<form id="registerForm" class="auth-form auth-form-enter" onsubmit="submitRegister(event)">' +
+      '<div class="auth-field">' +
+      '<label>' + (t('auth_fullname') || 'الاسم الكامل') + ' *</label>' +
+      '<input type="text" id="regFullName" class="form-input" placeholder="' + (t('auth_fullname_ph') || 'مثال: أحمد محمد') + '" required>' +
+      '</div>' +
+      '<div class="auth-field">' +
+      '<label>' + (t('auth_email') || 'البريد الإلكتروني') + ' *</label>' +
+      '<input type="email" id="regEmail" class="form-input" placeholder="example@domain.com" required>' +
+      '</div>' +
+      '<div class="auth-field">' +
+      '<label>' + (t('auth_password') || 'كلمة المرور') + ' *</label>' +
+      '<input type="password" id="regPassword" class="form-input" placeholder="' + (t('auth_password_ph') || '6 أحرف على الأقل') + '" required minlength="6" oninput="_checkPwdStrength(this.value)">' +
+      '<div class="pwd-strength-bar" id="pwdStrengthBar"><div class="bar-segment"></div><div class="bar-segment"></div><div class="bar-segment"></div></div>' +
+      '<div class="pwd-strength-text" id="pwdStrengthText"></div>' +
+      '</div>' +
+      '<div class="auth-field">' +
+      '<label>' + (t('auth_role') || 'الدور') + ' (' + (t('auth_optional') || 'اختياري') + ')</label>' +
+      '<select id="regRole" class="form-select">' +
+      '<option value="Designer">مصمم (Designer)</option>' +
+      '<option value="Operations">عمليات (Operations)</option>' +
+      '<option value="Marketing">تسويق (Marketing)</option>' +
+      '<option value="Customer Service">خدمة عملاء</option>' +
+      '<option value="Finance">مالية (Finance)</option>' +
+      '</select>' +
+      '</div>' +
+      '<div class="auth-field">' +
+      '<label>' + (t('auth_department') || 'القسم') + ' (' + (t('auth_optional') || 'اختياري') + ')</label>' +
+      '<input type="text" id="regDepartment" class="form-input" placeholder="' + (t('auth_department_ph') || 'مثال: المبيعات') + '">' +
+      '</div>' +
+      '<div id="registerStatus" class="auth-error"></div>' +
+      '<button type="submit" id="registerSubmitBtn" class="auth-btn auth-btn-primary">' + (t('auth_register_submit') || 'إنشاء حساب') + '</button>' +
+      '<button type="button" class="auth-btn auth-btn-ghost" onclick="_showLoginForm()">\u21A9\uFE0F ' + (t('auth_back_to_login') || 'العودة لتسجيل الدخول') + '</button>' +
+      '</form>' +
+      '</div>';
+  
+    setTimeout(function() {
+      var nameInput = document.getElementById('regFullName');
+      if (nameInput) nameInput.focus();
+    }, 100);
+  }
+  
+  
+  /* ---------------------------------------------------------------
+     تحديث دالة التسجيل بالنقر العادي (بريد إلكتروني)
+     استبدل دالة submitRegister الحالية بهذا الكود
+     --------------------------------------------------------------- */
+     function submitRegister(e) {
+    if (e) e.preventDefault();
+  
+    // ✅ FIXED: IDs مطابقة لـ showRegisterForm()
+    var nameEl = document.getElementById('regFullName');
+    var emailEl = document.getElementById('regEmail');
+    var passEl = document.getElementById('regPassword');
+    var deptEl = document.getElementById('regDepartment');
+    var roleEl = document.getElementById('regRole');
+  
+    var displayName = nameEl ? nameEl.value.trim() : '';
+    var email = emailEl ? emailEl.value.trim() : '';
+    var password = passEl ? passEl.value : '';
+    var department = deptEl ? deptEl.value : '';
+    var role = roleEl ? roleEl.value : '';
+  
+    if (!displayName || !email || !password) {
+      _showAuthError(_currentLang === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
+      return;
+    }
+    if (password.length < 6) {
+      _showAuthError(_currentLang === 'ar' ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' : 'Password must be at least 6 characters');
+      return;
+    }
+  
+    // ✅ FIXED: زر الإرسال الصحيح
+    var btn = document.getElementById('registerSubmitBtn');
+    var origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  
+    // ✅ FIXED: نستخدم uiRegister (الموجودة في _V6_AUTH_FUNCTIONS) بدل uiRegisterWithEmail
+    callServer('uiRegister', {
+      displayName: displayName,
+      email: email,
+      password: password,
+      department: department,
+      role: role
+    })
+    .then(function(result) {
+      var msg = (result.data && result.data.message) || result.data || '';
+      _showRegisterSuccessOverlay(typeof msg === 'string' ? msg : '');
     })
     .catch(function(err) {
-      _showToast(err.message || 'حدث خطأ', 'error');
+      _showAuthError(err.message || 'حدث خطأ في التسجيل');
     })
     .finally(function() {
       if (btn) { btn.disabled = false; btn.textContent = origText; }
     });
-}
-
-/* ---------------------------------------------------------------
-   إعداد بيانات المستخدم في الداشبورد
-   --------------------------------------------------------------- */
-function _setupDashUser(user) {
-  var userInfo = document.getElementById('dash-user-info');
-  if (userInfo && user) {
-    var avatarHtml = user.photoUrl
-      ? '<img src="' + user.photoUrl + '" class="user-avatar-sm" onerror="this.style.display=\'none\'">'
-      : '<div class="user-avatar-sm" style="background:' + _avatarColor(user.email) + ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">' + _initials(user.displayName) + '</div>';
-    userInfo.innerHTML = avatarHtml + '<span>' + (user.displayName || user.email) + '</span>';
   }
-
-  hideDashboard();
-  showDashboard();
-}
-
-/* ---------------------------------------------------------------
-   عرض واجهة العضو العادي (غير الداشبورد)
-   --------------------------------------------------------------- */
-function _showMemberView(user) {
-  // إخفاء نموذج الدخول
-  var loginOverlay = document.getElementById('login-overlay');
-  if (loginOverlay) loginOverlay.style.display = 'none';
-
-  // يمكنك إضافة واجهة مخصصة للأعضاء العاديين هنا
-  // حالياً نظهر رسالة ترحيب
-  var main = document.getElementById('main-content') || document.querySelector('main') || document.body;
-  var welcome = document.createElement('div');
-  welcome.style.cssText = 'display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px;';
-  welcome.innerHTML =
-    '<div style="font-size:48px;color:#3b82f6;">PHINOX</div>' +
-    '<h2 style="color:#fff;margin:0;">مرحباً، ' + (user.displayName || user.email) + '</h2>' +
-    '<p style="color:#64748b;margin:0;">تم تسجيل الدخول بنجاح</p>' +
-    '<button class="btn btn-secondary" onclick="handleLogout()" style="margin-top:20px;">تسجيل الخروج</button>';
-  main.appendChild(welcome);
-}
-function _showLoginForm() {
-  var overlay = document.getElementById('authOverlay');
-  if (overlay) overlay.remove();
-  _showLoginOverlay();
-}
-
-
-/**
- * نجح Auth — حدّث UI واخلع الـ overlay
- */
-function _onAuthSuccess(user) {
-  var displayName = user.name || user.fullName || (user.email ? user.email.split('@')[0] : 'User');
-  var role = user.role || 'User';
-
-  var nameEl = document.getElementById('userName');
-  var roleEl = document.getElementById('userRole');
-  var avatarEl = document.getElementById('userAvatar');
-  var permsEl = document.getElementById('userPermissions');
-
-  if (nameEl) nameEl.textContent = displayName;
-  if (roleEl) roleEl.textContent = role;
-  if (avatarEl) avatarEl.textContent = (displayName || 'U').charAt(0).toUpperCase();
-  if (permsEl) permsEl.textContent = (user.permissions || []).join(', ');
-
-  _hideAuthOverlay();
-  showToast(t('welcome') + ' ' + displayName + ' (' + role + ')', 'success');
-
-  // تحميل البيانات الأولية
-  callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
-    _customerCache = (cres.data && cres.data.data) || cres.data || [];
-  }).catch(function() {});
-
-  navigateTo('dashboard');
-}
-
-/**
- * تهيئة نظام المصادقة — تُستدعى من DOMContentLoaded
- *
- * المنطق:
- *   1. لو فيه token في localStorage → تحقق من الجلسة
- *   2. لو الجلسة صالحة → دخول مباشر
- *   3. لو لا → حاول Google OAuth كـ fallback
- *   4. لو كل شيء فشل → شاشة تسجيل الدخول
- */
-// ✅ قائمة الدوال التي يجب أن توجد في النسخة v6 من UI_Server.js
-var _V6_AUTH_FUNCTIONS = ['uiValidateSession','uiLoginWithEmail','uiLoginWithGoogle','uiRegister'];
-var _serverHasV6Auth = null; // null = لم نتحقق بعد
-
-/**
- * تحقق مما إذا كان السيرفر يدعم v6 auth (بدون استدعاء فعلي)
- * يُستدعى مرة واحدة فقط
- */
-function _checkServerV6Auth() {
-  if (_serverHasV6Auth !== null) return _serverHasV6Auth;
-  try {
-    var runner = google.script.run;
-    _serverHasV6Auth = _V6_AUTH_FUNCTIONS.every(function(fnName) {
-      return typeof runner[fnName] === 'function';
+  
+  /* ---------------------------------------------------------------
+     تحديث تسجيل Google ليعمل مع نظام الموافقة
+     استبدل دالة submitGoogleRegister أو أضفها إذا لم تكن موجودة
+     --------------------------------------------------------------- */
+  // ✅ FIXED: submitGoogleRegister — showToast بدل _showToast + معالجة استجابة صحيحة
+  function submitGoogleRegister(profile) {
+    showToast(_currentLang === 'ar' ? 'جاري إرسال طلب التسجيل...' : 'Submitting registration...', 'info');
+  
+    callServer('uiRegister', {
+      email: profile.email || (typeof profile.getEmail === 'function' ? profile.getEmail() : ''),
+      name: profile.name || (typeof profile.getName === 'function' ? profile.getName() : ''),
+      picture: profile.picture || (typeof profile.getImageUrl === 'function' ? profile.getImageUrl() : ''),
+      id: profile.id || (typeof profile.getId === 'function' ? profile.getId() : ''),
+      authProvider: 'google'
+    })
+    .then(function(result) {
+      var msg = (result.data && result.data.message) || result.data || '';
+      _showRegisterSuccessOverlay(typeof msg === 'string' ? msg : '');
+    })
+    .catch(function(err) {
+      showToast(err.message || 'حدث خطأ في التسجيل', 'error');
     });
-  } catch(e) {
-    _serverHasV6Auth = false;
   }
-  return _serverHasV6Auth;
-}
-
-function initAuthSystem() {
-  // ✅ Guard: منع الاستدعاء المتكرر
-  if (_authInitStarted) return;
-  _authInitStarted = true;
-
-  // ✅ انتظر حتى يكون google.script.run جاهزاً (iframe channel)
-  var maxWait = 3000;
-  var startTime = Date.now();
-
-  function tryInit() {
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      _doInit();
-    } else if (Date.now() - startTime < maxWait) {
-      setTimeout(tryInit, 200);
-    } else {
-      console.warn('[Auth] google.script.run not available after 3s — showing login');
-      _showLoginOverlay();
-    }
+  
+  /* ---------------------------------------------------------------
+     نافذة نجاح التسجيل (بدلاً من تسجيل الدخول المباشر)
+     --------------------------------------------------------------- */
+  function _showRegisterSuccessOverlay(message) {
+    // ✅ FIXED: إخفاء authOverlay بدل register-section (غير موجود في v6)
+    var authOverlay = document.getElementById('authOverlay');
+    if (authOverlay) authOverlay.style.display = 'none';
+  
+    // إنشاء نافذة النجاح
+    var overlay = document.createElement('div');
+    overlay.className = 'register-success-overlay';
+    overlay.id = 'register-success-overlay';
+    overlay.innerHTML =
+      '<div class="register-success-box">' +
+        '<div style="width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">' +
+          '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' +
+        '</div>' +
+        '<h3>تم إرسال طلب التسجيل</h3>' +
+        '<p>' + (message || 'تم إرسال طلبك بنجاح. سيتم مراجعته من قبل الإدارة وسيتم إشعارك بالنتيجة.') + '</p>' +
+        '<button class="btn btn-primary btn-lg" onclick="_closeRegisterSuccess()">حسناً</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
   }
-
-  function _doInit() {
-    // 1. محاولة استعادة الجلسة من localStorage
-    var savedToken = null;
-    try { savedToken = localStorage.getItem('phinox_session'); } catch(e) {}
-
-    // 2. تحقق مما إذا كان السيرفر يدعم v6 auth
-    var hasV6 = _checkServerV6Auth();
-
-    if (savedToken && hasV6) {
-      // v6: تحقق من الجلسة عبر token
-      callServer('uiValidateSession', savedToken).then(function(res) {
-        var user = res.data;
-        if (user && user.email) {
-          _authToken = savedToken;
-          _currentUser = user;
-          _onAuthSuccess(_currentUser);
-          return;
-        }
-        // الجلسة غير صالحة
-        try { localStorage.removeItem('phinox_session'); } catch(e) {}
-        _authToken = null;
-        _tryGoogleFallback();
-      }).catch(function() {
-        try { localStorage.removeItem('phinox_session'); } catch(e) {}
-        _authToken = null;
-        _tryGoogleFallback();
-      });
-    } else {
-      // لا يوجد token أو السيرفر لا يدعم v6 — حاول Google OAuth مباشرة
-      if (savedToken) {
-        try { localStorage.removeItem('phinox_session'); } catch(e) {}
-        _authToken = null;
-      }
-      _tryGoogleFallback();
-    }
-  }
-
-  tryInit();
-}
-
-/**
- * Fallback: محاولة الدخول عبر Google OAuth (الطريقة القديمة)
- * Step 1: uiPingAuth (خفيفة — بس تجيب الإيميل)
- * Step 2: uiGetCurrentUser (كاملة — بتجيب بيانات العضو)
- */
-function _tryGoogleFallback(attempt) {
-  attempt = attempt || 0;
-
-  // Step 1: ping خفيف للتأكد إن google.script.run شغال
-  callServer('uiPingAuth').then(function(pingRes) {
-    var pingEmail = pingRes.data && pingRes.data.email;
-    if (!pingEmail) {
-      _showLoginOverlay();
-      return;
-    }
-    // Step 2: جيب بيانات العضو الكاملة
-    return callServer('uiGetCurrentUser');
-  }).then(function(res) {
-    if (!res) return; // من Step 1 لو مفيش إيميل
-    var user = res.data;
-    if (user && user.email) {
-      _currentUser = user;
-      _onAuthSuccess(_currentUser);
-      if (_checkServerV6Auth()) {
-        callServer('uiLoginWithGoogle').then(function(sessRes) {
-          var sessData = sessRes.data;
-          if (sessData && sessData.token) {
-            _authToken = sessData.token;
-            try { localStorage.setItem('phinox_session', sessData.token); } catch(e) {}
-          }
-        }).catch(function() {});
-      }
-    } else {
-      _showLoginOverlay();
-    }
-  }).catch(function(err) {
-    if (attempt < 1) {
-      console.info('[Auth] Google OAuth attempt ' + (attempt + 1) + ' failed, retrying...');
-      setTimeout(function() { _tryGoogleFallback(attempt + 1); }, 800);
-      return;
-    }
-    console.info('[Auth] Google OAuth fallback skipped — showing login form');
+  
+  function _closeRegisterSuccess() {
+    var overlay = document.getElementById('register-success-overlay');
+    if (overlay) overlay.remove();
+    // العودة لتسجيل الدخول
     _showLoginOverlay();
-  });
-}
-
-// ─── SIDEBAR SECTION TOGGLE ───
-function toggleNavSection(sectionName) {
-  var section = document.querySelector('.nav-section[data-section="' + sectionName + '"]');
-  if (section) section.classList.toggle('collapsed');
-}
-
-// ─── MOBILE SIDEBAR TOGGLE ───
-function toggleMobileSidebar() {
-  var sidebar = document.getElementById('sidebar');
-  var overlay = document.getElementById('sidebarOverlay');
-  if (!sidebar) return;
-  var isOpen = sidebar.classList.contains('open');
-  if (isOpen) {
-    sidebar.classList.remove('open');
-    if (overlay) overlay.classList.remove('active');
-  } else {
-    sidebar.classList.add('open');
-    if (overlay) overlay.classList.add('active');
   }
-}
-
-// ─── NAV BADGES (notification counters on sidebar items) ───
-function updateNavBadges() {
-  function setBadge(id, count) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    if (count > 0) {
-      el.textContent = count > 99 ? '99+' : count;
-      el.style.display = 'inline-flex';
+  
+  /* ---------------------------------------------------------------
+     تحديث تسجيل الدخول بالبريد (مع التحقق من الحالة)
+     إذا كان العضو محظوراً، أظهر رسالة واضحة
+     --------------------------------------------------------------- */
+  // ✅ FIXED: submitLogin — IDs مطابقة لـ _showLoginOverlay() + معالجة استجابة صحيحة
+  function submitLogin(e) {
+    if (e) e.preventDefault();
+  
+    // ✅ FIXED: IDs مطابقة لما يُنشئه _showLoginOverlay()
+    var emailEl = document.getElementById('authEmailInput');
+    var passEl = document.getElementById('authPasswordInput');
+    var email = emailEl ? emailEl.value.trim() : '';
+    var password = passEl ? passEl.value : '';
+  
+    if (!email || !password) {
+      _showAuthError(_currentLang === 'ar' ? 'يرجى إدخال البريد وكلمة المرور' : 'Email and password required');
+      return;
+    }
+  
+    var btn = document.getElementById('authLoginBtn');
+    var origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    _showAuthLoading();
+  
+    callServer('uiLoginWithEmail', email, password)
+      .then(function(result) {
+        var data = result.data;
+        if (data && data.token && data.user) {
+          _authToken = data.token;
+          try { localStorage.setItem('phinox_session', data.token); } catch(e) {}
+          _currentUser = data.user;
+          _onAuthSuccess(_currentUser);
+        } else {
+          _showAuthForm();
+          _showAuthError(data && data.message ? data.message : t('auth_failed'));
+        }
+      })
+      .catch(function(err) {
+        _showAuthForm();
+        _showAuthError(err.message || t('auth_error'));
+      })
+      .finally(function() {
+        if (btn) { btn.disabled = false; btn.textContent = origText; }
+      });
+  }
+  
+  /* ---------------------------------------------------------------
+     ⚠️ _setupDashUser و _showMemberView — كود قديم (pre-v6)
+     في v6، _onAuthSuccess() تتعامل مع كل شيء تلقائياً
+     هذه الدوال محتفظ بها كمرجع فقط ولا تُستدعى من v6 auth flow
+     --------------------------------------------------------------- */
+  function _showLoginForm() {
+    var overlay = document.getElementById('authOverlay');
+    if (overlay) overlay.remove();
+    _showLoginOverlay();
+  }
+  
+  
+  /**
+   * نجح Auth — حدّث UI واخلع الـ overlay
+   */
+  function _onAuthSuccess(user) {
+    var displayName = user.name || user.fullName || (user.email ? user.email.split('@')[0] : 'User');
+    var role = user.role || 'User';
+  
+    var nameEl = document.getElementById('userName');
+    var roleEl = document.getElementById('userRole');
+    var avatarEl = document.getElementById('userAvatar');
+    var permsEl = document.getElementById('userPermissions');
+  
+    if (nameEl) nameEl.textContent = displayName;
+    if (roleEl) roleEl.textContent = role;
+    if (avatarEl) avatarEl.textContent = (displayName || 'U').charAt(0).toUpperCase();
+    if (permsEl) permsEl.textContent = (user.permissions || []).join(', ');
+  
+    _hideAuthOverlay();
+    showToast(t('welcome') + ' ' + displayName + ' (' + role + ')', 'success');
+  
+    // تحميل البيانات الأولية
+    callServer('uiGetCustomers', { limit: 1000 }).then(function(cres) {
+      _customerCache = (cres.data && cres.data.data) || cres.data || [];
+    }).catch(function() {});
+  
+    navigateTo('dashboard');
+  }
+  
+  /**
+   * تهيئة نظام المصادقة — تُستدعى من DOMContentLoaded
+   *
+   * المنطق:
+   *   1. لو فيه token في localStorage → تحقق من الجلسة
+   *   2. لو الجلسة صالحة → دخول مباشر
+   *   3. لو لا → حاول Google OAuth كـ fallback
+   *   4. لو كل شيء فشل → شاشة تسجيل الدخول
+   */
+  // ✅ قائمة الدوال التي يجب أن توجد في النسخة v6 من UI_Server.js
+  var _V6_AUTH_FUNCTIONS = ['uiValidateSession','uiLoginWithEmail','uiLoginWithGoogle','uiRegister'];
+  var _serverHasV6Auth = null; // null = لم نتحقق بعد
+  
+  /**
+   * تحقق مما إذا كان السيرفر يدعم v6 auth (بدون استدعاء فعلي)
+   * يُستدعى مرة واحدة فقط
+   */
+  function _checkServerV6Auth() {
+    if (_serverHasV6Auth !== null) return _serverHasV6Auth;
+    try {
+      var runner = google.script.run;
+      _serverHasV6Auth = _V6_AUTH_FUNCTIONS.every(function(fnName) {
+        return typeof runner[fnName] === 'function';
+      });
+    } catch(e) {
+      _serverHasV6Auth = false;
+    }
+    return _serverHasV6Auth;
+  }
+  
+  function initAuthSystem() {
+    // ✅ Guard: منع الاستدعاء المتكرر
+    if (_authInitStarted) return;
+    _authInitStarted = true;
+  
+    // ✅ انتظر حتى يكون google.script.run جاهزاً (iframe channel)
+    var maxWait = 3000;
+    var startTime = Date.now();
+  
+    function tryInit() {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        _doInit();
+      } else if (Date.now() - startTime < maxWait) {
+        setTimeout(tryInit, 200);
+      } else {
+        console.warn('[Auth] google.script.run not available after 3s — showing login');
+        _showLoginOverlay();
+      }
+    }
+  
+    function _doInit() {
+      // 1. محاولة استعادة الجلسة من localStorage
+      var savedToken = null;
+      try { savedToken = localStorage.getItem('phinox_session'); } catch(e) {}
+  
+      // 2. تحقق مما إذا كان السيرفر يدعم v6 auth
+      var hasV6 = _checkServerV6Auth();
+  
+      if (savedToken && hasV6) {
+        // v6: تحقق من الجلسة عبر token
+        callServer('uiValidateSession', savedToken).then(function(res) {
+          var user = res.data;
+          if (user && user.email) {
+            _authToken = savedToken;
+            _currentUser = user;
+            _onAuthSuccess(_currentUser);
+            return;
+          }
+          // الجلسة غير صالحة
+          try { localStorage.removeItem('phinox_session'); } catch(e) {}
+          _authToken = null;
+          _tryGoogleFallback();
+        }).catch(function() {
+          try { localStorage.removeItem('phinox_session'); } catch(e) {}
+          _authToken = null;
+          _tryGoogleFallback();
+        });
+      } else {
+        // لا يوجد token أو السيرفر لا يدعم v6 — حاول Google OAuth مباشرة
+        if (savedToken) {
+          try { localStorage.removeItem('phinox_session'); } catch(e) {}
+          _authToken = null;
+        }
+        _tryGoogleFallback();
+      }
+    }
+  
+    tryInit();
+  }
+  
+  /**
+   * Fallback: محاولة الدخول عبر Google OAuth (الطريقة القديمة)
+   * Step 1: uiPingAuth (خفيفة — بس تجيب الإيميل)
+   * Step 2: uiGetCurrentUser (كاملة — بتجيب بيانات العضو)
+   */
+  function _tryGoogleFallback(attempt) {
+    attempt = attempt || 0;
+  
+    // Step 1: ping خفيف للتأكد إن google.script.run شغال
+    callServer('uiPingAuth').then(function(pingRes) {
+      var pingEmail = pingRes.data && pingRes.data.email;
+      if (!pingEmail) {
+        _showLoginOverlay();
+        return;
+      }
+      // Step 2: جيب بيانات العضو الكاملة
+      return callServer('uiGetCurrentUser');
+    }).then(function(res) {
+      if (!res) return; // من Step 1 لو مفيش إيميل
+      var user = res.data;
+      if (user && user.email) {
+        _currentUser = user;
+        _onAuthSuccess(_currentUser);
+        if (_checkServerV6Auth()) {
+          callServer('uiLoginWithGoogle').then(function(sessRes) {
+            var sessData = sessRes.data;
+            if (sessData && sessData.token) {
+              _authToken = sessData.token;
+              try { localStorage.setItem('phinox_session', sessData.token); } catch(e) {}
+            }
+          }).catch(function() {});
+        }
+      } else {
+        _showLoginOverlay();
+      }
+    }).catch(function(err) {
+      if (attempt < 1) {
+        console.info('[Auth] Google OAuth attempt ' + (attempt + 1) + ' failed, retrying...');
+        setTimeout(function() { _tryGoogleFallback(attempt + 1); }, 800);
+        return;
+      }
+      console.info('[Auth] Google OAuth fallback skipped — showing login form');
+      _showLoginOverlay();
+    });
+  }
+  
+  // ─── SIDEBAR SECTION TOGGLE ───
+  function toggleNavSection(sectionName) {
+    var section = document.querySelector('.nav-section[data-section="' + sectionName + '"]');
+    if (section) section.classList.toggle('collapsed');
+  }
+  
+  // ─── MOBILE SIDEBAR TOGGLE ───
+  function toggleMobileSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    if (!sidebar) return;
+    var isOpen = sidebar.classList.contains('open');
+    if (isOpen) {
+      sidebar.classList.remove('open');
+      if (overlay) overlay.classList.remove('active');
     } else {
-      el.style.display = 'none';
+      sidebar.classList.add('open');
+      if (overlay) overlay.classList.add('active');
     }
   }
-  setBadge('badge-inventory', _notifications.lowStockItems || 0);
-  setBadge('badge-approvals', _notifications.pendingExpenses || 0);
-  setBadge('badge-tasks', _notifications.overdueTasks || 0);
-  setBadge('badge-members', _notifications.pendingRegistrations || 0);
-}
-
-// ─── NOTIFICATION SYSTEM ───
-function loadNotifications() {
-  _notifications = { pendingRegistrations: 0, overdueTasks: 0, lowStockItems: 0, pendingExpenses: 0 };
-  var promises = [];
-
-  if (isAdmin()) {
+  
+  // ─── NAV BADGES (notification counters on sidebar items) ───
+  function updateNavBadges() {
+    function setBadge(id, count) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (count > 0) {
+        el.textContent = count > 99 ? '99+' : count;
+        el.style.display = 'inline-flex';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+    setBadge('badge-inventory', _notifications.lowStockItems || 0);
+    setBadge('badge-approvals', _notifications.pendingExpenses || 0);
+    setBadge('badge-tasks', _notifications.overdueTasks || 0);
+    setBadge('badge-members', _notifications.pendingRegistrations || 0);
+  }
+  
+  // ─── NOTIFICATION SYSTEM ───
+  function loadNotifications() {
+    _notifications = { pendingRegistrations: 0, overdueTasks: 0, lowStockItems: 0, pendingExpenses: 0 };
+    var promises = [];
+  
+    if (isAdmin()) {
+      promises.push(
+        callServer('uiGetPendingRegistrations').then(function(res) {
+          var data = (res.data && res.data.data) || res.data || [];
+          _notifications.pendingRegistrations = Array.isArray(data) ? data.length : 0;
+        }).catch(function() {})
+      );
+    }
+  
+    var today = new Date().toISOString().split('T')[0];
+    var monthAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
     promises.push(
-      callServer('uiGetPendingRegistrations').then(function(res) {
-        var data = (res.data && res.data.data) || res.data || [];
-        _notifications.pendingRegistrations = Array.isArray(data) ? data.length : 0;
+      callServer('uiGetTaskStats', monthAgo, today).then(function(res) {
+        var stats = res.data || {};
+        _notifications.overdueTasks = stats.overdue || 0;
       }).catch(function() {})
     );
+  
+    if (isAdmin() || hasPerm('inventory:read')) {
+      promises.push(
+        callServer('uiGetLowStock').then(function(res) {
+          var data = (res.data && res.data.data) || res.data || [];
+          _notifications.lowStockItems = Array.isArray(data) ? data.length : 0;
+        }).catch(function() {})
+      );
+    }
+  
+    if (isAdmin() || hasPerm('expenses:read')) {
+      promises.push(
+        callServer('uiGetExpenses', { limit: 1000 }).then(function(res) {
+          var all = (res.data && res.data.data) || res.data || [];
+          _notifications.pendingExpenses = all.filter(function(e) {
+            return (e.status || 'Pending') === 'Pending';
+          }).length;
+        }).catch(function() {})
+      );
+    }
+  
+    Promise.all(promises).then(function() { renderNotifications(); updateNavBadges(); });
   }
-
-  var today = new Date().toISOString().split('T')[0];
-  var monthAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
-  promises.push(
-    callServer('uiGetTaskStats', monthAgo, today).then(function(res) {
-      var stats = res.data || {};
-      _notifications.overdueTasks = stats.overdue || 0;
-    }).catch(function() {})
-  );
-
-  if (isAdmin() || hasPerm('inventory:read')) {
-    promises.push(
-      callServer('uiGetLowStock').then(function(res) {
-        var data = (res.data && res.data.data) || res.data || [];
-        _notifications.lowStockItems = Array.isArray(data) ? data.length : 0;
-      }).catch(function() {})
-    );
+  
+  function renderNotifications() {
+    var bar = document.getElementById('notificationBar');
+    if (!bar) return;
+    var total = _notifications.pendingRegistrations + _notifications.overdueTasks + _notifications.lowStockItems + _notifications.pendingExpenses;
+    if (total === 0) { bar.style.display = 'none'; return; }
+    bar.style.display = 'block';
+    var html = '';
+    if (_notifications.pendingRegistrations > 0) {
+      html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'members\')">' +
+        '<span style="font-size:18px">\u{1F465}</span>' +
+        '<span><strong>' + _notifications.pendingRegistrations + '</strong> ' + t('pending_registrations') + '</span></div>';
+    }
+    if (_notifications.overdueTasks > 0) {
+      html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'tasks\')">' +
+        '<span style="font-size:18px">\u26A0\uFE0F</span>' +
+        '<span><strong>' + _notifications.overdueTasks + '</strong> ' + t('overdue_tasks') + '</span></div>';
+    }
+    if (_notifications.lowStockItems > 0) {
+      html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(14,165,233,0.15);border:1px solid rgba(14,165,233,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'inventory\')">' +
+        '<span style="font-size:18px">\u{1F4E6}</span>' +
+        '<span><strong>' + _notifications.lowStockItems + '</strong> ' + t('low_stock_items') + '</span></div>';
+    }
+    if (_notifications.pendingExpenses > 0) {
+      html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'approvals\')">' +
+        '<span style="font-size:18px">\u{1F9FE}</span>' +
+        '<span><strong>' + _notifications.pendingExpenses + '</strong> ' + t('pending_expenses') + '</span></div>';
+    }
+    document.getElementById('notificationItems').innerHTML = html;
   }
-
-  if (isAdmin() || hasPerm('expenses:read')) {
-    promises.push(
-      callServer('uiGetExpenses', { limit: 1000 }).then(function(res) {
-        var all = (res.data && res.data.data) || res.data || [];
-        _notifications.pendingExpenses = all.filter(function(e) {
-          return (e.status || 'Pending') === 'Pending';
-        }).length;
-      }).catch(function() {})
-    );
-  }
-
-  Promise.all(promises).then(function() { renderNotifications(); updateNavBadges(); });
-}
-
-function renderNotifications() {
-  var bar = document.getElementById('notificationBar');
-  if (!bar) return;
-  var total = _notifications.pendingRegistrations + _notifications.overdueTasks + _notifications.lowStockItems + _notifications.pendingExpenses;
-  if (total === 0) { bar.style.display = 'none'; return; }
-  bar.style.display = 'block';
-  var html = '';
-  if (_notifications.pendingRegistrations > 0) {
-    html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'members\')">' +
-      '<span style="font-size:18px">\u{1F465}</span>' +
-      '<span><strong>' + _notifications.pendingRegistrations + '</strong> ' + t('pending_registrations') + '</span></div>';
-  }
-  if (_notifications.overdueTasks > 0) {
-    html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'tasks\')">' +
-      '<span style="font-size:18px">\u26A0\uFE0F</span>' +
-      '<span><strong>' + _notifications.overdueTasks + '</strong> ' + t('overdue_tasks') + '</span></div>';
-  }
-  if (_notifications.lowStockItems > 0) {
-    html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(14,165,233,0.15);border:1px solid rgba(14,165,233,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'inventory\')">' +
-      '<span style="font-size:18px">\u{1F4E6}</span>' +
-      '<span><strong>' + _notifications.lowStockItems + '</strong> ' + t('low_stock_items') + '</span></div>';
-  }
-  if (_notifications.pendingExpenses > 0) {
-    html += '<div style="cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px;font-size:13px;" onclick="navigateTo(\'approvals\')">' +
-      '<span style="font-size:18px">\u{1F9FE}</span>' +
-      '<span><strong>' + _notifications.pendingExpenses + '</strong> ' + t('pending_expenses') + '</span></div>';
-  }
-  document.getElementById('notificationItems').innerHTML = html;
-}
-
-// ═══════════════════════════════════════════════════════
-// INIT ON DOM READY
-// ═══════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', function() {
-  _initTheme();
-  _initLang();
-  initAuthSystem();
-});
-</script>
+  
+  // ═══════════════════════════════════════════════════════
+  // INIT ON DOM READY
+  // ═══════════════════════════════════════════════════════
+  document.addEventListener('DOMContentLoaded', function() {
+    _initTheme();
+    _initLang();
+    initAuthSystem();
+  });
+  </script>

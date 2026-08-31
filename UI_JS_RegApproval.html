@@ -1,404 +1,396 @@
 <!-- ====================================================================
      PHINOX BOS v6 — Registration Approval Module (Client-Side)
-     أضف هذا الملف كملف HTML جديد في مشروع GAS
+     أنشئ هذا الملف كملف HTML جديد في مشروع GAS
      ==================================================================== -->
 
 <!-- CSS: Registration Approval Styles -->
 <style>
-/* ── Registration Page Styles ── */
-.reg-stats-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.reg-stat-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--bg-tertiary);
-  border-radius: var(--radius);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  transition: var(--transition);
-}
-.reg-stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-.reg-stat-icon {
-  width: 48px; height: 48px;
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
-  flex-shrink: 0;
-}
-.reg-stat-icon.pending { background: rgba(245,158,11,0.15); }
-.reg-stat-icon.approved { background: rgba(22,163,74,0.15); }
-.reg-stat-icon.rejected { background: rgba(220,38,38,0.15); }
-.reg-stat-icon.total { background: rgba(99,102,241,0.15); }
-.reg-stat-number { font-size: 28px; font-weight: 800; line-height: 1; }
-.reg-stat-label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
-
-/* ── Pending Request Cards ── */
-.reg-pending-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.reg-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--bg-tertiary);
-  border-radius: var(--radius);
-  transition: var(--transition);
-}
-.reg-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(99,102,241,0.2); }
-.reg-card-avatar {
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 16px; color: white;
-  flex-shrink: 0;
-}
-.reg-card-info { flex: 1; min-width: 0; }
-.reg-card-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
-.reg-card-email { font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
-.reg-card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
-.reg-meta-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-}
-.reg-meta-badge.role { background: rgba(99,102,241,0.15); color: var(--accent); }
-.reg-meta-badge.dept { background: rgba(14,165,233,0.15); color: var(--info); }
-.reg-meta-badge.time { background: rgba(100,116,139,0.15); color: var(--text-secondary); }
-.reg-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
-
-/* ── Registration History Table ── */
-.reg-history-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.reg-history-table th {
-  text-align: right;
-  padding: 12px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid var(--bg-tertiary);
-}
-.reg-history-table td {
-  padding: 12px 16px;
-  font-size: 13px;
-  border-bottom: 1px solid var(--bg-tertiary);
-}
-.reg-history-table tr:hover td { background: var(--table-hover, rgba(99,102,241,0.03)); }
-
-/* ── Registration Tabs ── */
-.reg-tabs {
-  display: flex; gap: 4px;
-  margin-bottom: 20px;
-  background: var(--bg-secondary);
-  padding: 4px;
-  border-radius: var(--radius);
-  border: 1px solid var(--bg-tertiary);
-}
-.reg-tab-btn {
-  padding: 10px 20px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: var(--transition);
-}
-.reg-tab-btn.active {
-  background: var(--accent);
-  color: white;
-}
-.reg-tab-btn:hover:not(.active) { color: var(--text-primary); background: var(--bg-tertiary); }
-.reg-tab-content { display: none; }
-.reg-tab-content.active { display: block; }
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .reg-card { flex-direction: column; align-items: flex-start; }
-  .reg-card-actions { width: 100%; justify-content: flex-end; }
-  .reg-stats-row { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 480px) {
-  .reg-stats-row { grid-template-columns: 1fr; }
-}
-</style>
-
-<!-- HTML: Reject Registration Modal -->
-<div class="modal-overlay" id="modalRejectReg" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">رفض طلب التسجيل</div>
-      <button class="modal-close" onclick="closeModal('modalRejectReg')">×</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="rejectRegId">
-      <p style="margin-bottom:12px;color:var(--text-secondary);">يجب إدخال سبب الرفض</p>
-      <div class="form-group">
-        <label class="form-label">سبب الرفض *</label>
-        <textarea class="form-textarea" id="rejectRegReason" rows="3" placeholder="أدخل سبب رفض طلب التسجيل..."></textarea>
+  .reg-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .reg-stat-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: var(--transition);
+  }
+  .reg-stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .reg-stat-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .reg-stat-icon.pending { background: rgba(245,158,11,0.15); }
+  .reg-stat-icon.approved { background: rgba(22,163,74,0.15); }
+  .reg-stat-icon.rejected { background: rgba(220,38,38,0.15); }
+  .reg-stat-icon.total { background: rgba(99,102,241,0.15); }
+  .reg-stat-number { font-size: 28px; font-weight: 800; line-height: 1; }
+  .reg-stat-label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  
+  .reg-pending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .reg-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius);
+    transition: var(--transition);
+  }
+  .reg-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(99,102,241,0.2); }
+  .reg-card-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; color: white;
+    flex-shrink: 0;
+  }
+  .reg-card-info { flex: 1; min-width: 0; }
+  .reg-card-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  .reg-card-email { font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
+  .reg-card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .reg-meta-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .reg-meta-badge.role { background: rgba(99,102,241,0.15); color: var(--accent); }
+  .reg-meta-badge.dept { background: rgba(14,165,233,0.15); color: var(--info); }
+  .reg-meta-badge.time { background: rgba(100,116,139,0.15); color: var(--text-secondary); }
+  .reg-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  
+  .reg-history-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .reg-history-table th {
+    text-align: right;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--bg-tertiary);
+  }
+  .reg-history-table td {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--bg-tertiary);
+  }
+  .reg-history-table tr:hover td { background: var(--table-hover, rgba(99,102,241,0.03)); }
+  
+  .reg-tabs {
+    display: flex; gap: 4px;
+    margin-bottom: 20px;
+    background: var(--bg-secondary);
+    padding: 4px;
+    border-radius: var(--radius);
+    border: 1px solid var(--bg-tertiary);
+  }
+  .reg-tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .reg-tab-btn.active {
+    background: var(--accent);
+    color: white;
+  }
+  .reg-tab-btn:hover:not(.active) { color: var(--text-primary); background: var(--bg-tertiary); }
+  .reg-tab-content { display: none; }
+  .reg-tab-content.active { display: block; }
+  
+  @media (max-width: 768px) {
+    .reg-card { flex-direction: column; align-items: flex-start; }
+    .reg-card-actions { width: 100%; justify-content: flex-end; }
+    .reg-stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .reg-stats-row { grid-template-columns: 1fr; }
+  }
+  </style>
+  
+  <!-- HTML: Reject Registration Modal (using classList pattern like all other modals) -->
+  <div class="modal-overlay" id="modalRejectReg">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">❌ رفض طلب التسجيل</div>
+        <button class="modal-close" onclick="closeModal('modalRejectReg')">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="rejectRegId">
+        <p style="margin-bottom:12px;color:var(--text-secondary);">يجب إدخال سبب الرفض</p>
+        <div class="form-group">
+          <label class="form-label">سبب الرفض *</label>
+          <textarea class="form-textarea" id="rejectRegReason" rows="3" placeholder="أدخل سبب رفض طلب التسجيل..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="confirmRejectReg()">تأكيد الرفض</button>
+        <button class="btn btn-outline" onclick="closeModal('modalRejectReg')">إلغاء</button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-danger" data-action="confirm-reject-reg">تأكيد الرفض</button>
-      <button class="btn btn-outline" onclick="closeModal('modalRejectReg')">إلغاء</button>
-    </div>
   </div>
-</div>
-
-<!-- JavaScript: Registration Approval Logic -->
-<script>
-// ═══════════════════════════════════════════════════════
-// REGISTRATION APPROVAL MODULE — PHINOX BOS v6
-// ═══════════════════════════════════════════════════════
-
-var _regCache = { pending: [], all: [], stats: null };
-
-// ─── MAIN LOADER (called from navigateTo) ───
-function loadRegistrations() {
-  callServer('uiGetRegistrationStats').then(function(res) {
-    var stats = (res.data && res.data.data) || res.data || {};
-    _regCache.stats = stats;
-    _renderRegStats(stats);
-  }).catch(function(err) {
-    console.log('Reg stats error:', err.message);
-  });
-
-  callServer('uiGetPendingRegistrations').then(function(res) {
-    var data = (res.data && res.data.data) || res.data || [];
-    _regCache.pending = data;
-    _renderPendingCards(data);
-    _updateRegBadge(data.length);
-  }).catch(function(err) {
+  
+  <!-- JavaScript: Registration Approval Logic -->
+  <script>
+  // Registration Approval Module - PHINOX BOS v6
+  var _regCache = { pending: [], all: [], stats: null };
+  
+  // Main loader (called from navigateTo)
+  function loadRegistrations() {
+    callServer('uiGetRegistrationStats').then(function(res) {
+      var stats = (res.data && res.data.data) || res.data || {};
+      _regCache.stats = stats;
+      _renderRegStats(stats);
+    }).catch(function(err) {
+      console.log('Reg stats error:', err.message);
+    });
+  
+    callServer('uiGetPendingRegistrations').then(function(res) {
+      var data = (res.data && res.data.data) || res.data || [];
+      _regCache.pending = data;
+      _renderPendingCards(data);
+      _updateRegBadge(data.length);
+    }).catch(function(err) {
+      var container = document.getElementById('regPendingList');
+      if (container) container.innerHTML = '<p style="color:var(--danger);">' + esc(err.message) + '</p>';
+    });
+  
+    callServer('uiGetAllRegistrations').then(function(res) {
+      var data = (res.data && res.data.data) || res.data || [];
+      _regCache.all = data;
+      _renderRegHistory(data);
+    }).catch(function(err) {
+      console.log('Reg history error:', err.message);
+    });
+  }
+  
+  // Render Stats
+  function _renderRegStats(stats) {
+    _regSetText('regStatTotal', stats.total || 0);
+    _regSetText('regStatPending', stats.pending || 0);
+    _regSetText('regStatApproved', stats.approved || 0);
+    _regSetText('regStatRejected', stats.rejected || 0);
+  }
+  
+  function _regSetText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+  
+  // Render Pending Cards
+  function _renderPendingCards(list) {
     var container = document.getElementById('regPendingList');
-    if (container) container.innerHTML = '<p style="color:var(--danger);">' + esc(err.message) + '</p>';
-  });
-
-  callServer('uiGetAllRegistrations').then(function(res) {
-    var data = (res.data && res.data.data) || res.data || [];
-    _regCache.all = data;
-    _renderRegHistory(data);
-  }).catch(function(err) {
-    console.log('Reg history error:', err.message);
-  });
-}
-
-// ─── RENDER STATS ───
-function _renderRegStats(stats) {
-  _regSetText('regStatTotal', stats.total || 0);
-  _regSetText('regStatPending', stats.pending || 0);
-  _regSetText('regStatApproved', stats.approved || 0);
-  _regSetText('regStatRejected', stats.rejected || 0);
-}
-
-function _regSetText(id, val) {
-  var el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-
-// ─── RENDER PENDING CARDS ───
-function _renderPendingCards(list) {
-  var container = document.getElementById('regPendingList');
-  var empty = document.getElementById('regNoPending');
-  if (!container) return;
-
-  if (!list || !list.length) {
-    container.innerHTML = '';
-    if (empty) empty.style.display = 'flex';
-    return;
+    var empty = document.getElementById('regNoPending');
+    if (!container) return;
+  
+    if (!list || !list.length) {
+      container.innerHTML = '';
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+  
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      var avatarColor = _regAvatarColor(r.email);
+      var initials = _regInitials(r.fullName || r.email);
+      var timeAgo = _regTimeAgo(r.requestedAt);
+  
+      html += '<div class="reg-card">'
+        + '<div class="reg-card-avatar" style="background:' + avatarColor + ';">' + initials + '</div>'
+        + '<div class="reg-card-info">'
+        + '<div class="reg-card-name">' + esc(r.fullName || 'بدون اسم') + '</div>'
+        + '<div class="reg-card-email">' + esc(r.email) + '</div>'
+        + '<div class="reg-card-meta">'
+        + '<span class="reg-meta-badge role">' + esc(r.role || '-') + '</span>'
+        + (r.department ? '<span class="reg-meta-badge dept">' + esc(r.department) + '</span>' : '')
+        + (r.position ? '<span class="reg-meta-badge dept">' + esc(r.position) + '</span>' : '')
+        + '<span class="reg-meta-badge time">' + esc(timeAgo) + '</span>'
+        + '</div>'
+        + '</div>'
+        + '<div class="reg-card-actions">'
+        + '<button class="btn btn-primary" style="font-size:13px;padding:8px 16px;" onclick="approveRegRequest(\'' + escAttr(r.id) + '\')">قبول</button>'
+        + '<button class="btn btn-danger" style="font-size:13px;padding:8px 16px;" onclick="openRejectRegModal(\'' + escAttr(r.id) + '\')">رفض</button>'
+        + '</div>'
+        + '</div>';
+    }
+    container.innerHTML = html;
   }
-  if (empty) empty.style.display = 'none';
-
-  var html = '';
-  for (var i = 0; i < list.length; i++) {
-    var r = list[i];
-    var avatarColor = _regAvatarColor(r.email);
-    var initials = _regInitials(r.fullName || r.email);
-    var timeAgo = _regTimeAgo(r.requestedAt);
-
-    html += '<div class="reg-card">'
-      + '<div class="reg-card-avatar" style="background:' + avatarColor + ';">' + initials + '</div>'
-      + '<div class="reg-card-info">'
-      + '<div class="reg-card-name">' + esc(r.fullName || 'بدون اسم') + '</div>'
-      + '<div class="reg-card-email">' + esc(r.email) + '</div>'
-      + '<div class="reg-card-meta">'
-      + '<span class="reg-meta-badge role">' + esc(r.role || '-') + '</span>'
-      + (r.department ? '<span class="reg-meta-badge dept">' + esc(r.department) + '</span>' : '')
-      + (r.position ? '<span class="reg-meta-badge dept">' + esc(r.position) + '</span>' : '')
-      + '<span class="reg-meta-badge time">' + esc(timeAgo) + '</span>'
-      + '</div>'
-      + '</div>'
-      + '<div class="reg-card-actions">'
-      + '<button class="btn btn-primary" style="font-size:13px;padding:8px 16px;" onclick="approveRegRequest(\'' + escAttr(r.id) + '\')">قبول</button>'
-      + '<button class="btn btn-danger" style="font-size:13px;padding:8px 16px;" onclick="openRejectRegModal(\'' + escAttr(r.id) + '\')">رفض</button>'
-      + '</div>'
-      + '</div>';
+  
+  // Render History Table
+  function _renderRegHistory(list) {
+    var tbody = document.getElementById('regHistoryBody');
+    if (!tbody) return;
+  
+    if (!list || !list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">لا توجد سجلات</td></tr>';
+      return;
+    }
+  
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      var statusBadge = '';
+      if (r.status === 'Approved') {
+        statusBadge = '<span class="badge badge-success">مقبول</span>';
+      } else if (r.status === 'Rejected') {
+        statusBadge = '<span class="badge badge-danger">مرفوض</span>';
+      } else {
+        statusBadge = '<span class="badge badge-warning">معلق</span>';
+      }
+  
+      html += '<tr>'
+        + '<td>' + esc(r.id || '-') + '</td>'
+        + '<td>' + esc(r.fullName || '-') + '</td>'
+        + '<td>' + esc(r.email || '-') + '</td>'
+        + '<td>' + esc(r.role || '-') + '</td>'
+        + '<td>' + esc(r.department || '-') + '</td>'
+        + '<td>' + statusBadge + '</td>'
+        + '<td>' + esc(r.reviewedAt || r.requestedAt || '-') + '</td>'
+        + '</tr>';
+    }
+    tbody.innerHTML = html;
   }
-  container.innerHTML = html;
-}
-
-// ─── RENDER HISTORY TABLE ───
-function _renderRegHistory(list) {
-  var tbody = document.getElementById('regHistoryBody');
-  if (!tbody) return;
-
-  if (!list || !list.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">لا توجد سجلات</td></tr>';
-    return;
+  
+  // Approve
+  function approveRegRequest(requestId) {
+    if (!confirm('هل تريد قبول طلب التسجيل هذا؟')) return;
+    callServer('uiApproveRegistration', requestId).then(function(res) {
+      var result = (res.data && res.data.data) || res.data || res;
+      if (result.success === false) {
+        showToast(result.error || 'حدث خطأ', 'error');
+      } else {
+        showToast('تم قبول طلب التسجيل بنجاح', 'success');
+        loadRegistrations();
+      }
+    }).catch(function(err) {
+      showToast(err.message || 'حدث خطأ في القبول', 'error');
+    });
   }
-
-  var html = '';
-  for (var i = 0; i < list.length; i++) {
-    var r = list[i];
-    var statusBadge = '';
-    if (r.status === 'Approved') {
-      statusBadge = '<span class="badge badge-success">مقبول</span>';
-    } else if (r.status === 'Rejected') {
-      statusBadge = '<span class="badge badge-danger">مرفوض</span>';
+  
+  // Reject (open modal) - using classList like all other modals
+  function openRejectRegModal(requestId) {
+    document.getElementById('rejectRegId').value = requestId;
+    document.getElementById('rejectRegReason').value = '';
+    openModal('modalRejectReg');
+  }
+  
+  // Reject (confirm)
+  function confirmRejectReg() {
+    var requestId = document.getElementById('rejectRegId').value;
+    var reason = document.getElementById('rejectRegReason').value;
+    if (!reason || !reason.trim()) {
+      showToast('يجب إدخال سبب الرفض', 'error');
+      return;
+    }
+    callServer('uiRejectRegistration', requestId, reason.trim()).then(function(res) {
+      var result = (res.data && res.data.data) || res.data || res;
+      if (result.success === false) {
+        showToast(result.error || 'حدث خطأ', 'error');
+      } else {
+        showToast('تم رفض طلب التسجيل', 'success');
+        closeModal('modalRejectReg');
+        loadRegistrations();
+      }
+    }).catch(function(err) {
+      showToast(err.message || 'حدث خطأ في الرفض', 'error');
+    });
+  }
+  
+  // Tab switching
+  function switchRegTab(tab) {
+    var btns = document.querySelectorAll('.reg-tab-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('active', btns[i].getAttribute('data-reg-tab') === tab);
+    }
+    var contents = document.querySelectorAll('.reg-tab-content');
+    for (var j = 0; j < contents.length; j++) {
+      contents[j].classList.toggle('active', contents[j].getAttribute('data-reg-tab') === tab);
+    }
+  }
+  
+  // Filter registrations
+  function filterRegistrations() {
+    var search = (document.getElementById('regSearch').value || '').toLowerCase();
+    var statusFilter = document.getElementById('regStatusFilter') ? document.getElementById('regStatusFilter').value : '';
+    var filtered = _regCache.all.filter(function(r) {
+      if (statusFilter && r.status !== statusFilter) return false;
+      if (search) {
+        var match = (r.fullName || '').toLowerCase().indexOf(search) > -1 ||
+                    (r.email || '').toLowerCase().indexOf(search) > -1 ||
+                    (r.id || '').toLowerCase().indexOf(search) > -1;
+        if (!match) return false;
+      }
+      return true;
+    });
+    _renderRegHistory(filtered);
+  }
+  
+  // Update nav badge
+  function _updateRegBadge(count) {
+    var badge = document.getElementById('badge-registrations');
+    if (!badge) return;
+    if (count > 0) {
+      badge.style.display = 'inline-flex';
+      badge.textContent = count;
     } else {
-      statusBadge = '<span class="badge badge-warning">معلق</span>';
+      badge.style.display = 'none';
     }
-
-    html += '<tr>'
-      + '<td>' + esc(r.id || '-') + '</td>'
-      + '<td>' + esc(r.fullName || '-') + '</td>'
-      + '<td>' + esc(r.email || '-') + '</td>'
-      + '<td>' + esc(r.role || '-') + '</td>'
-      + '<td>' + esc(r.department || '-') + '</td>'
-      + '<td>' + statusBadge + '</td>'
-      + '<td>' + esc(r.reviewedAt || r.requestedAt || '-') + '</td>'
-      + '</tr>';
+    _notifications.pendingRegistrations = count;
   }
-  tbody.innerHTML = html;
-}
-
-// ─── APPROVE ───
-function approveRegRequest(requestId) {
-  if (!confirm('هل تريد قبول طلب التسجيل هذا؟')) return;
-  callServer('uiApproveRegistration', requestId).then(function(res) {
-    var result = (res.data && res.data.data) || res.data || res;
-    if (result.success === false) {
-      showToast(result.error || 'حدث خطأ', 'error');
-    } else {
-      showToast('تم قبول طلب التسجيل بنجاح', 'success');
-      loadRegistrations();
-    }
-  }).catch(function(err) {
-    showToast(err.message || 'حدث خطأ في القبول', 'error');
-  });
-}
-
-// ─── REJECT (open modal) ───
-function openRejectRegModal(requestId) {
-  document.getElementById('rejectRegId').value = requestId;
-  document.getElementById('rejectRegReason').value = '';
-  document.getElementById('modalRejectReg').style.display = 'flex';
-}
-
-// ─── REJECT (confirm) ───
-function confirmRejectReg() {
-  var requestId = document.getElementById('rejectRegId').value;
-  var reason = document.getElementById('rejectRegReason').value;
-  if (!reason || !reason.trim()) {
-    showToast('يجب إدخال سبب الرفض', 'error');
-    return;
+  
+  // Helpers
+  function _regInitials(name) {
+    if (!name) return '?';
+    var parts = name.split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
   }
-  callServer('uiRejectRegistration', requestId, reason.trim()).then(function(res) {
-    var result = (res.data && res.data.data) || res.data || res;
-    if (result.success === false) {
-      showToast(result.error || 'حدث خطأ', 'error');
-    } else {
-      showToast('تم رفض طلب التسجيل', 'success');
-      closeModal('modalRejectReg');
-      loadRegistrations();
-    }
-  }).catch(function(err) {
-    showToast(err.message || 'حدث خطأ في الرفض', 'error');
-  });
-}
-
-// ─── TAB SWITCHING ───
-function switchRegTab(tab) {
-  var btns = document.querySelectorAll('.reg-tab-btn');
-  for (var i = 0; i < btns.length; i++) {
-    btns[i].classList.toggle('active', btns[i].getAttribute('data-reg-tab') === tab);
+  
+  function _regAvatarColor(email) {
+    if (!email) return '#6366F1';
+    var colors = ['#6366F1','#8B5CF6','#EC4899','#F59E0B','#22C55E','#06B6D4','#EF4444','#3B82F6'];
+    var hash = 0;
+    for (var i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
   }
-  var contents = document.querySelectorAll('.reg-tab-content');
-  for (var j = 0; j < contents.length; j++) {
-    contents[j].classList.toggle('active', contents[j].getAttribute('data-reg-tab') === tab);
+  
+  function _regTimeAgo(dateStr) {
+    if (!dateStr) return '';
+    try {
+      var d = new Date(dateStr);
+      var now = new Date();
+      var diff = Math.floor((now - d) / 1000);
+      if (diff < 60) return 'الآن';
+      if (diff < 3600) return 'منذ ' + Math.floor(diff / 60) + ' دقيقة';
+      if (diff < 86400) return 'منذ ' + Math.floor(diff / 3600) + ' ساعة';
+      return 'منذ ' + Math.floor(diff / 86400) + ' يوم';
+    } catch(e) { return ''; }
   }
-}
-
-// ─── REG FILTER ───
-function filterRegistrations() {
-  var search = (document.getElementById('regSearch').value || '').toLowerCase();
-  var statusFilter = document.getElementById('regStatusFilter') ? document.getElementById('regStatusFilter').value : '';
-  var filtered = _regCache.all.filter(function(r) {
-    if (statusFilter && r.status !== statusFilter) return false;
-    if (search) {
-      var match = (r.fullName || '').toLowerCase().indexOf(search) > -1 ||
-                  (r.email || '').toLowerCase().indexOf(search) > -1 ||
-                  (r.id || '').toLowerCase().indexOf(search) > -1;
-      if (!match) return false;
-    }
-    return true;
-  });
-  _renderRegHistory(filtered);
-}
-
-// ─── UPDATE NAV BADGE ───
-function _updateRegBadge(count) {
-  var badge = document.getElementById('badge-registrations');
-  if (!badge) return;
-  if (count > 0) {
-    badge.style.display = 'inline-flex';
-    badge.textContent = count;
-  } else {
-    badge.style.display = 'none';
-  }
-  _notifications.pendingRegistrations = count;
-}
-
-// ─── HELPERS ───
-function _regInitials(name) {
-  if (!name) return '?';
-  var parts = name.split(' ');
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.substring(0, 2).toUpperCase();
-}
-
-function _regAvatarColor(email) {
-  if (!email) return '#6366F1';
-  var colors = ['#6366F1','#8B5CF6','#EC4899','#F59E0B','#22C55E','#06B6D4','#EF4444','#3B82F6'];
-  var hash = 0;
-  for (var i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function _regTimeAgo(dateStr) {
-  if (!dateStr) return '';
-  try {
-    var d = new Date(dateStr);
-    var now = new Date();
-    var diff = Math.floor((now - d) / 1000);
-    if (diff < 60) return 'الآن';
-    if (diff < 3600) return 'منذ ' + Math.floor(diff / 60) + ' دقيقة';
-    if (diff < 86400) return 'منذ ' + Math.floor(diff / 3600) + ' ساعة';
-    return 'منذ ' + Math.floor(diff / 86400) + ' يوم';
-  } catch(e) { return ''; }
-}
-</script>
+  </script>
