@@ -41,6 +41,16 @@ var _i18n = {
     nav_finance: 'المالية', nav_expenses: 'المصروفات', nav_approvals: 'الموافقات',
     nav_tasks: 'المهام', nav_marketing: 'التسويق', nav_social: 'التواصل الاجتماعي',
     nav_satisfaction: 'رضا العملاء', nav_nps: 'NPS', nav_members: 'أعضاء الفريق',
+    nav_section_main: 'الرئيسية',
+    nav_section_sales: 'المبيعات والعمليات',
+    nav_section_finance: 'المالية',
+    nav_section_mgmt: 'الإدارة',
+    nav_section_analytics: 'التحليلات',
+    nav_section_system: 'النظام',
+    pending_registrations: 'تسجيلات معلّقة',
+    overdue_tasks: 'مهام متأخرة',
+    low_stock_items: 'أصناف منخفضة المخزون',
+    pending_expenses: 'مصروفات معلّقة',
     page_dashboard: 'لوحة التحكم', page_kpi: 'المؤشرات الرئيسية',
     page_customers: 'العملاء', page_orders: 'الطلبات', page_sales: 'المبيعات',
     page_inventory: 'المخزون', page_finance: 'المالية', page_expenses: 'المصروفات',
@@ -101,6 +111,16 @@ var _i18n = {
     nav_finance: 'Finance', nav_expenses: 'Expenses', nav_approvals: 'Approvals',
     nav_tasks: 'Tasks', nav_marketing: 'Marketing', nav_social: 'Social Media',
     nav_satisfaction: 'Satisfaction', nav_nps: 'NPS', nav_members: 'Team Members',
+    nav_section_main: 'Overview',
+    nav_section_sales: 'Sales & Operations',
+    nav_section_finance: 'Finance',
+    nav_section_mgmt: 'Management',
+    nav_section_analytics: 'Analytics',
+    nav_section_system: 'System',
+    pending_registrations: 'Pending registrations',
+    overdue_tasks: 'Overdue tasks',
+    low_stock_items: 'Low stock items',
+    pending_expenses: 'Pending expenses',
     page_dashboard: 'Dashboard', page_kpi: 'Key Performance Indicators',
     page_customers: 'Customers', page_orders: 'Orders', page_sales: 'Sales',
     page_inventory: 'Inventory', page_finance: 'Finance', page_expenses: 'Expenses',
@@ -154,22 +174,9 @@ var _i18n = {
     name: 'Name', email: 'Email', phone: 'Phone',
     notes: 'Notes', amount: 'Amount', date: 'Date',
     customer: 'Customer', product: 'Product', quantity: 'Quantity',
-    id: 'ID', actions: 'Actions',
-
-    auth_register_btn: 'Create Account',
-    auth_register_title: 'Create Account',
-    auth_register_desc: 'Enter your details to register in PHINOX BOS',
-    auth_fullname: 'Full Name',
-    auth_fullname_ph: 'e.g. John Doe',
-    auth_password_ph: '6 characters minimum',
-    auth_role: 'Role',
-    auth_optional: 'optional',
-    auth_department: 'Department',
-    auth_department_ph: 'e.g. Sales',
-    auth_register_submit: 'Create Account',
-    auth_back_to_login: 'Back to Login',
     id: 'ID', actions: 'Actions'
-  }};
+  }
+};
 
 function t(key) {
   return (_i18n[_currentLang] && _i18n[_currentLang][key]) || key;
@@ -253,7 +260,13 @@ function callServer(action) {
       })
       .withFailureHandler(function(err) {
         var msg = (err && err.message) ? err.message : String(err);
-        reject(new Error(msg));
+        // google.script.run يرمي هذا الخطأ عند وجود Date/undefined في القيمة المرجعة
+        if (msg.indexOf('illegal value in property') !== -1 || msg.indexOf('Failed due to') !== -1) {
+          console.info('[callServer] Serialization error in ' + action + ' — will retry if needed');
+          reject(new Error('SERVER_SERIALIZATION_ERROR'));
+        } else {
+          reject(new Error(msg));
+        }
       });
     var fn = runner[action];
     if (typeof fn !== 'function') {
@@ -369,7 +382,7 @@ function _showLoginOverlay() {
   overlay.className = 'auth-overlay';
   overlay.innerHTML =
     '<div class="auth-card">' +
-    '<span class="auth-icon">⚙️</span>' +
+    '<span class="auth-icon">\u2699\uFE0F</span>' +
     '<h2 class="auth-title">PHINOX BOS</h2>' +
     '<p class="auth-subtitle">' + t('auth_login_title') + '</p>' +
 
@@ -383,11 +396,11 @@ function _showLoginOverlay() {
     '<input type="password" id="authPasswordInput" class="form-input" placeholder="********" onkeydown="if(event.key===\'Enter\')_doLogin()">' +
     '</div>' +
     '<div id="authErrorMsg" class="auth-error"></div>' +
-    '<button id="authLoginBtn" class="auth-btn auth-btn-primary" onclick="_doLogin()">⚙️ ' + t('auth_login_btn') + '</button>' +
-    '<button class="auth-btn auth-btn-google" onclick="_doGoogleLogin()">✉️ ' + t('auth_login_google') + '</button>' +
+    '<button id="authLoginBtn" class="auth-btn auth-btn-primary" onclick="_doLogin()">\u2699\uFE0F ' + t('auth_login_btn') + '</button>' +
+    '<button class="auth-btn auth-btn-google" onclick="_doGoogleLogin()">\u2709\uFE0F ' + t('auth_login_google') + '</button>' +
     '<div class="auth-divider">' + (_currentLang === 'ar' ? 'أو' : 'or') + '</div>' +
-    '<button class="auth-btn auth-btn-register" onclick="showRegisterForm()"><span>➕ ' + (t('auth_register_btn') || 'إنشاء حساب جديد') + '</span></button>' +
-    '<button class="auth-btn auth-btn-ghost" onclick="_enterAsGuest()">⏩ ' + t('auth_guest') + '</button>' +
+    '<button class="auth-btn auth-btn-register" onclick="showRegisterForm()"><span>\u2795 ' + (t('auth_register_btn') || 'إنشاء حساب جديد') + '</span></button>' +
+    '<button class="auth-btn auth-btn-ghost" onclick="_enterAsGuest()">\u23E9 ' + t('auth_guest') + '</button>' +
     '</div>' +
 
     '<div id="authLoading" class="auth-loading">' +
@@ -542,7 +555,7 @@ function showRegisterForm() {
   if (!overlay) return;
   overlay.innerHTML =
     '<div class="auth-card">' +
-    '<span class="auth-icon">📝</span>' +
+    '<span class="auth-icon">\u{1F4DD}</span>' +
     '<h2 class="auth-title">' + (t('auth_register_title') || 'إنشاء حساب جديد') + '</h2>' +
     '<p class="auth-subtitle">' + (t('auth_register_desc') || 'أدخل بياناتك للتسجيل في PHINOX BOS') + '</p>' +
     '<form id="registerForm" class="auth-form auth-form-enter" onsubmit="submitRegister(event)">' +
@@ -576,7 +589,7 @@ function showRegisterForm() {
     '</div>' +
     '<div id="registerStatus" class="auth-error"></div>' +
     '<button type="submit" id="registerSubmitBtn" class="auth-btn auth-btn-primary">' + (t('auth_register_submit') || 'إنشاء حساب') + '</button>' +
-    '<button type="button" class="auth-btn auth-btn-ghost" onclick="_showLoginForm()">↩️ ' + (t('auth_back_to_login') || 'العودة لتسجيل الدخول') + '</button>' +
+    '<button type="button" class="auth-btn auth-btn-ghost" onclick="_showLoginForm()">\u21A9\uFE0F ' + (t('auth_back_to_login') || 'العودة لتسجيل الدخول') + '</button>' +
     '</form>' +
     '</div>';
 
@@ -591,8 +604,7 @@ function submitRegister(event) {
   var status = document.getElementById('registerStatus');
   var submitBtn = document.getElementById('registerSubmitBtn');
 
-  status.classList.add("visible");
-  status.classList.remove("auth-error");
+  status.style.display = 'block';
   status.style.background = 'rgba(14,165,233,0.1)';
   status.style.border = '1px solid rgba(14,165,233,0.3)';
   status.style.color = '#38BDF8';
@@ -679,13 +691,37 @@ function _onAuthSuccess(user) {
  *   3. لو لا → حاول Google OAuth كـ fallback
  *   4. لو كل شيء فشل → شاشة تسجيل الدخول
  */
+// ✅ قائمة الدوال التي يجب أن توجد في النسخة v6 من UI_Server.js
+var _V6_AUTH_FUNCTIONS = ['uiValidateSession','uiLoginWithEmail','uiLoginWithGoogle','uiRegister'];
+var _serverHasV6Auth = null; // null = لم نتحقق بعد
+
+/**
+ * تحقق مما إذا كان السيرفر يدعم v6 auth (بدون استدعاء فعلي)
+ * يُستدعى مرة واحدة فقط
+ */
+function _checkServerV6Auth() {
+  if (_serverHasV6Auth !== null) return _serverHasV6Auth;
+  try {
+    var runner = google.script.run;
+    _serverHasV6Auth = _V6_AUTH_FUNCTIONS.every(function(fnName) {
+      return typeof runner[fnName] === 'function';
+    });
+  } catch(e) {
+    _serverHasV6Auth = false;
+  }
+  return _serverHasV6Auth;
+}
+
 function initAuthSystem() {
   // 1. محاولة استعادة الجلسة من localStorage
   var savedToken = null;
   try { savedToken = localStorage.getItem('phinox_session'); } catch(e) {}
 
-  if (savedToken) {
-    // تحقق من الجلسة
+  // 2. تحقق مما إذا كان السيرفر يدعم v6 auth
+  var hasV6 = _checkServerV6Auth();
+
+  if (savedToken && hasV6) {
+    // v6: تحقق من الجلسة عبر token
     callServer('uiValidateSession', savedToken).then(function(res) {
       var user = res.data;
       if (user && user.email) {
@@ -704,41 +740,98 @@ function initAuthSystem() {
       _tryGoogleFallback();
     });
   } else {
-    // لا يوجد token — حاول Google OAuth
+    // لا يوجد token أو السيرفر لا يدعم v6 — حاول Google OAuth مباشرة
+    if (savedToken) {
+      try { localStorage.removeItem('phinox_session'); } catch(e) {}
+      _authToken = null;
+    }
     _tryGoogleFallback();
   }
 }
 
 /**
  * Fallback: محاولة الدخول عبر Google OAuth (الطريقة القديمة)
+ * Step 1: uiPingAuth (خفيفة — بس تجيب الإيميل)
+ * Step 2: uiGetCurrentUser (كاملة — بتجيب بيانات العضو)
  */
-function _tryGoogleFallback() {
-  callServer('uiGetCurrentUser').then(function(res) {
+function _tryGoogleFallback(attempt) {
+  attempt = attempt || 0;
+
+  // Step 1: ping خفيف للتأكد إن google.script.run شغال
+  callServer('uiPingAuth').then(function(pingRes) {
+    var pingEmail = pingRes.data && pingRes.data.email;
+    if (!pingEmail) {
+      _showLoginOverlay();
+      return;
+    }
+    // Step 2: جيب بيانات العضو الكاملة
+    return callServer('uiGetCurrentUser');
+  }).then(function(res) {
+    if (!res) return; // من Step 1 لو مفيش إيميل
     var user = res.data;
     if (user && user.email) {
-      // نجح Google OAuth — أنشئ جلسة واحفظها
       _currentUser = user;
       _onAuthSuccess(_currentUser);
-
-      // أنشئ جلسة على السيرفر (صامت)
-      callServer('uiLoginWithGoogle').then(function(sessRes) {
-        var sessData = sessRes.data;
-        if (sessData && sessData.token) {
-          _authToken = sessData.token;
-          try { localStorage.setItem('phinox_session', sessData.token); } catch(e) {}
-        }
-      }).catch(function() {
-        // لو فشل إنشاء الجلسة، المستخدم لسه عامل مع Google OAuth
-      });
+      if (_checkServerV6Auth()) {
+        callServer('uiLoginWithGoogle').then(function(sessRes) {
+          var sessData = sessRes.data;
+          if (sessData && sessData.token) {
+            _authToken = sessData.token;
+            try { localStorage.setItem('phinox_session', sessData.token); } catch(e) {}
+          }
+        }).catch(function() {});
+      }
     } else {
-      // Google OAuth فشل — اعرض شاشة تسجيل الدخول
       _showLoginOverlay();
     }
   }).catch(function(err) {
-    console.warn('Google OAuth fallback failed:', err.message);
-    // اعرض شاشة تسجيل الدخول
+    if (attempt < 1) {
+      console.info('[Auth] Google OAuth attempt ' + (attempt + 1) + ' failed, retrying...');
+      setTimeout(function() { _tryGoogleFallback(attempt + 1); }, 800);
+      return;
+    }
+    console.info('[Auth] Google OAuth fallback skipped — showing login form');
     _showLoginOverlay();
   });
+}
+
+// ─── SIDEBAR SECTION TOGGLE ───
+function toggleNavSection(sectionName) {
+  var section = document.querySelector('.nav-section[data-section="' + sectionName + '"]');
+  if (section) section.classList.toggle('collapsed');
+}
+
+// ─── MOBILE SIDEBAR TOGGLE ───
+function toggleMobileSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  if (!sidebar) return;
+  var isOpen = sidebar.classList.contains('open');
+  if (isOpen) {
+    sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+  } else {
+    sidebar.classList.add('open');
+    if (overlay) overlay.classList.add('active');
+  }
+}
+
+// ─── NAV BADGES (notification counters on sidebar items) ───
+function updateNavBadges() {
+  function setBadge(id, count) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = count > 99 ? '99+' : count;
+      el.style.display = 'inline-flex';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+  setBadge('badge-inventory', _notifications.lowStockItems || 0);
+  setBadge('badge-approvals', _notifications.pendingExpenses || 0);
+  setBadge('badge-tasks', _notifications.overdueTasks || 0);
+  setBadge('badge-members', _notifications.pendingRegistrations || 0);
 }
 
 // ─── NOTIFICATION SYSTEM ───
@@ -784,7 +877,7 @@ function loadNotifications() {
     );
   }
 
-  Promise.all(promises).then(function() { renderNotifications(); });
+  Promise.all(promises).then(function() { renderNotifications(); updateNavBadges(); });
 }
 
 function renderNotifications() {
