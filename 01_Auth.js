@@ -558,83 +558,261 @@ var Auth = (function() {
 
 })();
 
-// ─── دوال عامة للاستدعاء من google.script.run ───────
+// ═══════════════════════════════════════════════════════════════════════
+// دوال عامة للاستدعاء من google.script.run — واجهات متوافقة مع UI_JS_Core.html
+// ═══════════════════════════════════════════════════════════════════════
 
-/**
- * تسجيل الدخول (يُستدعى من الواجهة)
- * @param {string} email
- * @param {string} password
- * @returns {object}
- */
-function uiAuthLogin(email, password) {
+function uiLoginWithEmail(email, password) {
   try {
-    return Auth.loginWithEmail(email, password);
-  } catch(e) {
-    return { success: false, error: e.message };
+    _checkRateLimit('uiLoginWithEmail');
+    if (!email || !password) {
+      return { success: false, error: 'البريد وكلمة المرور مطلوبان' };
+    }
+    var result = Auth.loginWithEmail(email, password);
+    if (result.success && result.user) {
+      var safePermissions = [];
+      try {
+        var perms = getRolePermissions(result.user.role || '');
+        if (Array.isArray(perms)) {
+          safePermissions = perms.filter(function(p) { return typeof p === 'string'; });
+        }
+      } catch(e) {}
+      result.user.permissions = safePermissions;
+    }
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'خطأ في تسجيل الدخول') };
+  }
+}
+
+function uiLoginWithGoogle() {
+  try {
+    _checkRateLimit('uiLoginWithGoogle');
+    var result = Auth.loginWithGoogle();
+    if (result.success && result.user) {
+      var safePermissions = [];
+      try {
+        var perms = getRolePermissions(result.user.role || '');
+        if (Array.isArray(perms)) {
+          safePermissions = perms.filter(function(p) { return typeof p === 'string'; });
+        }
+      } catch(e) {}
+      result.user.permissions = safePermissions;
+    }
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'خطأ في المصادقة عبر Google') };
+  }
+}
+
+function uiValidateSession(token) {
+  try {
+    _checkRateLimit('uiValidateSession');
+    if (!token || typeof token !== 'string') {
+      return { success: false, error: 'AUTH_REQUIRED: يرجى تسجيل الدخول' };
+    }
+    var session = AuthSession.validateSession(token);
+    if (!session) {
+      return { success: false, error: 'AUTH_SESSION_EXPIRED: انتهت صلاحية الجلسة' };
+    }
+    var member = AuthSession.getSessionMember(token);
+    if (!member) {
+      AuthSession.destroySession(token);
+      return { success: false, error: 'AUTH_USER_NOT_FOUND: المستخدم محذوف' };
+    }
+    var status = String(member[MEMBER_COL.STATUS] || '').trim().toLowerCase();
+    if (status !== 'active') {
+      AuthSession.destroySession(token);
+      return { success: false, error: 'AUTH_ACCOUNT_INACTIVE: الحساب غير نشط' };
+    }
+    var safeEmail = String(member[MEMBER_COL.EMAIL] || '').trim();
+    var safeName = String(member[MEMBER_COL.FULL_NAME] || '').trim();
+    var safeRole = String(member[MEMBER_COL.ROLE] || '').trim();
+    var safePermissions = [];
+    try {
+      var perms = getRolePermissions(safeRole);
+      if (Array.isArray(perms)) {
+        safePermissions = perms.filter(function(p) { return typeof p === 'string'; });
+      }
+    } catch(e) {}
+    return {
+      success: true,
+      data: {
+        id: String(member[MEMBER_COL.MEMBER_ID] || ''),
+        email: safeEmail,
+        name: safeName,
+        role: safeRole,
+        department: typeof MEMBER_COL.DEPARTMENT !== 'undefined' ? String(member[MEMBER_COL.DEPARTMENT] || '') : '',
+        permissions: safePermissions
+      }
+    };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'Unknown error') };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// REGISTER NEW MEMBER — v6
+// ═══════════════════════════════════════════════════════════════════════
+
+function uiRegisterMember(data) {
+  try {
+    _checkRateLimit('uiRegisterMember');
+
+    // 1. التحقق من المدخلات
+    var fullName = data && data.fullName ? data.fullName.trim() : '';
+    var email = data && data.email ? data.email.trim().toLowerCase() : '';
+    var password = data && data.password ? data.password : '';
+    var role = data && data.role ? data.role.trim() : 'Designer';
+    var department = data && data.department ? data.department.trim() : '';
+
+    if (!fullName || !email || !password) {
+      return { success: false, error: 'الاسم الكامل، البريد الإلكتروني، وكلمة المرور مطلوبة' };
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { success: false, error: 'البريد الإلكتروني غير صالح' };
+    }
+    if (password.length < 6) {
+      return { success: false, error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' };
+    }
+
+    // 2. التحقق من وجود البريد مسبقاً
+    var existing = _findMemberByEmailGlobal(email);
+    if (existing) {
+      return { success: false, error: 'هذا البريد الإلكتروني مسجل بالفعل' };
+    }
+
+    // 3. تشفير كلمة المرور
+    var passwordHash = AuthPassword.hash(password);
+
+    // 4. إنشاء معرف جديد
+    var newId = 'MEM-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+
+    // 5. إضافة الصف إلى Members sheet
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Members');
+    if (!sheet) {
+      return { success: false, error: 'ورقة Members غير موجودة' };
+    }
+
+    var joinDateStr = new Date().toISOString().split('T')[0]; // ✅ string وليس Date
+
+    var newRow = [
+      newId,          // 0  MEMBER_ID
+      fullName,       // 1  FULL_NAME
+      role,           // 2  ROLE
+      email,          // 3  EMAIL
+      data.phone || '', // 4  PHONE
+      'Active',       // 5  STATUS
+      joinDateStr,    // 6  JOIN_DATE ✅ string
+      0,              // 7  KPI_SCORE
+      0,              // 8  TASKS_COMPLETED
+      0,              // 9  TASKS_LATE
+      0,              // 10 AVERAGE_QUALITY
+      data.notes || '', // 11 NOTES
+      department,     // 12 DEPARTMENT
+      passwordHash    // 13 PASSWORD_HASH
+    ];
+
+    sheet.appendRow(newRow);
+
+    // 6. تسجيل النشاط
+    try {
+      if (typeof logActivity === 'function') {
+        logActivity(null, 'تسجيل مستخدم جديد', 'Auth', newId, '', 'نجاح');
+      }
+    } catch(e) {}
+
+    // 7. إنشاء جلسة تلقائياً بعد التسجيل
+    var sessionToken = AuthSession.createSession(newId, email);
+
+    // 8. إعادة بيانات المستخدم مع الصلاحيات
+    var safePermissions = [];
+    try {
+      var perms = getRolePermissions(role);
+      if (Array.isArray(perms)) {
+        safePermissions = perms.filter(function(p) { return typeof p === 'string'; });
+      }
+    } catch(e) {}
+
+    return {
+      success: true,
+      data: {
+        token: sessionToken,
+        user: {
+          id: newId,
+          email: email,
+          name: fullName,
+          role: role,
+          department: department,
+          permissions: safePermissions
+        }
+      }
+    };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'خطأ في التسجيل') };
   }
 }
 
 /**
- * تسجيل الدخول عبر Google (يُستدعى من الواجهة)
- * @returns {object}
+ * دالة مساعدة عامة للبحث عن عضو بالبريد (للاستدعاء من دوال عامة خارج IIFE)
  */
-function uiAuthLoginGoogle() {
+function _findMemberByEmailGlobal(email) {
   try {
-    return Auth.loginWithGoogle();
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Members');
+    if (!sheet) return null;
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return null;
+    var totalCols = sheet.getLastColumn();
+    var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
+    var normalized = email.trim().toLowerCase();
+    for (var i = 0; i < data.length; i++) {
+      var colEmail = String(data[i][MEMBER_COL.EMAIL] || '').trim().toLowerCase();
+      if (colEmail === normalized) {
+        return data[i];
+      }
+    }
   } catch(e) {
-    return { success: false, error: e.message };
+    console.log('[Auth] _findMemberByEmailGlobal error: ' + e.message);
   }
+  return null;
 }
 
 /**
- * تسجيل مستخدم جديد (يُستدعى من الواجهة)
- * @param {object} data
- * @returns {object}
+ * تسجيل مستخدم جديد (واجهة قديمة — للتوافق)
  */
 function uiAuthRegister(data) {
-  try {
-    return Auth.register(data);
-  } catch(e) {
-    return { success: false, error: e.message };
-  }
+  return uiRegisterMember(data);
 }
 
 /**
- * طلب إعادة تعيين كلمة المرور (يُستدعى من الواجهة)
- * @param {string} email
- * @returns {object}
+ * طلب إعادة تعيين كلمة المرور
  */
 function uiAuthRequestReset(email) {
   try {
     return Auth.requestPasswordReset(email);
   } catch(e) {
-    return { success: false, error: e.message };
+    return { success: false, error: String(e.message || 'Unknown error') };
   }
 }
 
 /**
- * تنفيذ إعادة تعيين كلمة المرور (يُستدعى من الواجهة)
- * @param {string} token
- * @param {string} newPassword
- * @returns {object}
+ * تنفيذ إعادة تعيين كلمة المرور
  */
 function uiAuthConfirmReset(token, newPassword) {
   try {
     return Auth.confirmPasswordReset(token, newPassword);
   } catch(e) {
-    return { success: false, error: e.message };
+    return { success: false, error: String(e.message || 'Unknown error') };
   }
 }
 
 /**
- * تسجيل الخروج (يُستدعى من الواجهة)
- * @param {string} token
- * @returns {object}
+ * تسجيل الخروج
  */
 function uiAuthLogout(token) {
   try {
     return Auth.logout(token);
   } catch(e) {
-    return { success: false, error: e.message };
+    return { success: false, error: String(e.message || 'Unknown error') };
   }
 }

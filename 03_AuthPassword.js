@@ -66,7 +66,7 @@ var AuthPassword = (function() {
     var combined = salt + password;
     var digest = Utilities.computeDigest(
       Utilities.DigestAlgorithm.SHA_256,
-      combined.getBytes()
+      combined
     );
     var hashHex = _bytesToHex(digest);
 
@@ -94,7 +94,7 @@ var AuthPassword = (function() {
     var combined = salt + password;
     var digest = Utilities.computeDigest(
       Utilities.DigestAlgorithm.SHA_256,
-      combined.getBytes()
+      combined
     );
     var computedHash = _bytesToHex(digest);
 

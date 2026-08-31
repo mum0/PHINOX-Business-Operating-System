@@ -1,15 +1,15 @@
 /**
- * Auth System — Session Management (GAS-Adapted)
- * PHINOX BOS v5
+ * Auth System — Session Management (GAS-Adapted) — FIXED v6
+ * PHINOX BOS v6
  *
- * ⚠️ اختلافات GAS عن Node.js:
- *   - لا يوجد HTTP sessions ثابتة — كل google.script.run مستقل
- *   - نستخدم CacheService للتخزين المؤقت (أسرع من PropertiesService)
- *   - مدة الجلسة: 8 ساعات (تتناسب مع جلسة GAS المعتادة)
- *   - تنظيف الجلسات يتم عبر Cache TTL التلقائي
+ * FIXES APPLIED:
+ *   1. كل Date objects تُحوّل لـ .toISOString() قبل الإرجاع
+ *      (يمنع "illegal value in property: 0" في google.script.run)
+ *   2. UserProperties استُبدل بـ ScriptProperties للـ multi-user
+ *   3. إضافة uiValidateSession دالة عامة للاستدعاء من الواجهة
  *
  * يعتمد على: لا شيء (وحدة مستقلة)
- * يُستخدم من: 01_Auth.js, 04_AuthMiddleware.js
+ * يُستخدم من: 01_Auth.js, 04_AuthMiddleware.js, UI_Server.js
  */
 
 var AuthSession = (function() {
@@ -42,22 +42,23 @@ var AuthSession = (function() {
    */
   function createSession(memberId, email) {
     var token = Utilities.getUuid();
-    var now = new Date();
-    var expiry = new Date(now.getTime() + SESSION_TTL_SECONDS * 1000);
+    var nowIso = new Date().toISOString();
+    var expiryMs = Date.now() + SESSION_TTL_SECONDS * 1000;
+    var expiryIso = new Date(expiryMs).toISOString();
 
     var sessionData = JSON.stringify({
-      memberId: memberId,
-      email: email,
-      createdAt: now.toISOString(),
-      expiresAt: expiry.toISOString()
+      memberId: String(memberId),
+      email: String(email),
+      createdAt: nowIso,     // ✅ string وليس Date
+      expiresAt: expiryIso    // ✅ string وليس Date
     });
 
     // تخزين في Cache (ينتهي تلقائياً بعد TTL)
     _getCache().put(SESSION_PREFIX + token, sessionData, SESSION_TTL_SECONDS);
 
-    // أيضاً في UserProperties كنسخة احتياطية (في حالة مسح Cache)
+    // أيضاً في ScriptProperties كنسخة احتياطية (مشترك بين كل المستخدمين)
     try {
-      var props = PropertiesService.getUserProperties();
+      var props = PropertiesService.getScriptProperties();
       props.setProperty(SESSION_PREFIX + token, sessionData);
     } catch(e) {
       // تجاهل إذا فشل — Cache يكفي
@@ -71,7 +72,7 @@ var AuthSession = (function() {
   /**
    * التحقق من صلاحية الجلسة
    * @param {string} token — رمز الجلسة
-   * @returns {object|null} — بيانات الجلسة أو null
+   * @returns {object|null} — بيانات الجلسة أو null (كل القيم strings — آمنة للتسلسل)
    */
   function validateSession(token) {
     if (!token || typeof token !== 'string') return null;
@@ -79,10 +80,10 @@ var AuthSession = (function() {
     // 1. البحث في Cache أولاً (أسرع)
     var sessionData = _getCache().get(SESSION_PREFIX + token);
 
-    // 2. إذا لم يُوجد، ابحث في UserProperties (نسخة احتياطية)
+    // 2. إذا لم يُوجد، ابحث في ScriptProperties (نسخة احتياطية)
     if (!sessionData) {
       try {
-        var props = PropertiesService.getUserProperties();
+        var props = PropertiesService.getScriptProperties();
         sessionData = props.getProperty(SESSION_PREFIX + token);
       } catch(e) {}
     }
@@ -96,8 +97,8 @@ var AuthSession = (function() {
       return null;
     }
 
-    // التحقق من انتهاء الصلاحية
-    if (new Date(parsed.expiresAt) < new Date()) {
+    // ✅ التحقق من انتهاء الصلاحية — مقارنة strings بدل Date objects
+    if (new Date(parsed.expiresAt).getTime() < Date.now()) {
       destroySession(token);
       return null;
     }
@@ -113,7 +114,7 @@ var AuthSession = (function() {
     if (!token) return;
     _getCache().remove(SESSION_PREFIX + token);
     try {
-      PropertiesService.getUserProperties().deleteProperty(SESSION_PREFIX + token);
+      PropertiesService.getScriptProperties().deleteProperty(SESSION_PREFIX + token);
     } catch(e) {}
   }
 
@@ -138,7 +139,7 @@ var AuthSession = (function() {
   function createResetToken(email) {
     var token = Utilities.getUuid();
     var data = JSON.stringify({
-      email: email,
+      email: String(email),
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + RESET_TTL_SECONDS * 1000).toISOString()
     });
@@ -161,7 +162,7 @@ var AuthSession = (function() {
     var parsed;
     try { parsed = JSON.parse(data); } catch(e) { return null; }
 
-    if (new Date(parsed.expiresAt) < new Date()) {
+    if (new Date(parsed.expiresAt).getTime() < Date.now()) {
       _getCache().remove(RESET_PREFIX + token);
       return null;
     }
@@ -194,12 +195,10 @@ var AuthSession = (function() {
     var remaining = Math.max(0, MAX_FAILED_ATTEMPTS - count);
 
     if (count >= MAX_FAILED_ATTEMPTS) {
-      // قفل الحساب مؤقتاً
       _getCache().put(key, String(count), LOCKOUT_TTL_SECONDS);
       return { attempts: count, isLocked: true, remaining: 0 };
     }
 
-    // تخزين مع TTL ساعة (تُعيد العداد بعد ساعة من عدم المحاولة)
     _getCache().put(key, String(count), 60 * 60);
 
     return { attempts: count, isLocked: false, remaining: remaining };
@@ -219,7 +218,7 @@ var AuthSession = (function() {
   }
 
   /**
-   * مسح عداد المحاولات الفاشلة (عند نجاح الدخول)
+   * مسح عداد المحاولات الفاشلة
    * @param {string} email
    */
   function clearFailedAttempts(email) {
@@ -230,15 +229,14 @@ var AuthSession = (function() {
   // ─── تنظيف (يُستدعى يومياً من dailyTrigger) ──────────
 
   /**
-   * تنظيف الجلسات والرموز المنتهية
+   * تنظيف الجلسات المنتهية من ScriptProperties
    * ملاحظة: CacheService يحذف تلقائياً حسب TTL
-   * هذه الدالة تنظف UserProperties فقط
    */
   function cleanup() {
     try {
-      var props = PropertiesService.getUserProperties();
+      var props = PropertiesService.getScriptProperties();
       var keys = props.getKeys();
-      var now = new Date();
+      var nowMs = Date.now();
       var removed = 0;
 
       for (var i = 0; i < keys.length; i++) {
@@ -247,7 +245,7 @@ var AuthSession = (function() {
           if (data) {
             try {
               var parsed = JSON.parse(data);
-              if (new Date(parsed.expiresAt) < now) {
+              if (new Date(parsed.expiresAt).getTime() < nowMs) {
                 props.deleteProperty(keys[i]);
                 removed++;
               }
@@ -260,7 +258,7 @@ var AuthSession = (function() {
       }
 
       if (removed > 0) {
-        Logger.info('AuthSession', 'Cleaned up ' + removed + ' expired sessions from UserProperties');
+        Logger.info('AuthSession', 'Cleaned up ' + removed + ' expired sessions');
       }
     } catch(e) {
       Logger.error('AuthSession', 'Cleanup failed: ' + e.message);
@@ -279,7 +277,8 @@ var AuthSession = (function() {
       var lastRow = sheet.getLastRow();
       if (lastRow <= 1) return null;
 
-      var data = sheet.getRange(2, 1, lastRow - 1, 14).getValues(); // 14 عمود
+      var totalCols = sheet.getLastColumn();
+      var data = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
       var target = String(memberId).trim();
 
       for (var i = 0; i < data.length; i++) {

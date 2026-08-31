@@ -1,8 +1,24 @@
 // ═══════════════════════════════════════════════════════════════════════
-// PHINOX BOS v5 — UI Server (Google Apps Script)
+// PHINOX BOS v6 — UI Server (Google Apps Script)
 // ═══════════════════════════════════════════════════════════════════════
-// تم التعديل: إزالة doGet المكرر، إضافة RequestValidator + RateLimiter + AuditLog
-// تاريخ التعديل: 2026-08-27
+// تاريخ التعديل: 2026-08-31 — تنظيف شامل + توحيد بنية الإرجاع + دعم Session Auth
+// ═══════════════════════════════════════════════════════════════════════
+//
+// ⚙️ نظام المصادقة المزدوج (Dual Auth):
+//   1. Session-based (v6 الجديد): دوال Auth Bridge في نهاية الملف
+//      → uiLoginWithEmail, uiLoginWithGoogle, uiValidateSession, uiAuthLogout, uiGetCurrentUser
+//      → تعتمد على 01_Auth.js (كائن Auth) + 02_AuthSession.js
+//   2. OAuth-based (القديم): جميع دوال API الأخرى عبر _requireAuth()
+//      → تعتمد على Session.getActiveUser() من Google
+//      → لا تزال تعمل عند نشر التطبيق كـ "Execute as: User accessing"
+//
+// 📦 التبعيات الخارجية:
+//   - 01_Auth.js          → كائن Auth (loginWithEmail, loginWithGoogle, register)
+//   - 02_AuthSession.js   → AuthSession (createSession, validateSession, destroySession, ...)
+//   - 03_AuthPassword.js  → AuthPassword (hash, verify)
+//   - 13_Permissions.js   → MEMBER_COL, getCurrentMember, getRolePermissions, hasPermission
+//   - 03_Logger.gs         → logActivity, Logger
+//
 // ═══════════════════════════════════════════════════════════════════════
 
 // ─── PERMISSIONS ───
@@ -34,6 +50,9 @@ if (typeof PERMISSIONS === "undefined" || !PERMISSIONS) var PERMISSIONS = {};
 })();
 
 // ─── AUTH HELPERS ───
+// ⚠️ _requireAuth يستخدم OAuth (Google Session) — لا يتحقق من Token
+//    استخدمه مع دوال API الداخلية. للتحقق من جلسة المستخدم (token-based)
+//    استخدم uiValidateSession() بدلاً منه.
 function _requireAuth(permission) {
   var member = getCurrentMember();
   if (!member) {
@@ -99,52 +118,6 @@ function _auditLog(action, target, details, status) {
   }
 }
 
-// ============================================================
-// USER AUTH API
-// ============================================================
-
-function uiGetCurrentUser() {
-  try {
-    _checkRateLimit("uiGetCurrentUser");
-    var email = "";
-    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
-    var member = getCurrentMember();
-
-    if (!member) {
-      return {
-        success: false,
-        error: String(email) + " - غير مسجل. تحقق: (1) الإيميل في Members (2) Status=Active (3) لا تكرار."
-      };
-    }
-
-    // ── SAFE EXTRACTION: String() wrapper prevents Date/undefined serialization failure ──
-    var safeEmail = String(member[MEMBER_COL.EMAIL] || "").trim();
-    var safeName = String(member[MEMBER_COL.FULL_NAME] || "").trim();
-    var safeRole = String(member[MEMBER_COL.ROLE] || "").trim();
-
-    var safePermissions = [];
-    try {
-      var perms = getRolePermissions(safeRole);
-      if (Array.isArray(perms)) {
-        safePermissions = perms.filter(function(p) { return typeof p === "string"; });
-      }
-    } catch (permErr) {
-      console.log("[AUTH] getRolePermissions failed: " + permErr.message);
-    }
-
-    return {
-      success: true,
-      data: {
-        email: safeEmail,
-        name: safeName,
-        role: safeRole,
-        permissions: safePermissions
-      }
-    };
-  } catch (e) {
-    return { success: false, error: String(e.message || "Unknown error") };
-  }
-}
 // ============================================================
 // KPI APIs
 // ============================================================
@@ -819,6 +792,7 @@ function uiCreateInventoryItem(data) {
   }
 }
 
+// ⚠️ Alias للتوافق مع الإصدارات السابقة — يُفضّل استخدام uiCreateInventoryItem مباشرة
 function uiCreateInventory(data) {
   return uiCreateInventoryItem(data);
 }
@@ -1348,39 +1322,217 @@ function uiGetKPIs(params) {
   }
 }
 
+
 // ============================================================
-// LAUNCH UI — NO BUSINESS PERMISSIONS REQUIRED
+// AUTH BRIDGE APIs (v6 — Session-based)
+// تعتمد على كائن Auth من 01_Auth.js و AuthSession من 02_AuthSession.js
 // ============================================================
 
-function showPhinoxDashboard() {
-  var html = HtmlService.createHtmlOutputFromFile("UI_Index")
-    .setTitle("PHINOX BOS Dashboard")
-    .setWidth(1280)
-    .setHeight(900);
-  SpreadsheetApp.getUi().showModalDialog(html, "PHINOX BOS");
+/**
+ * التحقق من الجلسة — يُستدعى من الواجهة عند تحميل الصفحة
+ * يُرجع بيانات المستخدم الآمنة (كلها strings — لا Date)
+ * @param {string} token
+ * @returns {object} { success, data: {id, name, email, role, permissions[]} }
+ */
+function uiValidateSession(token) {
+  try {
+    _checkRateLimit('uiValidateSession');
+    
+    if (!token || typeof token !== 'string') {
+      return { success: false, error: 'AUTH_REQUIRED: يرجى تسجيل الدخول' };
+    }
+    
+    // التحقق من الجلسة
+    var session = AuthSession.validateSession(token);
+    if (!session) {
+      return { success: false, error: 'AUTH_SESSION_EXPIRED: انتهت صلاحية الجلسة' };
+    }
+    
+    // جلب بيانات العضو من الشيت
+    var member = AuthSession.getSessionMember(token);
+    if (!member) {
+      AuthSession.destroySession(token);
+      return { success: false, error: 'AUTH_USER_NOT_FOUND: المستخدم محذوف' };
+    }
+    
+    // التحقق من الحالة
+    var status = String(member[MEMBER_COL.STATUS] || '').trim().toLowerCase();
+    if (status !== 'active') {
+      AuthSession.destroySession(token);
+      return { success: false, error: 'AUTH_ACCOUNT_INACTIVE: الحساب غير نشط' };
+    }
+    
+    // تحويل لكائن آمن (كل القيم strings)
+    var safeEmail = String(member[MEMBER_COL.EMAIL] || '').trim();
+    var safeName = String(member[MEMBER_COL.FULL_NAME] || '').trim();
+    var safeRole = String(member[MEMBER_COL.ROLE] || '').trim();
+    
+    var safePermissions = [];
+    try {
+      var perms = getRolePermissions(safeRole);
+      if (Array.isArray(perms)) {
+        safePermissions = perms.filter(function(p) { return typeof p === 'string'; });
+      }
+    } catch(e) {}
+    
+    return {
+      success: true,
+      data: {
+        id: String(member[MEMBER_COL.MEMBER_ID] || ''),
+        email: safeEmail,
+        name: safeName,
+        role: safeRole,
+        department: typeof MEMBER_COL.DEPARTMENT !== 'undefined'
+          ? String(member[MEMBER_COL.DEPARTMENT] || '') : '',
+        permissions: safePermissions
+      }
+    };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'Unknown error') };
+  }
 }
 
-function showPhinoxDashboardSidebar() {
-  var html = HtmlService.createHtmlOutputFromFile("UI_Index")
-    .setTitle("PHINOX BOS")
-    .setWidth(350);
-  SpreadsheetApp.getUi().showSidebar(html);
-}
-function _handleDoGetInternal(e) {
-  var page = e.parameter ? (e.parameter.page || "index") : "index";
-  if (page === "index" || page === "dashboard") {
-    return HtmlService.createHtmlOutputFromFile("UI_Index")
-      .setTitle("PHINOX BOS")
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+/**
+ * تسجيل الدخول بالبريد وكلمة المرور — wrapper آمن
+ * @param {string} email
+ * @param {string} password
+ * @returns {object} { success, data: {token, user} }
+ */
+function uiLoginWithEmail(email, password) {
+  try {
+    _checkRateLimit('uiLoginWithEmail');
+    
+    if (!email || !password) {
+      return { success: false, error: 'البريد وكلمة المرور مطلوبان' };
+    }
+    
+    var result = Auth.loginWithEmail(email, password);
+    
+    if (!result.success) {
+      return { success: false, error: String(result.error || result.message || 'فشل تسجيل الدخول') };
+    }
+    
+    // إضافة الصلاحيات لكائن المستخدم
+    var safePermissions = [];
+    try {
+      var perms = getRolePermissions(result.user.role || '');
+      if (Array.isArray(perms)) {
+        safePermissions = perms.filter(function(p) { return typeof p === 'string'; });
+      }
+    } catch(e) {}
+    result.user.permissions = safePermissions;
+    
+    return { success: true, data: { token: result.token, user: result.user } };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'خطأ في تسجيل الدخول') };
   }
-  if (page === "login") {
-    return HtmlService.createHtmlOutput("<h2>Login Page</h2>");
-  }
-  return HtmlService.createHtmlOutputFromFile("UI_Index")
-    .setTitle("PHINOX BOS")
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+/**
+ * تسجيل الدخول عبر Google — wrapper آمن
+ * @returns {object} { success, data: {token, user} }
+ */
+function uiLoginWithGoogle() {
+  try {
+    _checkRateLimit('uiLoginWithGoogle');
+    
+    var result = Auth.loginWithGoogle();
+    
+    if (!result.success) {
+      return { success: false, error: String(result.error || result.message || 'فشل المصادقة عبر Google') };
+    }
+    
+    // إضافة الصلاحيات لكائن المستخدم
+    var safePermissions = [];
+    try {
+      var perms = getRolePermissions(result.user.role || '');
+      if (Array.isArray(perms)) {
+        safePermissions = perms.filter(function(p) { return typeof p === 'string'; });
+      }
+    } catch(e) {}
+    result.user.permissions = safePermissions;
+    
+    return { success: true, data: { token: result.token, user: result.user } };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'خطأ في المصادقة عبر Google') };
+  }
+}
+
+/**
+ * تسجيل الخروج — يدمّر الجلسة
+ * @param {string} token
+ * @returns {object} { success }
+ */
+function uiAuthLogout(token) {
+  try {
+    if (token) {
+      AuthSession.destroySession(String(token));
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'خطأ في تسجيل الخروج') };
+  }
+}
+
+/**
+ * الحصول على المستخدم الحالي ( legacy + session support )
+ * يدعم طريقتين:
+ *   1. token-based: لو مُرّر token يتحقق من الجلسة
+ *   2. Google OAuth: لو بدون token يستخدم Session.getActiveUser (الطريقة القديمة)
+ * @param {string} [token] — رمز الجلسة (اختياري)
+ * @returns {object} { success, data }
+ */
+function uiGetCurrentUser(token) {
+  try {
+    _checkRateLimit('uiGetCurrentUser');
+    
+    // ── الطريقة الجديدة: التحقق من الجلسة ──
+    if (token && typeof token === 'string' && token.length > 0) {
+      return uiValidateSession(token);
+    }
+    
+    // ── الطريقة القديمة: Google OAuth (fallback) ──
+    var email = '';
+    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
+    var member = getCurrentMember();
+
+    if (!member) {
+      return {
+        success: false,
+        error: String(email) + ' - غير مسجل. تحقق: (1) الإيميل في Members (2) Status=Active (3) لا تكرار.'
+      };
+    }
+
+    var safeEmail = String(member[MEMBER_COL.EMAIL] || '').trim();
+    var safeName = String(member[MEMBER_COL.FULL_NAME] || '').trim();
+    var safeRole = String(member[MEMBER_COL.ROLE] || '').trim();
+
+    var safePermissions = [];
+    try {
+      var perms = getRolePermissions(safeRole);
+      if (Array.isArray(perms)) {
+        safePermissions = perms.filter(function(p) { return typeof p === 'string'; });
+      }
+    } catch (permErr) {
+      console.log('[AUTH] getRolePermissions failed: ' + permErr.message);
+    }
+
+    return {
+      success: true,
+      data: {
+        id: String(member[MEMBER_COL.MEMBER_ID] || ''),
+        email: safeEmail,
+        name: safeName,
+        role: safeRole,
+        department: typeof MEMBER_COL.DEPARTMENT !== 'undefined'
+          ? String(member[MEMBER_COL.DEPARTMENT] || '') : '',
+        permissions: safePermissions
+      }
+    };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'Unknown error') };
+  }
+}
 // ============================================================
 // DIAGNOSTIC API (temporary - remove after fixing)
 // ============================================================
@@ -1400,7 +1552,7 @@ function uiDiagnose() {
     // 2. Spreadsheet
     var ss = null;
     try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
-    check('ActiveSpreadsheet', ss !== null, ss ? ss.getName() : e.message);
+    check('ActiveSpreadsheet', ss !== null, ss ? ss.getName() : 'no active spreadsheet');
 
     // 3. Members sheet
     if (ss) {

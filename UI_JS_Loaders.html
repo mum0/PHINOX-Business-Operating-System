@@ -3,16 +3,24 @@
 // NAVIGATION
 // ═══════════════════════════════════════════════════════
 function navigateTo(page) {
+  // Update active nav-item
   document.querySelectorAll('.nav-item').forEach(function(el) {
     el.classList.remove('active');
     if (el.getAttribute('data-page') === page) el.classList.add('active');
   });
+  // Show target page section
   document.querySelectorAll('.page-section').forEach(function(el) {
     el.classList.remove('active');
   });
   var target = document.getElementById('page-' + page);
   if (target) target.classList.add('active');
-  document.getElementById('sidebar').classList.remove('open');
+  // Close mobile sidebar
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  if (sidebar && sidebar.classList.contains('open')) {
+    sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+  }
   window.scrollTo(0, 0);
 
   var loaders = {
