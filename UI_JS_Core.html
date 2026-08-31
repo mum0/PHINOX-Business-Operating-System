@@ -30,6 +30,7 @@ var _orderCache = [];
 var _notifications = { pendingRegistrations: 0, overdueTasks: 0, lowStockItems: 0, pendingExpenses: 0 };
 var _revenueChartInstance = null;
 var _authToken = null; // ✅ token الجلسة الحالية
+var _authInitStarted = false; // ✅ منع الاستدعاء المتكرر لـ initAuthSystem
 
 // ═══════════════════════════════════════════════════════
 // i18n — Arabic / English Translations
@@ -713,40 +714,63 @@ function _checkServerV6Auth() {
 }
 
 function initAuthSystem() {
-  // 1. محاولة استعادة الجلسة من localStorage
-  var savedToken = null;
-  try { savedToken = localStorage.getItem('phinox_session'); } catch(e) {}
+  // ✅ Guard: منع الاستدعاء المتكرر
+  if (_authInitStarted) return;
+  _authInitStarted = true;
 
-  // 2. تحقق مما إذا كان السيرفر يدعم v6 auth
-  var hasV6 = _checkServerV6Auth();
+  // ✅ انتظر حتى يكون google.script.run جاهزاً (iframe channel)
+  var maxWait = 3000;
+  var startTime = Date.now();
 
-  if (savedToken && hasV6) {
-    // v6: تحقق من الجلسة عبر token
-    callServer('uiValidateSession', savedToken).then(function(res) {
-      var user = res.data;
-      if (user && user.email) {
-        _authToken = savedToken;
-        _currentUser = user;
-        _onAuthSuccess(_currentUser);
-        return;
-      }
-      // الجلسة غير صالحة
-      try { localStorage.removeItem('phinox_session'); } catch(e) {}
-      _authToken = null;
-      _tryGoogleFallback();
-    }).catch(function() {
-      try { localStorage.removeItem('phinox_session'); } catch(e) {}
-      _authToken = null;
-      _tryGoogleFallback();
-    });
-  } else {
-    // لا يوجد token أو السيرفر لا يدعم v6 — حاول Google OAuth مباشرة
-    if (savedToken) {
-      try { localStorage.removeItem('phinox_session'); } catch(e) {}
-      _authToken = null;
+  function tryInit() {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      _doInit();
+    } else if (Date.now() - startTime < maxWait) {
+      setTimeout(tryInit, 200);
+    } else {
+      console.warn('[Auth] google.script.run not available after 3s — showing login');
+      _showLoginOverlay();
     }
-    _tryGoogleFallback();
   }
+
+  function _doInit() {
+    // 1. محاولة استعادة الجلسة من localStorage
+    var savedToken = null;
+    try { savedToken = localStorage.getItem('phinox_session'); } catch(e) {}
+
+    // 2. تحقق مما إذا كان السيرفر يدعم v6 auth
+    var hasV6 = _checkServerV6Auth();
+
+    if (savedToken && hasV6) {
+      // v6: تحقق من الجلسة عبر token
+      callServer('uiValidateSession', savedToken).then(function(res) {
+        var user = res.data;
+        if (user && user.email) {
+          _authToken = savedToken;
+          _currentUser = user;
+          _onAuthSuccess(_currentUser);
+          return;
+        }
+        // الجلسة غير صالحة
+        try { localStorage.removeItem('phinox_session'); } catch(e) {}
+        _authToken = null;
+        _tryGoogleFallback();
+      }).catch(function() {
+        try { localStorage.removeItem('phinox_session'); } catch(e) {}
+        _authToken = null;
+        _tryGoogleFallback();
+      });
+    } else {
+      // لا يوجد token أو السيرفر لا يدعم v6 — حاول Google OAuth مباشرة
+      if (savedToken) {
+        try { localStorage.removeItem('phinox_session'); } catch(e) {}
+        _authToken = null;
+      }
+      _tryGoogleFallback();
+    }
+  }
+
+  tryInit();
 }
 
 /**
