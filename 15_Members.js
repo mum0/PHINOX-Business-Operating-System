@@ -13,25 +13,15 @@
 // If 13_Permissions.js is loaded first (alphabetical order), this re-declares
 // the same keys. In GAS V8, the last `var` wins, so keys MUST be identical.
 var MEMBER_COL = {
-  ID:             0,
-  EMAIL:          1,
-  DISPLAY_NAME:   2,
-  PHOTO_URL:      3,
-  GOOGLE_ID:      4,
-  PROVIDER:       5,
-  ROLE:           6,
-  STATUS:         7,
-  CREATED_AT:     8,
-  UPDATED_AT:     9,
-  LAST_LOGIN:     10,
-  DEPARTMENT:     11,
-  PASSWORD_HASH:  12
+  MEMBER_ID: 0, FULL_NAME: 1, ROLE: 2, EMAIL: 3, PHONE: 4, STATUS: 5,
+  JOIN_DATE: 6, KPI_SCORE: 7, TASKS_COMPLETED: 8, TASKS_LATE: 9,
+  AVERAGE_QUALITY: 10, NOTES: 11, DEPARTMENT: 12, PASSWORD_HASH: 13
 };
 
 var MEMBER_SCHEMA = {
   id: 1, fullName: 2, role: 3, email: 4, phone: 5, status: 6,
   joinDate: 7, kpiScore: 8, tasksCompleted: 9, tasksLate: 10,
-  averageQuality: 11, notes: 12
+  averageQuality: 11, notes: 12, department: 13, passwordHash: 14
 };
 
 var _memberRepo = null;
@@ -67,14 +57,14 @@ function _ensureMemberSheet() {
   var sheet = ss.getSheetByName('Members');
   if (!sheet) {
     sheet = ss.insertSheet('Members');
-    var headers = ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes'];
+    var headers = ['id','fullName','role','email','phone','status','joinDate','kpiScore','tasksCompleted','tasksLate','averageQuality','notes','department','passwordHash'];
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length)
       .setFontWeight('bold')
       .setBackground('#1a237e')
       .setFontColor('#ffffff');
     for (var i = 1; i <= headers.length; i++) sheet.setColumnWidth(i, 20);
-    console.log('[Members] Sheet created with 12 columns');
+    console.log('[Members] Sheet created with 14 columns');
   }
   return sheet;
 }
@@ -92,7 +82,7 @@ function _getMemberRepo() {
  ─────────────────────────────────────────── */
 
 function _memberObjectToArray(obj) {
-  var arr = new Array(12).fill('');
+  var arr = new Array(14).fill('');
   arr[MEMBER_COL.MEMBER_ID] = _safeString(obj.id);
   arr[MEMBER_COL.FULL_NAME] = _safeString(obj.fullName || obj.name);
   arr[MEMBER_COL.ROLE] = _safeString(obj.role);
@@ -105,6 +95,8 @@ function _memberObjectToArray(obj) {
   arr[MEMBER_COL.TASKS_LATE] = _safeNumber(obj.tasksLate);
   arr[MEMBER_COL.AVERAGE_QUALITY] = _safeNumber(obj.averageQuality);
   arr[MEMBER_COL.NOTES] = _safeString(obj.notes);
+  arr[MEMBER_COL.DEPARTMENT] = _safeString(obj.department);
+  arr[MEMBER_COL.PASSWORD_HASH] = _safeString(obj.passwordHash);
   return arr;
 }
 

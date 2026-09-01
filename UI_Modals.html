@@ -100,3 +100,23 @@
     <div class="modal-footer"><button class="btn btn-danger" data-action="submit-reject-expense">Reject</button><button class="btn btn-outline" onclick="closeModal('modalRejectExpense')">Cancel</button></div>
   </div>
 </div>
+<div class="modal-overlay" id="modalRejectReg">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">❌ رفض طلب التسجيل</div>
+      <button class="modal-close" onclick="closeModal('modalRejectReg')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="rejectRegId">
+      <p style="margin-bottom:12px;color:var(--text-secondary);">يجب إدخال سبب الرفض</p>
+      <div class="form-group">
+        <label class="form-label">سبب الرفض *</label>
+        <textarea class="form-textarea" id="rejectRegReason" rows="3" placeholder="أدخل سبب رفض طلب التسجيل..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="confirmRejectReg()">تأكيد الرفض</button>
+      <button class="btn btn-outline" onclick="closeModal('modalRejectReg')">إلغاء</button>
+    </div>
+  </div>
+</div>

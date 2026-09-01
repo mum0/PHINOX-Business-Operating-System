@@ -1459,6 +1459,52 @@ function uiLoginWithGoogle() {
 }
 
 /**
+ * تسجيل مستخدم جديد — wrapper آمن
+ * @param {object} data — { displayName, email, password, role, department, authProvider }
+ * @returns {object} { success, data }
+ */
+function uiRegister(data) {
+  try {
+    _checkRateLimit('uiRegister');
+    
+    if (!data || typeof data !== 'object') {
+      return { success: false, error: 'بيانات التسجيل مطلوبة' };
+    }
+    
+    // تحويل البيانات للصيغة التي يتوقعها Auth.register()
+    var registerData = {
+      fullName: data.displayName || data.fullName || data.name || '',
+      email: (data.email || '').trim().toLowerCase(),
+      password: data.password || '',
+      phone: data.phone || '',
+      role: data.role || '',
+      department: data.department || '',
+      notes: data.authProvider 
+        ? 'Registered via ' + String(data.authProvider) 
+        : 'Registered via email form'
+    };
+    
+    var result = Auth.register(registerData);
+    
+    if (!result.success) {
+      return { success: false, error: String(result.error || result.message || 'فشل التسجيل') };
+    }
+    
+    return { 
+      success: true, 
+      data: {
+        id: result.id,
+        email: result.email,
+        role: result.role,
+        message: 'تم إرسال طلب التسجيل بنجاح. سيتم مراجعته من قبل الإدارة.'
+      }
+    };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'خطأ في التسجيل') };
+  }
+}
+
+/**
  * تسجيل الخروج — يدمّر الجلسة
  * @param {string} token
  * @returns {object} { success }
@@ -1631,4 +1677,112 @@ function uiDiagnose() {
   }
 
   return result;
+}
+
+// ============================================================
+// [من v5] LAUNCH UI — NO BUSINESS PERMISSIONS REQUIRED
+// ============================================================
+
+function showPhinoxDashboard() {
+  var html = HtmlService.createHtmlOutputFromFile("UI_Index")
+    .setTitle("PHINOX BOS Dashboard")
+    .setWidth(1280)
+    .setHeight(900);
+  SpreadsheetApp.getUi().showModalDialog(html, "PHINOX BOS");
+}
+
+function showPhinoxDashboardSidebar() {
+  var html = HtmlService.createHtmlOutputFromFile("UI_Index")
+    .setTitle("PHINOX BOS")
+    .setWidth(350);
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function _handleDoGetInternal(e) {
+  var page = e.parameter ? (e.parameter.page || "index") : "index";
+  if (page === "index" || page === "dashboard") {
+    return HtmlService.createHtmlOutputFromFile("UI_Index")
+      .setTitle("PHINOX BOS")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+  if (page === "login") {
+    return HtmlService.createHtmlOutput("<h2>Login Page</h2>");
+  }
+  return HtmlService.createHtmlOutputFromFile("UI_Index")
+    .setTitle("PHINOX BOS")
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+// دالة Ping قديمة (v5) - للتوافق مع الواجهة القديمة
+function uiPingAuth() {
+  try {
+    var email = "";
+    try { email = Session.getActiveUser().getEmail(); } catch(e) {}
+    return { success: true, data: { email: String(email || "").trim().toLowerCase() } };
+  } catch (e) {
+    return { success: false, data: { email: "" } };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MEMBER APPROVAL & PASSWORD MANAGEMENT (v6 New)
+// ═══════════════════════════════════════════════════════════
+
+function uiGetPendingRegistrations() {
+  try {
+    _checkRateLimit('uiGetPendingRegistrations');
+    _requireAuth(PERMISSIONS.MEMBERS_READ);
+    var pending = Auth.getPendingRegistrations();
+    return { success: true, data: pending };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'Unknown error') };
+  }
+}
+
+function uiApproveMember(memberId, overrides) {
+  try {
+    _checkRateLimit('uiApproveMember');
+    var admin = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
+    var result = Auth.approveRegistration(admin, memberId, overrides || null);
+    if (!result.success) return { success: false, error: result.error };
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'Unknown error') };
+  }
+}
+
+function uiRejectMember(memberId, reason) {
+  try {
+    _checkRateLimit('uiRejectMember');
+    var admin = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
+    var result = Auth.rejectRegistration(admin, memberId, reason || '');
+    if (!result.success) return { success: false, error: result.error };
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'Unknown error') };
+  }
+}
+
+function uiChangePassword(currentPassword, newPassword) {
+  try {
+    _checkRateLimit('uiChangePassword');
+    var member = getCurrentMember();
+    if (!member) return { success: false, error: 'غير مسجل الدخول' };
+    var memberId = String(member[MEMBER_COL.MEMBER_ID] || '');
+    var result = Auth.changePassword(memberId, currentPassword, newPassword);
+    if (!result.success) return { success: false, error: result.error };
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'Unknown error') };
+  }
+}
+
+function uiAdminSetPassword(targetMemberId, newPassword) {
+  try {
+    _checkRateLimit('uiAdminSetPassword');
+    var admin = _requireAuth(PERMISSIONS.MEMBERS_WRITE);
+    var result = Auth.setPassword(admin, targetMemberId, newPassword);
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: String(e.message || 'Unknown error') };
+  }
 }

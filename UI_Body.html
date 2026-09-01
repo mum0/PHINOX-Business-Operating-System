@@ -91,9 +91,6 @@
         </div>
         <div class="nav-section-items">
           <button class="nav-item" data-page="members" onclick="navigateTo('members')"><span class="icon">🧑‍💼</span> <span class="nav-label" data-i18n="nav_members">أعضاء الفريق</span><span class="nav-badge" id="badge-members" style="display:none;">0</span></button>
-         <!-- PLACE_AFTER: button.nav-item[data-page="members"] -->
-          <button class="nav-item" data-page="registrations" onclick="navigateTo('registrations')"><span class="icon">📝</span> <span class="nav-label" data-i18n="nav_registrations">طلبات التسجيل</span><span class="nav-badge" id="badge-registrations" style="display:none;">0</span></button>
-
           <button class="nav-item" data-page="registrations" onclick="navigateTo('registrations')"><span class="icon">📝</span> <span class="nav-label" data-i18n="nav_registrations">طلبات التسجيل</span><span class="nav-badge" id="badge-registrations" style="display:none;">0</span></button>
         </div>
       </div>
@@ -256,7 +253,6 @@
       <div class="card"><div id="membersTableContainer"><div class="loading"><span data-i18n="loading_members">جاري تحميل الأعضاء...</span></div></div></div>
     </section>
 
-    <!-- PLACE_AFTER: section.page-section#page-members -->
 <section class="page-section" id="page-registrations">
   <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;" data-i18n="page_registrations">طلبات التسجيل</h1>
 
@@ -304,9 +300,9 @@
       <div class="filter-group"><label>الحالة</label>
         <select class="form-select" id="regStatusFilter" style="width:140px;" onchange="filterRegistrations()">
           <option value="">الكل</option>
-          <option value="Pending">معلق</option>
-          <option value="Approved">مقبول</option>
-          <option value="Rejected">مرفوض</option>
+          <option value="pending">معلق</option>
+          <option value="approved">مقبول</option>
+          <option value="rejected">مرفوض</option>
         </select>
       </div>
       <button class="btn btn-primary" onclick="loadRegistrations()">🔄 تحديث</button>
@@ -333,84 +329,88 @@
     </div>
   </div>
 </section>
-s
+<div id="page-registrations" class="page-section" style="display:none;">
+  <div class="page-header">
+    <h2 class="page-title" data-i18n="page_members">أعضاء الفريق</h2>
+    <div class="page-actions">
+      <input type="text" id="regSearch" class="form-input" style="width:220px;" placeholder="بحث بالاسم أو الإيميل..." oninput="filterRegistrations()">
+      <select id="regStatusFilter" class="form-select" style="width:140px;" onchange="filterRegistrations()">
+        <option value="">كل الحالات</option>
+        <option value="pending">معلق</option>
+        <option value="approved">مقبول</option>
+        <option value="rejected">مرفوض</option>
+      </select>
+    </div>
+  </div>
 
-    <!-- ═══ Registration Approval Page ═══ -->
-    <section class="page-section" id="page-registrations">
-      <h1 style="font-size:28px;font-weight:800;margin-bottom:24px;" data-i18n="page_registrations">طلبات التسجيل</h1>
-
-      <!-- Stats -->
-      <div class="reg-stats-row">
-        <div class="reg-stat-card">
-          <div class="reg-stat-icon total">📋</div>
-          <div><div class="reg-stat-number" id="regStatTotal">0</div><div class="reg-stat-label">إجمالي الطلبات</div></div>
-        </div>
-        <div class="reg-stat-card">
-          <div class="reg-stat-icon pending">⏳</div>
-          <div><div class="reg-stat-number" id="regStatPending">0</div><div class="reg-stat-label">طلبات معلقة</div></div>
-        </div>
-        <div class="reg-stat-card">
-          <div class="reg-stat-icon approved">✅</div>
-          <div><div class="reg-stat-number" id="regStatApproved">0</div><div class="reg-stat-label">مقبولة</div></div>
-        </div>
-        <div class="reg-stat-card">
-          <div class="reg-stat-icon rejected">❌</div>
-          <div><div class="reg-stat-number" id="regStatRejected">0</div><div class="reg-stat-label">مرفوضة</div></div>
-        </div>
+  <!-- Stats Row -->
+  <div class="reg-stats-row">
+    <div class="reg-stat-card">
+      <div class="reg-stat-icon total">👥</div>
+      <div>
+        <div class="reg-stat-number" id="regStatTotal">0</div>
+        <div class="reg-stat-label">إجمالي الأعضاء</div>
       </div>
-
-      <!-- Tabs -->
-      <div class="reg-tabs">
-        <button class="reg-tab-btn active" data-reg-tab="pending" onclick="switchRegTab('pending')">الطلبات المعلقة</button>
-        <button class="reg-tab-btn" data-reg-tab="history" onclick="switchRegTab('history')">سجل الطلبات</button>
+    </div>
+    <div class="reg-stat-card">
+      <div class="reg-stat-icon pending">⏳</div>
+      <div>
+        <div class="reg-stat-number" id="regStatPending">0</div>
+        <div class="reg-stat-label">معلّق</div>
       </div>
-
-      <!-- Tab: Pending -->
-      <div class="reg-tab-content active" data-reg-tab="pending">
-        <div class="reg-pending-list" id="regPendingList">
-          <div class="loading"><span data-i18n="loading_registrations">جاري تحميل طلبات التسجيل...</span></div>
-        </div>
-        <div class="empty-state" id="regNoPending" style="display:none;padding:40px;text-align:center;">
-          <div style="font-size:48px;margin-bottom:12px;">✅</div>
-          <p style="color:var(--text-secondary);font-size:15px;">لا توجد طلبات تسجيل معلقة</p>
-        </div>
+    </div>
+    <div class="reg-stat-card">
+      <div class="reg-stat-icon approved">✅</div>
+      <div>
+        <div class="reg-stat-number" id="regStatApproved">0</div>
+        <div class="reg-stat-label">مقبول</div>
       </div>
-
-      <!-- Tab: History -->
-      <div class="reg-tab-content" data-reg-tab="history">
-        <div class="filter-bar" style="margin-bottom:16px;">
-          <div class="filter-group"><label>بحث</label><input type="text" class="form-input" id="regSearch" placeholder="الاسم، البريد، رقم الطلب..." style="width:240px;" oninput="filterRegistrations()"></div>
-          <div class="filter-group"><label>الحالة</label>
-            <select class="form-select" id="regStatusFilter" style="width:140px;" onchange="filterRegistrations()">
-              <option value="">الكل</option>
-              <option value="Pending">معلق</option>
-              <option value="Approved">مقبول</option>
-              <option value="Rejected">مرفوض</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" onclick="loadRegistrations()">🔄 تحديث</button>
-        </div>
-        <div class="card">
-          <div style="overflow-x:auto;">
-            <table class="reg-history-table">
-              <thead>
-                <tr>
-                  <th>رقم الطلب</th>
-                  <th>الاسم</th>
-                  <th>البريد</th>
-                  <th>الدور</th>
-                  <th>القسم</th>
-                  <th>الحالة</th>
-                  <th>التاريخ</th>
-                </tr>
-              </thead>
-              <tbody id="regHistoryBody">
-                <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">جاري التحميل...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+    </div>
+    <div class="reg-stat-card">
+      <div class="reg-stat-icon rejected">❌</div>
+      <div>
+        <div class="reg-stat-number" id="regStatRejected">0</div>
+        <div class="reg-stat-label">مرفوض</div>
       </div>
-    </section>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="reg-tabs">
+    <button class="reg-tab-btn active" data-reg-tab="pending" onclick="switchRegTab('pending')">طلبات معلّقة</button>
+    <button class="reg-tab-btn" data-reg-tab="history" onclick="switchRegTab('history')">سجل التسجيلات</button>
+  </div>
+
+  <!-- Tab: Pending -->
+  <div class="reg-tab-content active" data-reg-tab="pending">
+    <div id="regPendingList" class="reg-pending-list"></div>
+    <div id="regNoPending" class="empty-state" style="display:none;">
+      <div style="font-size:40px;margin-bottom:12px;">🎉</div>
+      <div>لا توجد طلبات تسجيل معلّقة</div>
+    </div>
+  </div>
+
+  <!-- Tab: History -->
+  <div class="reg-tab-content" data-reg-tab="history">
+    <div style="overflow-x:auto;">
+      <table class="reg-history-table">
+        <thead>
+          <tr>
+            <th>الرقم</th>
+            <th>الاسم</th>
+            <th>البريد</th>
+            <th>الدور</th>
+            <th>القسم</th>
+            <th>الحالة</th>
+            <th>التاريخ</th>
+          </tr>
+        </thead>
+        <tbody id="regHistoryBody">
+          <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">جاري التحميل...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
   </main>
 </div>

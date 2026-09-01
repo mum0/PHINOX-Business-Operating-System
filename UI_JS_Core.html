@@ -97,6 +97,18 @@
       auth_error: 'خطأ في الاتصال بالسيرفر',
       auth_invalid_session: 'انتهت صلاحية الجلسة',
       auth_welcome: 'مرحباً',
+      auth_register_btn: 'إنشاء حساب جديد',
+      auth_register_title: 'إنشاء حساب جديد',
+      auth_register_desc: 'أدخل بياناتك للتسجيل في PHINOX BOS',
+      auth_fullname: 'الاسم الكامل',
+      auth_fullname_ph: 'مثال: أحمد محمد',
+      auth_password_ph: '6 أحرف على الأقل',
+      auth_role: 'الدور',
+      auth_optional: 'اختياري',
+      auth_department: 'القسم',
+      auth_department_ph: 'مثال: المبيعات',
+      auth_register_submit: 'إنشاء حساب',
+      auth_back_to_login: 'العودة لتسجيل الدخول',
       welcome: 'مرحباً',
       guest_skip: 'متابعة كضيف',
       dark_mode: 'الوضع الداكن', light_mode: 'الوضع الفاتح',
@@ -168,6 +180,18 @@
       auth_error: 'Server connection error',
       auth_invalid_session: 'Session expired',
       auth_welcome: 'Welcome',
+      auth_register_btn: 'Create Account',
+      auth_register_title: 'Create New Account',
+      auth_register_desc: 'Enter your details to register in PHINOX BOS',
+      auth_fullname: 'Full Name',
+      auth_fullname_ph: 'e.g. John Smith',
+      auth_password_ph: 'At least 6 characters',
+      auth_role: 'Role',
+      auth_optional: 'Optional',
+      auth_department: 'Department',
+      auth_department_ph: 'e.g. Sales',
+      auth_register_submit: 'Create Account',
+      auth_back_to_login: 'Back to Login',
       welcome: 'Welcome',
       guest_skip: 'Continue as Guest',
       dark_mode: 'Dark Mode', light_mode: 'Light Mode',
@@ -602,167 +626,54 @@
     }, 100);
   }
   
+  function submitRegister(event) {
+    event.preventDefault();
+    var status = document.getElementById('registerStatus');
+    var submitBtn = document.getElementById('registerSubmitBtn');
   
-  /* ---------------------------------------------------------------
-     تحديث دالة التسجيل بالنقر العادي (بريد إلكتروني)
-     استبدل دالة submitRegister الحالية بهذا الكود
-     --------------------------------------------------------------- */
-     function submitRegister(e) {
-    if (e) e.preventDefault();
+    status.style.display = 'block';
+    status.style.background = 'rgba(14,165,233,0.1)';
+    status.style.border = '1px solid rgba(14,165,233,0.3)';
+    status.style.color = '#38BDF8';
+    status.textContent = _currentLang === 'ar' ? 'جاري التسجيل...' : 'Registering...';
+    if (submitBtn) submitBtn.disabled = true;
   
-    // ✅ FIXED: IDs مطابقة لـ showRegisterForm()
-    var nameEl = document.getElementById('regFullName');
-    var emailEl = document.getElementById('regEmail');
-    var passEl = document.getElementById('regPassword');
-    var deptEl = document.getElementById('regDepartment');
-    var roleEl = document.getElementById('regRole');
+    var data = {
+      fullName: document.getElementById('regFullName').value.trim(),
+      email: document.getElementById('regEmail').value.trim(),
+      password: document.getElementById('regPassword').value,
+      role: document.getElementById('regRole').value,
+      department: document.getElementById('regDepartment').value.trim()
+    };
   
-    var displayName = nameEl ? nameEl.value.trim() : '';
-    var email = emailEl ? emailEl.value.trim() : '';
-    var password = passEl ? passEl.value : '';
-    var department = deptEl ? deptEl.value : '';
-    var role = roleEl ? roleEl.value : '';
+    callServer('uiRegister', data).then(function(res) {
+      var result = res.data;
+      if (result && result.token && result.user) {
+        status.style.background = 'rgba(22,163,74,0.1)';
+        status.style.border = '1px solid rgba(22,163,74,0.3)';
+        status.style.color = '#4ADE80';
+        status.textContent = _currentLang === 'ar' ? 'تم التسجيل بنجاح! جاري تسجيل الدخول...' : 'Registration successful! Signing in...';
   
-    if (!displayName || !email || !password) {
-      _showAuthError(_currentLang === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
-      return;
-    }
-    if (password.length < 6) {
-      _showAuthError(_currentLang === 'ar' ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' : 'Password must be at least 6 characters');
-      return;
-    }
-  
-    // ✅ FIXED: زر الإرسال الصحيح
-    var btn = document.getElementById('registerSubmitBtn');
-    var origText = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = '...'; }
-  
-    // ✅ FIXED: نستخدم uiRegister (الموجودة في _V6_AUTH_FUNCTIONS) بدل uiRegisterWithEmail
-    callServer('uiRegister', {
-      displayName: displayName,
-      email: email,
-      password: password,
-      department: department,
-      role: role
-    })
-    .then(function(result) {
-      var msg = (result.data && result.data.message) || result.data || '';
-      _showRegisterSuccessOverlay(typeof msg === 'string' ? msg : '');
-    })
-    .catch(function(err) {
-      _showAuthError(err.message || 'حدث خطأ في التسجيل');
-    })
-    .finally(function() {
-      if (btn) { btn.disabled = false; btn.textContent = origText; }
+        _authToken = result.token;
+        try { localStorage.setItem('phinox_session', result.token); } catch(e) {}
+        _currentUser = result.user;
+        _onAuthSuccess(_currentUser);
+      } else {
+        _showRegisterError('حدث خطأ غير متوقع');
+      }
+    }).catch(function(err) {
+      _showRegisterError(err.message || 'خطأ غير معروف');
     });
-  }
   
-  /* ---------------------------------------------------------------
-     تحديث تسجيل Google ليعمل مع نظام الموافقة
-     استبدل دالة submitGoogleRegister أو أضفها إذا لم تكن موجودة
-     --------------------------------------------------------------- */
-  // ✅ FIXED: submitGoogleRegister — showToast بدل _showToast + معالجة استجابة صحيحة
-  function submitGoogleRegister(profile) {
-    showToast(_currentLang === 'ar' ? 'جاري إرسال طلب التسجيل...' : 'Submitting registration...', 'info');
-  
-    callServer('uiRegister', {
-      email: profile.email || (typeof profile.getEmail === 'function' ? profile.getEmail() : ''),
-      name: profile.name || (typeof profile.getName === 'function' ? profile.getName() : ''),
-      picture: profile.picture || (typeof profile.getImageUrl === 'function' ? profile.getImageUrl() : ''),
-      id: profile.id || (typeof profile.getId === 'function' ? profile.getId() : ''),
-      authProvider: 'google'
-    })
-    .then(function(result) {
-      var msg = (result.data && result.data.message) || result.data || '';
-      _showRegisterSuccessOverlay(typeof msg === 'string' ? msg : '');
-    })
-    .catch(function(err) {
-      showToast(err.message || 'حدث خطأ في التسجيل', 'error');
-    });
-  }
-  
-  /* ---------------------------------------------------------------
-     نافذة نجاح التسجيل (بدلاً من تسجيل الدخول المباشر)
-     --------------------------------------------------------------- */
-  function _showRegisterSuccessOverlay(message) {
-    // ✅ FIXED: إخفاء authOverlay بدل register-section (غير موجود في v6)
-    var authOverlay = document.getElementById('authOverlay');
-    if (authOverlay) authOverlay.style.display = 'none';
-  
-    // إنشاء نافذة النجاح
-    var overlay = document.createElement('div');
-    overlay.className = 'register-success-overlay';
-    overlay.id = 'register-success-overlay';
-    overlay.innerHTML =
-      '<div class="register-success-box">' +
-        '<div style="width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">' +
-          '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' +
-        '</div>' +
-        '<h3>تم إرسال طلب التسجيل</h3>' +
-        '<p>' + (message || 'تم إرسال طلبك بنجاح. سيتم مراجعته من قبل الإدارة وسيتم إشعارك بالنتيجة.') + '</p>' +
-        '<button class="btn btn-primary btn-lg" onclick="_closeRegisterSuccess()">حسناً</button>' +
-      '</div>';
-    document.body.appendChild(overlay);
-  }
-  
-  function _closeRegisterSuccess() {
-    var overlay = document.getElementById('register-success-overlay');
-    if (overlay) overlay.remove();
-    // العودة لتسجيل الدخول
-    _showLoginOverlay();
-  }
-  
-  /* ---------------------------------------------------------------
-     تحديث تسجيل الدخول بالبريد (مع التحقق من الحالة)
-     إذا كان العضو محظوراً، أظهر رسالة واضحة
-     --------------------------------------------------------------- */
-  // ✅ FIXED: submitLogin — IDs مطابقة لـ _showLoginOverlay() + معالجة استجابة صحيحة
-  function submitLogin(e) {
-    if (e) e.preventDefault();
-  
-    // ✅ FIXED: IDs مطابقة لما يُنشئه _showLoginOverlay()
-    var emailEl = document.getElementById('authEmailInput');
-    var passEl = document.getElementById('authPasswordInput');
-    var email = emailEl ? emailEl.value.trim() : '';
-    var password = passEl ? passEl.value : '';
-  
-    if (!email || !password) {
-      _showAuthError(_currentLang === 'ar' ? 'يرجى إدخال البريد وكلمة المرور' : 'Email and password required');
-      return;
+    function _showRegisterError(msg) {
+      status.style.background = 'rgba(220,38,38,0.1)';
+      status.style.border = '1px solid rgba(220,38,38,0.3)';
+      status.style.color = '#F87171';
+      status.textContent = msg;
+      if (submitBtn) submitBtn.disabled = false;
     }
-  
-    var btn = document.getElementById('authLoginBtn');
-    var origText = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = '...'; }
-    _showAuthLoading();
-  
-    callServer('uiLoginWithEmail', email, password)
-      .then(function(result) {
-        var data = result.data;
-        if (data && data.token && data.user) {
-          _authToken = data.token;
-          try { localStorage.setItem('phinox_session', data.token); } catch(e) {}
-          _currentUser = data.user;
-          _onAuthSuccess(_currentUser);
-        } else {
-          _showAuthForm();
-          _showAuthError(data && data.message ? data.message : t('auth_failed'));
-        }
-      })
-      .catch(function(err) {
-        _showAuthForm();
-        _showAuthError(err.message || t('auth_error'));
-      })
-      .finally(function() {
-        if (btn) { btn.disabled = false; btn.textContent = origText; }
-      });
   }
   
-  /* ---------------------------------------------------------------
-     ⚠️ _setupDashUser و _showMemberView — كود قديم (pre-v6)
-     في v6، _onAuthSuccess() تتعامل مع كل شيء تلقائياً
-     هذه الدوال محتفظ بها كمرجع فقط ولا تُستدعى من v6 auth flow
-     --------------------------------------------------------------- */
   function _showLoginForm() {
     var overlay = document.getElementById('authOverlay');
     if (overlay) overlay.remove();
